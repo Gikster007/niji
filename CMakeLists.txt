@@ -37,3 +37,6 @@ file(GLOB_RECURSE SOURCES
 target_sources(molten PRIVATE
 	${SOURCES}
 )
+
+# Sub-directories
+add_subdirectory("lib")
