@@ -1,0 +1,84 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 15
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/bin/build/${presetName}",
+      "installDir": "${sourceDir}/bin/install/${presetName}",
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/dev/vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "inherits": [
+        "default"
+      ],
+      "name": "windows",
+      "hidden": true,
+      "generator": "Visual Studio 17 2022",
+      "environment": {
+        "WINDOWS": "1"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "inherits": [
+        "windows"
+      ],
+      "name": "win32",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      },
+      "displayName": "x86"
+    },
+    {
+      "inherits": [
+        "windows"
+      ],
+      "name": "win64",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "displayName": "x64"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win32-debug",
+      "displayName": "x86 Debug",
+      "configurePreset": "win32",
+      "configuration": "Debug"
+    },
+    {
+      "name": "win32-release",
+      "displayName": "x86 Release",
+      "configurePreset": "win32",
+      "configuration": "Release"
+    },
+    {
+      "name": "win64-debug",
+      "displayName": "x64 Debug",
+      "configurePreset": "win64",
+      "configuration": "Debug"
+    },
+    {
+      "name": "win64-release",
+      "displayName": "x64 Release",
+      "configurePreset": "win64",
+      "configuration": "Release"
+    }
+  ]
+}
