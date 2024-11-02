@@ -26,7 +26,7 @@ add_custom_command(TARGET molten PRE_BUILD
 target_include_directories(molten PRIVATE "./src/")
 
 # Pre-compiled header
-target_precompile_headers(molten PRIVATE "./src/precomp.h")
+target_precompile_headers(molten PRIVATE "./src/precomp.hpp")
 
 # Glob all source files
 file(GLOB_RECURSE SOURCES
