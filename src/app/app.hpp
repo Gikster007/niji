@@ -1,8 +1,19 @@
 #pragma once
 
 #include "precomp.hpp"
+#include <optional>
 
 class GLFWwindow;
+
+struct QueueFamilyIndices
+{
+    std::optional<uint32_t> graphicsFamily = 0;
+
+    bool is_complete() const
+    {
+        return graphicsFamily.has_value();
+    }
+};
 
 class App
 {
@@ -28,9 +39,18 @@ class App
     void setup_debug_messenger();
     void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info);
 
+    void pick_physical_device();
+    bool is_device_suitable(VkPhysicalDevice device);
+    QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
+    void create_logical_device();
+
   public:
   private:
     GLFWwindow* m_window = nullptr;
     VkInstance m_instance = {};
     VkDebugUtilsMessengerEXT m_debug_messenger = {};
+
+    VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
+    VkDevice m_device = {};
+    VkQueue m_graphics_queue = {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
 };

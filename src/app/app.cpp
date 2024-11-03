@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <cassert>
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
                                       const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -55,6 +56,8 @@ void App::init_vulkan()
 {
     create_instance();
     setup_debug_messenger();
+    pick_physical_device();
+    create_logical_device();
 }
 
 void App::create_instance()
@@ -62,7 +65,7 @@ void App::create_instance()
     printf("Creating Vulkan Instance - IN PROGRESS \n");
 
     if (ENABLE_VALIDATION_LAYERS && !check_validation_layer_support())
-        throw std::runtime_error("Validation Layers Requested, But Not Available!");
+        assert("Validation Layers Requested, But Not Available!");
 
     // Create Vulkan Instance
     VkApplicationInfo app_info = {};
@@ -96,7 +99,7 @@ void App::create_instance()
     }
 
     if (vkCreateInstance(&create_info, nullptr, &m_instance) != VK_SUCCESS)
-        throw std::runtime_error("failed to create instance!");
+        assert("failed to create instance!");
 
     // Check for Extensions
     uint32_t extension_count = 0;
@@ -123,6 +126,8 @@ void App::main_loop()
 
 void App::cleanup()
 {
+    vkDestroyDevice(m_device, nullptr);
+
     if (ENABLE_VALIDATION_LAYERS)
         DestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger, nullptr);
 
@@ -198,7 +203,7 @@ void App::setup_debug_messenger()
 
     if (CreateDebugUtilsMessengerEXT(m_instance, &create_info, nullptr, &m_debug_messenger) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to Set Up Debug Messenger!");
+        assert("Failed to Set Up Debug Messenger!");
     }
 }
 
@@ -214,4 +219,101 @@ void App::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEX
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     create_info.pfnUserCallback = debug_callback;
+}
+
+void App::pick_physical_device()
+{
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(m_instance, &device_count, nullptr);
+    if (device_count == 0)
+        assert("Failed To Find GPUs With Vulkan Support!");
+
+    std::vector<VkPhysicalDevice> devices(device_count);
+    vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
+    
+    for (const auto& device : devices)
+    {
+        if (is_device_suitable(device))
+        {
+            m_physical_device = device;
+            break;
+        }
+    }
+
+    if (m_physical_device == VK_NULL_HANDLE)
+        assert ("Failed To Find a Suitable GPU!");
+}
+
+bool App::is_device_suitable(VkPhysicalDevice device)
+{
+    /*VkPhysicalDeviceProperties device_properties = {};
+    VkPhysicalDeviceFeatures device_features = {};
+    vkGetPhysicalDeviceProperties(device, &device_properties);
+    vkGetPhysicalDeviceFeatures(device, &device_features);*/
+
+    QueueFamilyIndices indices = find_queue_families(device);
+
+    return indices.is_complete();
+}
+
+QueueFamilyIndices App::find_queue_families(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices = {};
+
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+
+    int i = 0;
+    for (const auto& queue_family : queue_families)
+    {
+        if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;
+        }
+
+        if (indices.is_complete())
+            break;
+
+        i++;
+    }
+
+    return indices;
+}
+
+void App::create_logical_device()
+{
+    QueueFamilyIndices indices = find_queue_families(m_physical_device);
+
+    float queue_priority = 1.0f;
+    VkDeviceQueueCreateInfo queue_create_info = {};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = indices.graphicsFamily.value();
+    queue_create_info.queueCount = 1;
+    queue_create_info.pQueuePriorities = &queue_priority;
+
+    VkPhysicalDeviceFeatures device_features = {};
+    
+    VkDeviceCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.queueCreateInfoCount = 1;
+    create_info.pEnabledFeatures = &device_features;
+    create_info.enabledExtensionCount = 0;
+    if (ENABLE_VALIDATION_LAYERS)
+    {
+        create_info.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+        create_info.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+    }
+    else
+        create_info.enabledLayerCount = 0;
+
+    if (vkCreateDevice(m_physical_device, &create_info, nullptr, &m_device) != VK_SUCCESS)
+    {
+        assert("Failed To Create Logical Device!");
+    }
+
+    vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphics_queue);
 }
