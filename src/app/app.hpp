@@ -19,9 +19,18 @@ class App
 
     void cleanup();
 
-  public:
+    bool check_validation_layer_support();
+    std::vector<const char*> get_required_extensions();
+    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                   VkDebugUtilsMessageTypeFlagsEXT message_type,
+                   const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
+    void setup_debug_messenger();
+    void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info);
 
+  public:
   private:
     GLFWwindow* m_window = nullptr;
-    VkInstance m_instance;
+    VkInstance m_instance = {};
+    VkDebugUtilsMessengerEXT m_debug_messenger = {};
 };
