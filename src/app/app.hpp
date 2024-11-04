@@ -16,6 +16,13 @@ struct QueueFamilyIndices
     }
 };
 
+struct SwapChainSupportDetails
+{
+    VkSurfaceCapabilitiesKHR capabilities = {};
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> present_modes;
+};
+
 class App
 {
   public:
@@ -48,6 +55,14 @@ class App
     void create_surface();
     bool check_device_extension_support(VkPhysicalDevice device);
 
+    SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device);
+    VkSurfaceFormatKHR choose_swap_surface_format(
+        const std::vector<VkSurfaceFormatKHR>& available_formats);
+    VkPresentModeKHR choose_swap_present_mode(
+        const std::vector<VkPresentModeKHR>& available_present_modes);
+    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
+    void create_swap_chain();
+
   public:
   private:
     GLFWwindow* m_window = nullptr;
@@ -56,8 +71,13 @@ class App
 
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
     VkDevice m_device = {};
-    VkQueue m_graphics_queue = {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
-    
+    VkQueue m_graphics_queue =
+        {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
+
     VkSurfaceKHR m_surface = {};
     VkQueue m_present_queue = {};
+    VkSwapchainKHR m_swap_chain = {};
+    std::vector<VkImage> swap_chain_images;
+    VkFormat swap_chain_image_format = {};
+    VkExtent2D swap_chain_extent = {};
 };
