@@ -7,11 +7,12 @@ class GLFWwindow;
 
 struct QueueFamilyIndices
 {
-    std::optional<uint32_t> graphicsFamily = 0;
+    std::optional<uint32_t> graphics_family = {};
+    std::optional<uint32_t> present_family = {};
 
     bool is_complete() const
     {
-        return graphicsFamily.has_value();
+        return graphics_family.has_value() && present_family.has_value();
     }
 };
 
@@ -44,6 +45,9 @@ class App
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
     void create_logical_device();
 
+    void create_surface();
+    bool check_device_extension_support(VkPhysicalDevice device);
+
   public:
   private:
     GLFWwindow* m_window = nullptr;
@@ -53,4 +57,7 @@ class App
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
     VkDevice m_device = {};
     VkQueue m_graphics_queue = {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
+    
+    VkSurfaceKHR m_surface = {};
+    VkQueue m_present_queue = {};
 };

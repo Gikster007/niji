@@ -1,11 +1,10 @@
-#include "precomp.hpp"
-
 #include "app.hpp"
 
 #include <stdexcept>
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <set>
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
                                       const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -56,6 +55,7 @@ void App::init_vulkan()
 {
     create_instance();
     setup_debug_messenger();
+    create_surface();
     pick_physical_device();
     create_logical_device();
 }
@@ -131,6 +131,8 @@ void App::cleanup()
     if (ENABLE_VALIDATION_LAYERS)
         DestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger, nullptr);
 
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+
     vkDestroyInstance(m_instance, nullptr);
 
     glfwDestroyWindow(m_window);
@@ -201,7 +203,8 @@ void App::setup_debug_messenger()
     VkDebugUtilsMessengerCreateInfoEXT create_info{};
     populate_debug_messenger_create_info(create_info);
 
-    if (CreateDebugUtilsMessengerEXT(m_instance, &create_info, nullptr, &m_debug_messenger) != VK_SUCCESS)
+    if (CreateDebugUtilsMessengerEXT(m_instance, &create_info, nullptr, &m_debug_messenger) !=
+        VK_SUCCESS)
     {
         assert("Failed to Set Up Debug Messenger!");
     }
@@ -213,11 +216,11 @@ void App::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEX
     create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     create_info.pfnUserCallback = debug_callback;
 }
 
@@ -230,7 +233,7 @@ void App::pick_physical_device()
 
     std::vector<VkPhysicalDevice> devices(device_count);
     vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
-    
+
     for (const auto& device : devices)
     {
         if (is_device_suitable(device))
@@ -241,7 +244,7 @@ void App::pick_physical_device()
     }
 
     if (m_physical_device == VK_NULL_HANDLE)
-        assert ("Failed To Find a Suitable GPU!");
+        assert("Failed To Find a Suitable GPU!");
 }
 
 bool App::is_device_suitable(VkPhysicalDevice device)
@@ -253,7 +256,9 @@ bool App::is_device_suitable(VkPhysicalDevice device)
 
     QueueFamilyIndices indices = find_queue_families(device);
 
-    return indices.is_complete();
+    bool extensions_supported = check_device_extension_support(device);
+
+    return indices.is_complete() && extensions_supported;
 }
 
 QueueFamilyIndices App::find_queue_families(VkPhysicalDevice device)
@@ -269,13 +274,17 @@ QueueFamilyIndices App::find_queue_families(VkPhysicalDevice device)
     int i = 0;
     for (const auto& queue_family : queue_families)
     {
+        VkBool32 present_support = {};
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surface, &present_support);
+
         if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
-            indices.graphicsFamily = i;
-        }
+            indices.graphics_family = i;
 
         if (indices.is_complete())
             break;
+
+        if (present_support)
+            indices.present_family = i;
 
         i++;
     }
@@ -287,21 +296,30 @@ void App::create_logical_device()
 {
     QueueFamilyIndices indices = find_queue_families(m_physical_device);
 
+    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    std::set<uint32_t> unique_queue_families = {indices.graphics_family.value(),
+                                                indices.present_family.value()};
+
     float queue_priority = 1.0f;
-    VkDeviceQueueCreateInfo queue_create_info = {};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = indices.graphicsFamily.value();
-    queue_create_info.queueCount = 1;
-    queue_create_info.pQueuePriorities = &queue_priority;
+    for (uint32_t queue_family : unique_queue_families)
+    {
+        VkDeviceQueueCreateInfo queue_create_info = {};
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = queue_family;
+        queue_create_info.queueCount = 1;
+        queue_create_info.pQueuePriorities = &queue_priority;
+        queue_create_infos.push_back(queue_create_info);
+    }
 
     VkPhysicalDeviceFeatures device_features = {};
-    
+
     VkDeviceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.pQueueCreateInfos = &queue_create_info;
-    create_info.queueCreateInfoCount = 1;
+    create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+    create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.pEnabledFeatures = &device_features;
-    create_info.enabledExtensionCount = 0;
+    create_info.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
+    create_info.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
     if (ENABLE_VALIDATION_LAYERS)
     {
         create_info.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
@@ -315,5 +333,29 @@ void App::create_logical_device()
         assert("Failed To Create Logical Device!");
     }
 
-    vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphics_queue);
+    vkGetDeviceQueue(m_device, indices.graphics_family.value(), 0, &m_graphics_queue);
+    vkGetDeviceQueue(m_device, indices.present_family.value(), 0, &m_present_queue);
+}
+
+void App::create_surface()
+{
+    if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
+        assert("Failed To Create Window Surface!");
+}
+
+bool App::check_device_extension_support(VkPhysicalDevice device)
+{
+    uint32_t extension_count = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+    std::vector<VkExtensionProperties> available_extensions(extension_count);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions.data());
+
+    std::set<std::string> required_extensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
+
+    for (const auto& extension : available_extensions)
+    {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
 }
