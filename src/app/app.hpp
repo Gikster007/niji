@@ -2,6 +2,7 @@
 
 #include "precomp.hpp"
 #include <optional>
+#include <string>
 
 class GLFWwindow;
 
@@ -62,6 +63,10 @@ class App
         const std::vector<VkPresentModeKHR>& available_present_modes);
     VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
     void create_swap_chain();
+    void create_image_views();
+
+    void create_graphics_pipeline();
+    static std::vector<char> read_file(const std::string& filename);
 
   public:
   private:
@@ -80,4 +85,5 @@ class App
     std::vector<VkImage> swap_chain_images;
     VkFormat swap_chain_image_format = {};
     VkExtent2D swap_chain_extent = {};
+    std::vector<VkImageView> swap_chain_image_views;
 };
