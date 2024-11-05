@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
-#include <cassert>
+#include <stdexcept>
 #include <set>
 #include <cstdint>
 #include <limits>
@@ -72,7 +72,7 @@ void App::create_instance()
     printf("Creating Vulkan Instance - IN PROGRESS \n");
 
     if (ENABLE_VALIDATION_LAYERS && !check_validation_layer_support())
-        assert("Validation Layers Requested, But Not Available!");
+        throw std::runtime_error("Validation Layers Requested, But Not Available!");
 
     // Create Vulkan Instance
     VkApplicationInfo app_info = {};
@@ -106,7 +106,7 @@ void App::create_instance()
     }
 
     if (vkCreateInstance(&create_info, nullptr, &m_instance) != VK_SUCCESS)
-        assert("failed to create instance!");
+        throw std::runtime_error("failed to create instance!");
 
     // Check for Extensions
     uint32_t extension_count = 0;
@@ -220,7 +220,7 @@ void App::setup_debug_messenger()
     if (CreateDebugUtilsMessengerEXT(m_instance, &create_info, nullptr, &m_debug_messenger) !=
         VK_SUCCESS)
     {
-        assert("Failed to Set Up Debug Messenger!");
+        throw std::runtime_error("Failed to Set Up Debug Messenger!");
     }
 }
 
@@ -243,7 +243,7 @@ void App::pick_physical_device()
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(m_instance, &device_count, nullptr);
     if (device_count == 0)
-        assert("Failed To Find GPUs With Vulkan Support!");
+        throw std::runtime_error("Failed To Find GPUs With Vulkan Support!");
 
     std::vector<VkPhysicalDevice> devices(device_count);
     vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
@@ -258,7 +258,7 @@ void App::pick_physical_device()
     }
 
     if (m_physical_device == VK_NULL_HANDLE)
-        assert("Failed To Find a Suitable GPU!");
+        throw std::runtime_error("Failed To Find a Suitable GPU!");
 }
 
 bool App::is_device_suitable(VkPhysicalDevice device)
@@ -350,9 +350,7 @@ void App::create_logical_device()
         create_info.enabledLayerCount = 0;
 
     if (vkCreateDevice(m_physical_device, &create_info, nullptr, &m_device) != VK_SUCCESS)
-    {
-        assert("Failed To Create Logical Device!");
-    }
+        throw std::runtime_error("Failed To Create Logical Device!");
 
     vkGetDeviceQueue(m_device, indices.graphics_family.value(), 0, &m_graphics_queue);
     vkGetDeviceQueue(m_device, indices.present_family.value(), 0, &m_present_queue);
@@ -361,7 +359,7 @@ void App::create_logical_device()
 void App::create_surface()
 {
     if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS)
-        assert("Failed To Create Window Surface!");
+        throw std::runtime_error("Failed To Create Window Surface!");
 }
 
 bool App::check_device_extension_support(VkPhysicalDevice device)
@@ -500,9 +498,7 @@ void App::create_swap_chain()
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(m_device, &create_info, nullptr, &m_swap_chain) != VK_SUCCESS)
-    {
-        assert("Failed to Create Swap Chain!");
-    }
+        throw std::runtime_error("Failed to Create Swap Chain!");
 
     vkGetSwapchainImagesKHR(m_device, m_swap_chain, &image_count, nullptr);
     swap_chain_images.resize(image_count);
@@ -533,14 +529,37 @@ void App::create_image_views()
         create_info.subresourceRange.layerCount = 1;
         if (vkCreateImageView(m_device, &create_info, nullptr, &swap_chain_image_views[i]) !=
             VK_SUCCESS)
-            assert("Failed to Create Image Views");
+            throw std::runtime_error("Failed to Create Image Views");
     }
 }
 
 void App::create_graphics_pipeline()
 {
-    auto vert_shader_code = read_file("shaders/vert.spv");
-    auto frag_shader_code = read_file("shaders/frag.spv");
+    auto vert_shader_code =
+        read_file("C:/Users/gikst/Documents/Programming/C++/molten/shaders/vert.spv");
+    auto frag_shader_code =
+        read_file("C:/Users/gikst/Documents/Programming/C++/molten/shaders/frag.spv");
+
+    VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
+    VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
+
+    VkPipelineShaderStageCreateInfo vert_shader_stage_info = {};
+    vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vert_shader_stage_info.module = vert_shader_module;
+    vert_shader_stage_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo frag_shader_stage_info = {};
+    frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    frag_shader_stage_info.module = frag_shader_module;
+    frag_shader_stage_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info,
+                                                       frag_shader_stage_info};
+
+    vkDestroyShaderModule(m_device, frag_shader_module, nullptr);
+    vkDestroyShaderModule(m_device, vert_shader_module, nullptr);
 }
 
 std::vector<char> App::read_file(const std::string& filename)
@@ -548,12 +567,10 @@ std::vector<char> App::read_file(const std::string& filename)
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
-    {
-        assert("Failed to Open File!");
-    }
+        throw std::runtime_error("Failed to Open File!");
 
     size_t file_size = (size_t)file.tellg();
-    //printf("File size of %s is %u \n", filename, file_size);
+    // printf("File size of %s is %u \n", filename, file_size);
     std::vector<char> buffer(file_size);
 
     file.seekg(0);
@@ -561,4 +578,18 @@ std::vector<char> App::read_file(const std::string& filename)
 
     file.close();
     return buffer;
+}
+
+VkShaderModule App::create_shader_module(const std::vector<char>& code)
+{
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = code.size();
+    create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shader_module = {};
+    if (vkCreateShaderModule(m_device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Shader Module!");
+
+    return shader_module;
 }

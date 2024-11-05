@@ -8,10 +8,9 @@ set(CMAKE_CXX_STANDARD 17 CACHE STRING "" FORCE)
 add_executable(molten)
 set_target_properties(molten PROPERTIES OUTPUT_NAME ${CMAKE_PROJECT_NAME})
 
-# Add DEBUG compiler macro
-# target_compile_definitions(main PRIVATE "DEBUG=$<CONFIG:Debug>")
-# Add NDEBUG compiler macro
-# target_compile_definitions(main PRIVATE "NDEBUG=$<CONFIG:Release>")
+# Add compiler (debug & release) definitions
+target_compile_definitions(molten PRIVATE $<$<CONFIG:Debug>:DEBUG=1>)
+target_compile_definitions(molten PRIVATE $<$<CONFIG:Release>:NDEBUG=1>)
 # Add WINDOWS compiler macro
 target_compile_definitions(molten PRIVATE "WINDOWS=$<STREQUAL:${CMAKE_SYSTEM_NAME},Windows>")
 
