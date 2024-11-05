@@ -1,3 +1,6 @@
-.vs
+# Ignore .vs dir (except for launch config)
+.vs/*
+!.vs/launch.vs.json
+
 /bin
 /out

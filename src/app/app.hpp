@@ -65,6 +65,7 @@ class App
     void create_swap_chain();
     void create_image_views();
 
+    void create_render_pass();
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
@@ -82,8 +83,12 @@ class App
     VkSurfaceKHR m_surface = {};
     VkQueue m_present_queue = {};
     VkSwapchainKHR m_swap_chain = {};
-    std::vector<VkImage> swap_chain_images;
-    VkFormat swap_chain_image_format = {};
-    VkExtent2D swap_chain_extent = {};
-    std::vector<VkImageView> swap_chain_image_views;
+    std::vector<VkImage> m_swap_chain_images;
+    VkFormat m_swap_chain_image_format = {};
+    VkExtent2D m_swap_chain_extent = {};
+    std::vector<VkImageView> m_swap_chain_image_views;
+
+    VkRenderPass m_render_pass = {};
+    VkPipelineLayout m_pipeline_layout = {};
+    VkPipeline m_graphics_pipeline = {};
 };

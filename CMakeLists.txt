@@ -17,8 +17,8 @@ target_compile_definitions(molten PRIVATE "WINDOWS=$<STREQUAL:${CMAKE_SYSTEM_NAM
 # Post build command (copies the asset files)
 add_custom_command(TARGET molten PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory 
-    ${PROJECT_SOURCE_DIR}/public 
-    ${PROJECT_BINARY_DIR}/$<CONFIG>/public || (exit 0) # ignore failed copy.
+    ${PROJECT_SOURCE_DIR}/lib 
+    ${PROJECT_BINARY_DIR}/$<CONFIG>/lib || (exit 0) # ignore failed copy.
 )
 
 # Includes
