@@ -31,6 +31,8 @@ class App
 
   private:
     void init_window();
+    static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+
     void init_vulkan();
 
     void create_instance();
@@ -38,6 +40,7 @@ class App
     void main_loop();
 
     void cleanup();
+    void cleanup_swap_chain();
 
     bool check_validation_layer_support();
     std::vector<const char*> get_required_extensions();
@@ -63,6 +66,7 @@ class App
         const std::vector<VkPresentModeKHR>& available_present_modes);
     VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
     void create_swap_chain();
+    void recreate_swap_chain();
     void create_image_views();
 
     void create_render_pass();
@@ -72,13 +76,16 @@ class App
 
     void create_framebuffers();
     void create_command_pool();
-    void create_command_buffer();
+    void create_command_buffers();
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
     void create_sync_objects();
 
     void draw_frame();
+
   public:
   private:
+    uint32_t current_frame = 0;
+
     GLFWwindow* m_window = nullptr;
     VkInstance m_instance = {};
     VkDebugUtilsMessengerEXT m_debug_messenger = {};
@@ -102,8 +109,11 @@ class App
 
     std::vector<VkFramebuffer> m_swap_chain_frame_buffers = {};
     VkCommandPool m_command_pool = {};
-    VkCommandBuffer m_command_buffer = {}; // Automatically freed when command pool is destroyed
-    VkSemaphore m_image_available_semaphore = {};
-    VkSemaphore m_render_finished_semaphore = {};
-    VkFence m_in_flight_fence = {};
+    std::vector<VkCommandBuffer> m_command_buffers =
+        {}; // Automatically freed when command pool is destroyed
+    std::vector<VkSemaphore> m_image_available_semaphores = {};
+    std::vector<VkSemaphore> m_render_finished_semaphores = {};
+    std::vector<VkFence> m_in_flight_fences = {};
+
+    bool m_framebuffer_resized = false;
 };
