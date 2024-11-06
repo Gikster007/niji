@@ -1,6 +1,5 @@
 # Molten Engine ***WIP***
-Custom Engine/Renderer written in C++ with `Vulkan`.
-Other dependencies: `CMake` `GLFW`
+### Custom Engine/Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW`
 
 <br>
 
