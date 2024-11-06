@@ -69,6 +69,14 @@ class App
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
+
+    void create_framebuffers();
+    void create_command_pool();
+    void create_command_buffer();
+    void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+    void create_sync_objects();
+
+    void draw_frame();
   public:
   private:
     GLFWwindow* m_window = nullptr;
@@ -83,12 +91,19 @@ class App
     VkSurfaceKHR m_surface = {};
     VkQueue m_present_queue = {};
     VkSwapchainKHR m_swap_chain = {};
-    std::vector<VkImage> m_swap_chain_images;
+    std::vector<VkImage> m_swap_chain_images = {};
     VkFormat m_swap_chain_image_format = {};
     VkExtent2D m_swap_chain_extent = {};
-    std::vector<VkImageView> m_swap_chain_image_views;
+    std::vector<VkImageView> m_swap_chain_image_views = {};
 
     VkRenderPass m_render_pass = {};
     VkPipelineLayout m_pipeline_layout = {};
     VkPipeline m_graphics_pipeline = {};
+
+    std::vector<VkFramebuffer> m_swap_chain_frame_buffers = {};
+    VkCommandPool m_command_pool = {};
+    VkCommandBuffer m_command_buffer = {}; // Automatically freed when command pool is destroyed
+    VkSemaphore m_image_available_semaphore = {};
+    VkSemaphore m_render_finished_semaphore = {};
+    VkFence m_in_flight_fence = {};
 };

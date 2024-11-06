@@ -66,6 +66,10 @@ void App::init_vulkan()
     create_image_views();
     create_render_pass();
     create_graphics_pipeline();
+    create_framebuffers();
+    create_command_pool();
+    create_command_buffer();
+    create_sync_objects();
 }
 
 void App::create_instance()
@@ -129,11 +133,24 @@ void App::main_loop()
     while (!glfwWindowShouldClose(m_window))
     {
         glfwPollEvents();
+        draw_frame();
     }
+    vkDeviceWaitIdle(m_device);
 }
 
 void App::cleanup()
 {
+    vkDestroySemaphore(m_device, m_image_available_semaphore, nullptr);
+    vkDestroySemaphore(m_device, m_render_finished_semaphore, nullptr);
+    vkDestroyFence(m_device, m_in_flight_fence, nullptr);
+
+    vkDestroyCommandPool(m_device, m_command_pool, nullptr);
+
+    for (auto framebuffer : m_swap_chain_frame_buffers)
+    {
+        vkDestroyFramebuffer(m_device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(m_device, m_graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipeline_layout, nullptr);
     vkDestroyRenderPass(m_device, m_render_pass, nullptr);
@@ -562,6 +579,17 @@ void App::create_render_pass()
     render_pass_info.subpassCount = 1;
     render_pass_info.pSubpasses = &subpass;
 
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    render_pass_info.dependencyCount = 1;
+    render_pass_info.pDependencies = &dependency;
+
     if (vkCreateRenderPass(m_device, &render_pass_info, nullptr, &m_render_pass) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Render Pass!");
 }
@@ -738,4 +766,157 @@ VkShaderModule App::create_shader_module(const std::vector<char>& code)
         throw std::runtime_error("Failed to Create Shader Module!");
 
     return shader_module;
+}
+
+void App::create_framebuffers()
+{
+    m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
+
+    for (size_t i = 0; i < m_swap_chain_image_views.size(); i++)
+    {
+        VkImageView attachments[] = {m_swap_chain_image_views[i]};
+
+        VkFramebufferCreateInfo framebuffer_info = {};
+        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebuffer_info.renderPass = m_render_pass;
+        framebuffer_info.attachmentCount = 1;
+        framebuffer_info.pAttachments = attachments;
+        framebuffer_info.width = m_swap_chain_extent.width;
+        framebuffer_info.height = m_swap_chain_extent.height;
+        framebuffer_info.layers = 1;
+
+        if (vkCreateFramebuffer(m_device, &framebuffer_info, nullptr,
+                                &m_swap_chain_frame_buffers[i]) != VK_SUCCESS)
+            throw std::runtime_error("Failed To Create Framebuffer!");
+    }
+}
+
+void App::create_command_pool()
+{
+    QueueFamilyIndices queue_family_indices = find_queue_families(m_physical_device);
+
+    VkCommandPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+
+    if (vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Command Pool!");
+}
+
+void App::create_command_buffer()
+{
+    VkCommandBufferAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = m_command_pool;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(m_device, &alloc_info, &m_command_buffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Allocate Command Buffers!");
+}
+
+void App::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
+{
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = 0;
+    begin_info.pInheritanceInfo = nullptr;
+
+    if (vkBeginCommandBuffer(m_command_buffer, &begin_info) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Begin Recording Command Buffer!");
+
+    VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkRenderPassBeginInfo render_pass_info = {};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = m_render_pass;
+    render_pass_info.framebuffer = m_swap_chain_frame_buffers[image_index];
+    render_pass_info.renderArea.offset = {0, 0};
+    render_pass_info.renderArea.extent = m_swap_chain_extent;
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.pClearValues = &clear_color;
+
+    vkCmdBeginRenderPass(m_command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline);
+
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swap_chain_extent.width);
+    viewport.height = static_cast<float>(m_swap_chain_extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(m_command_buffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = m_swap_chain_extent;
+    vkCmdSetScissor(m_command_buffer, 0, 1, &scissor);
+
+    vkCmdDraw(m_command_buffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(m_command_buffer);
+    if (vkEndCommandBuffer(m_command_buffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Record Command Buffer!");
+}
+
+void App::create_sync_objects()
+{
+    VkSemaphoreCreateInfo semaphore_info = {};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fence_info = {};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateSemaphore(m_device, &semaphore_info, nullptr, &m_image_available_semaphore) !=
+            VK_SUCCESS ||
+        vkCreateSemaphore(m_device, &semaphore_info, nullptr, &m_render_finished_semaphore) !=
+            VK_SUCCESS ||
+        vkCreateFence(m_device, &fence_info, nullptr, &m_in_flight_fence) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to Create Semaphores and Fences!");
+    }
+}
+
+void App::draw_frame()
+{
+    vkWaitForFences(m_device, 1, &m_in_flight_fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(m_device, 1, &m_in_flight_fence);
+
+    uint32_t image_index = UINT64_MAX; // init to high value to avoid confusion
+    vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX, m_image_available_semaphore,
+                          VK_NULL_HANDLE, &image_index);
+
+    vkResetCommandBuffer(m_command_buffer, 0);
+    record_command_buffer(m_command_buffer, image_index);
+
+    VkSubmitInfo submit_info = {};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSemaphore wait_semaphores[] = {m_image_available_semaphore};
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = wait_semaphores;
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &m_command_buffer;
+    VkSemaphore signal_semaphores[] = {m_render_finished_semaphore};
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = signal_semaphores;
+
+    if (vkQueueSubmit(m_graphics_queue, 1, &submit_info, m_in_flight_fence) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Submit Draw Command Buffer!");
+
+    VkPresentInfoKHR present_info = {};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores;
+
+    VkSwapchainKHR swap_chains[] = {m_swap_chain};
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swap_chains;
+    present_info.pImageIndices = &image_index;
+    present_info.pResults = nullptr;
+
+    vkQueuePresentKHR(m_present_queue, &present_info);
 }
