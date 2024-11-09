@@ -4,7 +4,7 @@
 
 int main()
 {
-    App app;
+    molten::App app;
 
     app.run();
 
