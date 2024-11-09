@@ -8,10 +8,10 @@
 
 namespace molten
 {
-class App
+class Engine
 {
   public:
-    App() = default;
+    Engine() = default;
     void run();
 
   private:

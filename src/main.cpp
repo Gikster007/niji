@@ -4,9 +4,9 @@
 
 int main()
 {
-    molten::App app;
+    molten::Engine engine;
 
-    app.run();
+    engine.run();
 
     return 0;
 }

@@ -30,7 +30,7 @@ struct SwapChainSupportDetails
 class Context
 {
     friend class Renderer;
-    friend class App;
+    friend class Engine;
 
   public:
     Context() = default;

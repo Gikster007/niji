@@ -2,7 +2,7 @@
 
 using namespace molten;
 
-void App::run()
+void Engine::run()
 {
     m_renderer = Renderer(m_context);
 
@@ -11,13 +11,13 @@ void App::run()
     cleanup();
 }
 
-void App::init_vulkan()
+void Engine::init_vulkan()
 {
     m_context.init();
     m_renderer.init();
 }
 
-void App::main_loop()
+void Engine::main_loop()
 {
     while (!glfwWindowShouldClose(m_context.m_window))
     {
@@ -27,7 +27,7 @@ void App::main_loop()
     vkDeviceWaitIdle(m_context.m_device);
 }
 
-void App::cleanup()
+void Engine::cleanup()
 {
     m_renderer.cleanup();
     m_context.cleanup();
