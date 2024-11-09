@@ -37,6 +37,8 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
 
 void Context::init()
 {
+    init_window();
+
     create_instance();
     setup_debug_messenger();
     create_surface();

@@ -11,7 +11,7 @@ class Renderer
 {
   public:
     Renderer() = default;
-    Renderer(std::shared_ptr<Context> context);
+    Renderer(Context& context);
 
     void init();
 
@@ -39,7 +39,7 @@ class Renderer
     void create_sync_objects();
 
   private:
-    std::shared_ptr<Context> m_context = nullptr;
+    Context* m_context = nullptr;
 
     uint32_t current_frame = 0;
 

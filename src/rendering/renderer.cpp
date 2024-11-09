@@ -6,8 +6,9 @@
 
 using namespace molten;
 
-Renderer::Renderer(std::shared_ptr<Context> context) : m_context(context)
+Renderer::Renderer(Context& context)
 {
+    m_context = &context;
 }
 
 void Renderer::init()
