@@ -6,18 +6,18 @@ void Engine::run()
 {
     m_renderer = Renderer(m_context);
 
-    init_vulkan();
-    main_loop();
+    init();
+    update();
     cleanup();
 }
 
-void Engine::init_vulkan()
+void Engine::init()
 {
     m_context.init();
     m_renderer.init();
 }
 
-void Engine::main_loop()
+void Engine::update()
 {
     while (!glfwWindowShouldClose(m_context.m_window))
     {

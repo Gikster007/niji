@@ -15,15 +15,15 @@ class Engine
     void run();
 
   private:
-    void init_vulkan();
+    void init();
 
-    void main_loop();
+    void update();
 
     void cleanup();
 
   public:
   private:
     Context m_context = {};
-    Renderer m_renderer;
+    Renderer m_renderer = {};
 };
 } // namespace molten
