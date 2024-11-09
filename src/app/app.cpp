@@ -3,7 +3,6 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
-#include <stdexcept>
 #include <set>
 #include <cstdint>
 #include <limits>
@@ -11,9 +10,9 @@
 #include <fstream>
 
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
-                                      const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                      const VkAllocationCallbacks* pAllocator,
-                                      VkDebugUtilsMessengerEXT* pDebugMessenger)
+                                             const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+                                             const VkAllocationCallbacks* pAllocator,
+                                             VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
         instance, "vkCreateDebugUtilsMessengerEXT");
@@ -29,7 +28,7 @@ static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
 
 static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
                                           VkDebugUtilsMessengerEXT debugMessenger,
-                                   const VkAllocationCallbacks* pAllocator)
+                                          const VkAllocationCallbacks* pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
         instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -73,9 +72,7 @@ void App::init_vulkan()
     create_logical_device();
     create_swap_chain();
     create_image_views();
-    create_render_pass();
     create_graphics_pipeline();
-    create_framebuffers();
     create_command_pool();
     create_command_buffers();
     create_sync_objects();
@@ -134,6 +131,12 @@ void App::create_instance()
         std::cout << '\t' << extension.extensionName << '\n';
     }
 
+    // Load Functions for Dynamic Rendering
+    function =
+        (PFN_vkCmdBeginRenderingKHR)vkGetInstanceProcAddr(m_instance, "vkCmdBeginRenderingKHR");
+    function_end =
+        (PFN_vkCmdEndRenderingKHR)vkGetInstanceProcAddr(m_instance, "vkCmdEndRenderingKHR");
+
     printf("\n Creating Vulkan Instance - DONE \n");
 }
 
@@ -154,8 +157,6 @@ void App::cleanup()
     vkDestroyPipeline(m_device, m_graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipeline_layout, nullptr);
 
-    vkDestroyRenderPass(m_device, m_render_pass, nullptr);
-    
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vkDestroySemaphore(m_device, m_render_finished_semaphores[i], nullptr);
@@ -172,7 +173,7 @@ void App::cleanup()
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
-    
+
     glfwDestroyWindow(m_window);
     glfwTerminate();
 }
@@ -301,11 +302,6 @@ void App::pick_physical_device()
 
 bool App::is_device_suitable(VkPhysicalDevice device)
 {
-    /*VkPhysicalDeviceProperties device_properties = {};
-    VkPhysicalDeviceFeatures device_features = {};
-    vkGetPhysicalDeviceProperties(device, &device_properties);
-    vkGetPhysicalDeviceFeatures(device, &device_features);*/
-
     QueueFamilyIndices indices = find_queue_families(device);
 
     bool extensions_supported = check_device_extension_support(device);
@@ -372,8 +368,14 @@ void App::create_logical_device()
 
     VkPhysicalDeviceFeatures device_features = {};
 
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {};
+    dynamic_rendering_feature.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
+    dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+
     VkDeviceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    create_info.pNext = &dynamic_rendering_feature;
     create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
     create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.pEnabledFeatures = &device_features;
@@ -562,7 +564,6 @@ void App::recreate_swap_chain()
 
     create_swap_chain();
     create_image_views();
-    create_framebuffers();
 }
 
 void App::create_image_views()
@@ -588,49 +589,6 @@ void App::create_image_views()
             VK_SUCCESS)
             throw std::runtime_error("Failed to Create Image Views");
     }
-}
-
-void App::create_render_pass()
-{
-    VkAttachmentDescription color_attachment = {};
-    color_attachment.format = m_swap_chain_image_format;
-    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference color_attachment_ref = {};
-    color_attachment_ref.attachment = 0;
-    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment_ref;
-
-    VkRenderPassCreateInfo render_pass_info = {};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    render_pass_info.attachmentCount = 1;
-    render_pass_info.pAttachments = &color_attachment;
-    render_pass_info.subpassCount = 1;
-    render_pass_info.pSubpasses = &subpass;
-
-    VkSubpassDependency dependency = {};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    render_pass_info.dependencyCount = 1;
-    render_pass_info.pDependencies = &dependency;
-
-    if (vkCreateRenderPass(m_device, &render_pass_info, nullptr, &m_render_pass) != VK_SUCCESS)
-        throw std::runtime_error("Failed to Create Render Pass!");
 }
 
 void App::create_graphics_pipeline()
@@ -749,6 +707,11 @@ void App::create_graphics_pipeline()
         VK_SUCCESS)
         throw std::runtime_error("Failed to Create Pipeline Layout!");
 
+    VkPipelineRenderingCreateInfoKHR pipeline_rendering_info = {};
+    pipeline_rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    pipeline_rendering_info.colorAttachmentCount = 1;
+    pipeline_rendering_info.pColorAttachmentFormats = &m_swap_chain_image_format;
+
     VkGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipeline_info.stageCount = 2;
@@ -762,7 +725,8 @@ void App::create_graphics_pipeline()
     pipeline_info.pColorBlendState = &color_blending;
     pipeline_info.pDynamicState = &dynamic_state;
     pipeline_info.layout = m_pipeline_layout;
-    pipeline_info.renderPass = m_render_pass;
+    pipeline_info.renderPass = nullptr /*m_render_pass*/;
+    pipeline_info.pNext = &pipeline_rendering_info;
     pipeline_info.subpass = 0;
     pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
     pipeline_info.basePipelineIndex = -1;
@@ -807,29 +771,6 @@ VkShaderModule App::create_shader_module(const std::vector<char>& code)
     return shader_module;
 }
 
-void App::create_framebuffers()
-{
-    m_swap_chain_frame_buffers.resize(m_swap_chain_image_views.size());
-
-    for (size_t i = 0; i < m_swap_chain_image_views.size(); i++)
-    {
-        VkImageView attachments[] = {m_swap_chain_image_views[i]};
-
-        VkFramebufferCreateInfo framebuffer_info = {};
-        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebuffer_info.renderPass = m_render_pass;
-        framebuffer_info.attachmentCount = 1;
-        framebuffer_info.pAttachments = attachments;
-        framebuffer_info.width = m_swap_chain_extent.width;
-        framebuffer_info.height = m_swap_chain_extent.height;
-        framebuffer_info.layers = 1;
-
-        if (vkCreateFramebuffer(m_device, &framebuffer_info, nullptr,
-                                &m_swap_chain_frame_buffers[i]) != VK_SUCCESS)
-            throw std::runtime_error("Failed To Create Framebuffer!");
-    }
-}
-
 void App::create_command_pool()
 {
     QueueFamilyIndices queue_family_indices = find_queue_families(m_physical_device);
@@ -868,16 +809,42 @@ void App::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_i
         throw std::runtime_error("Failed to Begin Recording Command Buffer!");
 
     VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    VkRenderPassBeginInfo render_pass_info = {};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = m_render_pass;
-    render_pass_info.framebuffer = m_swap_chain_frame_buffers[image_index];
-    render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = m_swap_chain_extent;
-    render_pass_info.clearValueCount = 1;
-    render_pass_info.pClearValues = &clear_color;
 
-    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    VkRenderingAttachmentInfoKHR color_attachment_info = {};
+    color_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    color_attachment_info.imageView = m_swap_chain_image_views[image_index];
+    color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+    color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment_info.clearValue = clear_color;
+    VkRenderingInfoKHR render_info = {};
+    render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    render_info.renderArea.offset = {0, 0};
+    render_info.renderArea.extent = m_swap_chain_extent;
+    render_info.layerCount = 1;
+    render_info.colorAttachmentCount = 1;
+    render_info.pColorAttachments = &color_attachment_info;
+
+    VkImageMemoryBarrier image_memory_barrier = {};
+    image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    image_memory_barrier.image = m_swap_chain_images[image_index];
+    VkImageSubresourceRange subresource_range = {};
+    subresource_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresource_range.baseMipLevel = 0;
+    subresource_range.levelCount = 1;
+    subresource_range.baseArrayLayer = 0;
+    subresource_range.layerCount = 1;
+    image_memory_barrier.subresourceRange = subresource_range;
+
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr,
+                         1, &image_memory_barrier);
+
+    function(command_buffer, &render_info); // vkCmdBeginRenderingKHR
+
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline);
 
     VkViewport viewport = {};
@@ -896,7 +863,20 @@ void App::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_i
 
     vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
-    vkCmdEndRenderPass(command_buffer);
+    function_end(command_buffer); // vkCmdEndRenderingKHR
+
+    VkImageMemoryBarrier im_mem_barrier = {};
+    im_mem_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    im_mem_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    im_mem_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    im_mem_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    im_mem_barrier.image = m_swap_chain_images[image_index];
+    im_mem_barrier.subresourceRange = subresource_range;
+
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                         &im_mem_barrier);
+
     if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
         throw std::runtime_error("Failed to Record Command Buffer!");
 }
@@ -933,8 +913,8 @@ void App::draw_frame()
 
     uint32_t image_index = UINT64_MAX; // init to high value to avoid confusion
     VkResult result = vkAcquireNextImageKHR(m_device, m_swap_chain, UINT64_MAX,
-                          m_image_available_semaphores[current_frame], VK_NULL_HANDLE,
-                          &image_index);
+                                            m_image_available_semaphores[current_frame],
+                                            VK_NULL_HANDLE, &image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {

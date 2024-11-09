@@ -1,6 +1,5 @@
 #pragma once
 
-#include "precomp.hpp"
 #include <optional>
 #include <string>
 
@@ -26,6 +25,9 @@ struct SwapChainSupportDetails
 
 class App
 {
+    PFN_vkCmdBeginRenderingKHR function;
+    PFN_vkCmdEndRenderingKHR function_end;
+
   public:
     void run();
 
@@ -69,12 +71,10 @@ class App
     void recreate_swap_chain();
     void create_image_views();
 
-    void create_render_pass();
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
-    void create_framebuffers();
     void create_command_pool();
     void create_command_buffers();
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);

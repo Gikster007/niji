@@ -1,5 +1,6 @@
 #pragma once
 
+//#define VK_ENABLE_BETA_EXTENSIONS
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -14,7 +15,10 @@
 constexpr uint16_t WIN_WIDTH = 800;
 constexpr uint16_t WIN_HEIGHT = 600;
 const std::vector<const char*> VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
-const std::vector<const char*> DEVICE_EXTENSIONS = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+const std::vector<const char*> DEVICE_EXTENSIONS = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+    VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+    VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME};
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
