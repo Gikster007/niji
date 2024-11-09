@@ -6,10 +6,10 @@
 
 ## Feature Checklist
 - [x] Triangle Rendering :)
-- [] (Vertex) Buffers
-- [] Texturing
-- [] Model Loading
-- [] Dear ImGUI Implementation
-- [] ECS System
-- [] PBR Lighting 
-- and more...
+- [ ] (Vertex) Buffers
+- [ ] Texturing
+- [ ] Model Loading
+- [ ] Dear ImGUI Implementation
+- [ ] ECS System
+- [ ] PBR Lighting 
+and more...
