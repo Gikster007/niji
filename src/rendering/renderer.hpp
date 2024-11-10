@@ -2,11 +2,23 @@
 
 #include <memory>
 #include <string>
+#include <array>
+
+#include <glm/glm.hpp>
 
 #include "core/context.hpp"
 
 namespace molten
 {
+struct Vertex
+{
+    glm::vec2 pos = {};
+    glm::vec3 color = {};
+    
+    static VkVertexInputBindingDescription get_binding_description();
+    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description();
+};
+
 class Renderer
 {
   public:
@@ -38,7 +50,13 @@ class Renderer
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
     void create_sync_objects();
 
+    void create_vertex_buffer();
+
   private:
+    std::vector<Vertex> vertices = {};
+    VkBuffer m_vertex_buffer = {};
+    VkDeviceMemory m_vertex_buffer_memory = {};
+
     Context* m_context = nullptr;
 
     uint32_t current_frame = 0;

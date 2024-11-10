@@ -9,6 +9,27 @@ using namespace molten;
 Renderer::Renderer(Context& context)
 {
     m_context = &context;
+
+    /*vertices.push_back({{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}});
+    vertices.push_back({{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}});*/
+
+    // Triangle 1
+    vertices.push_back({{-0.8f, -0.8f}, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({{-0.6f, -0.8f}, {0.0f, 1.0f, 0.0f}});
+    vertices.push_back({{-0.7f, -0.6f}, {0.0f, 0.0f, 1.0f}});
+    // Triangle 2
+    vertices.push_back({{0.4f, 0.6f}, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({{0.7f, 0.5f}, {0.0f, 1.0f, 0.0f}});
+    vertices.push_back({{0.5f, 0.8f}, {0.0f, 0.0f, 1.0f}});
+    // Triangle 3
+    vertices.push_back({{-0.2f, 0.4f}, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({{0.1f, 0.4f}, {0.0f, 1.0f, 0.0f}});
+    vertices.push_back({{-0.05f, 0.7f}, {0.0f, 0.0f, 1.0f}});
+    // Triangle 4
+    vertices.push_back({{-0.5f, -0.2f}, {1.0f, 0.0f, 0.0f}});
+    vertices.push_back({{-0.1f, -0.5f}, {0.0f, 1.0f, 0.0f}});
+    vertices.push_back({{-0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}});
 }
 
 void Renderer::init()
@@ -16,13 +37,15 @@ void Renderer::init()
     create_swap_chain();
     create_image_views();
     create_graphics_pipeline();
+    create_vertex_buffer();
     create_command_buffers();
     create_sync_objects();
 }
 
 void molten::Renderer::draw()
 {
-    vkWaitForFences(m_context->m_device, 1, &m_in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(m_context->m_device, 1, &m_in_flight_fences[current_frame], VK_TRUE,
+                    UINT64_MAX);
 
     uint32_t image_index = UINT64_MAX; // init to high value to avoid confusion
     VkResult result = vkAcquireNextImageKHR(m_context->m_device, m_swap_chain, UINT64_MAX,
@@ -58,8 +81,7 @@ void molten::Renderer::draw()
     submit_info.pSignalSemaphores = signal_semaphores;
 
     if (vkQueueSubmit(m_context->m_graphics_queue, 1, &submit_info,
-                      m_in_flight_fences[current_frame]) !=
-        VK_SUCCESS)
+                      m_in_flight_fences[current_frame]) != VK_SUCCESS)
         throw std::runtime_error("Failed to Submit Draw Command Buffer!");
 
     VkPresentInfoKHR present_info = {};
@@ -87,6 +109,9 @@ void molten::Renderer::draw()
 void molten::Renderer::cleanup()
 {
     cleanup_swap_chain();
+
+    vkDestroyBuffer(m_context->m_device, m_vertex_buffer, nullptr);
+    vkFreeMemory(m_context->m_device, m_vertex_buffer_memory, nullptr);
 
     vkDestroyPipeline(m_context->m_device, m_graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(m_context->m_device, m_pipeline_layout, nullptr);
@@ -145,8 +170,8 @@ VkExtent2D Renderer::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabili
 
 void Renderer::create_swap_chain()
 {
-    SwapChainSupportDetails swap_chain_support =
-        SwapChainSupportDetails::query_swap_chain_support(m_context->m_physical_device, m_context->m_surface);
+    SwapChainSupportDetails swap_chain_support = SwapChainSupportDetails::query_swap_chain_support(
+        m_context->m_physical_device, m_context->m_surface);
 
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.present_modes);
@@ -241,8 +266,7 @@ void Renderer::create_image_views()
         create_info.subresourceRange.baseArrayLayer = 0;
         create_info.subresourceRange.layerCount = 1;
         if (vkCreateImageView(m_context->m_device, &create_info, nullptr,
-                              &m_swap_chain_image_views[i]) !=
-            VK_SUCCESS)
+                              &m_swap_chain_image_views[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to Create Image Views");
     }
 }
@@ -293,12 +317,16 @@ void Renderer::create_graphics_pipeline()
     dynamic_state.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
     dynamic_state.pDynamicStates = dynamic_states.data();
 
+    auto binding_description = Vertex::get_binding_description();
+    auto attribute_description = Vertex::get_attribute_description();
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = 0;
-    vertex_input_info.pVertexBindingDescriptions = nullptr;
-    vertex_input_info.vertexAttributeDescriptionCount = 0;
-    vertex_input_info.pVertexAttributeDescriptions = nullptr;
+    vertex_input_info.vertexBindingDescriptionCount = 1;
+    vertex_input_info.pVertexBindingDescriptions = &binding_description;
+    vertex_input_info.vertexAttributeDescriptionCount =
+        static_cast<uint32_t>(attribute_description.size());
+    vertex_input_info.pVertexAttributeDescriptions = attribute_description.data();
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {};
     input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -374,8 +402,8 @@ void Renderer::create_graphics_pipeline()
     pipeline_layout_info.pushConstantRangeCount = 0;
     pipeline_layout_info.pPushConstantRanges = nullptr;
 
-    if (vkCreatePipelineLayout(m_context->m_device, &pipeline_layout_info, nullptr, &m_pipeline_layout) !=
-        VK_SUCCESS)
+    if (vkCreatePipelineLayout(m_context->m_device, &pipeline_layout_info, nullptr,
+                               &m_pipeline_layout) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Pipeline Layout!");
 
     VkPipelineRenderingCreateInfoKHR pipeline_rendering_info = {};
@@ -521,7 +549,11 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     scissor.extent = m_swap_chain_extent;
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    VkBuffer vertex_buffers[] = {m_vertex_buffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+
+    vkCmdDraw(command_buffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
     m_context->EndRendering(command_buffer); // vkCmdEndRenderingKHR
 
@@ -566,4 +598,63 @@ void Renderer::create_sync_objects()
             throw std::runtime_error("Failed to Create Semaphores and Fences!");
         }
     }
+}
+
+void Renderer::create_vertex_buffer()
+{
+    VkBufferCreateInfo buffer_info = {};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = sizeof(vertices[0]) * vertices.size();
+    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    buffer_info.flags = 0;
+
+    if (vkCreateBuffer(m_context->m_device, &buffer_info, nullptr, &m_vertex_buffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Vertex Buffer!");
+
+    VkMemoryRequirements mem_requirements = {};
+    vkGetBufferMemoryRequirements(m_context->m_device, m_vertex_buffer, &mem_requirements);
+    VkMemoryAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize = mem_requirements.size;
+    alloc_info.memoryTypeIndex = m_context->find_memory_type(
+        mem_requirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(m_context->m_device, &alloc_info, nullptr, &m_vertex_buffer_memory) !=
+        VK_SUCCESS)
+        throw std::runtime_error("Failed to Allocate Vertex Buffer Memory!");
+
+    vkBindBufferMemory(m_context->m_device, m_vertex_buffer, m_vertex_buffer_memory, 0);
+
+    void* data = nullptr;
+    vkMapMemory(m_context->m_device, m_vertex_buffer_memory, 0, buffer_info.size, 0, &data);
+    
+    memcpy(data, vertices.data(), (size_t)buffer_info.size);
+
+    vkUnmapMemory(m_context->m_device, m_vertex_buffer_memory);
+}
+
+VkVertexInputBindingDescription Vertex::get_binding_description()
+{
+    VkVertexInputBindingDescription binding_description = {};
+    binding_description.binding = 0;
+    binding_description.stride = sizeof(Vertex);
+    binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return binding_description;
+}
+
+std::array<VkVertexInputAttributeDescription, 2> Vertex::get_attribute_description()
+{
+    std::array<VkVertexInputAttributeDescription, 2> attribute_descriptions = {};
+    attribute_descriptions[0].binding = 0;
+    attribute_descriptions[0].location = 0;
+    attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[0].offset = offsetof(Vertex, pos);
+    attribute_descriptions[1].binding = 0;
+    attribute_descriptions[1].location = 1;
+    attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attribute_descriptions[1].offset = offsetof(Vertex, color);
+    return attribute_descriptions;
 }

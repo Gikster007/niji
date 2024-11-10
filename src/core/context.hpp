@@ -62,6 +62,8 @@ class Context
 
     void create_command_pool();
 
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
+
   private:
     PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;
     PFN_vkCmdEndRenderingKHR EndRendering = nullptr;

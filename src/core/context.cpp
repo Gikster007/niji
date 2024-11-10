@@ -381,6 +381,20 @@ void Context::create_command_pool()
         throw std::runtime_error("Failed to Create Command Pool!");
 }
 
+uint32_t Context::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties mem_properties = {};
+    vkGetPhysicalDeviceMemoryProperties(m_physical_device, &mem_properties);
+
+    for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
+    {
+        if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+            return i;
+    }
+    
+    throw std::runtime_error("Failed to Find Suitable Memory Type!");
+}
+
 QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice device,
                                                            VkSurfaceKHR surface)
 {
