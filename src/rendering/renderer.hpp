@@ -51,6 +51,10 @@ class Renderer
     void create_sync_objects();
 
     void create_vertex_buffer();
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                       VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                       VkDeviceMemory& buffer_memory);
+    void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
   private:
     std::vector<Vertex> vertices = {};
