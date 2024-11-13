@@ -19,6 +19,13 @@ struct Vertex
     static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description();
 };
 
+struct UniformBufferObject
+{
+    alignas(16) glm::mat4 model = {};
+    alignas(16) glm::mat4 view = {};
+    alignas(16) glm::mat4 proj = {};
+};
+
 class Renderer
 {
   public:
@@ -41,7 +48,10 @@ class Renderer
     void recreate_swap_chain();
     void create_image_views();
     void cleanup_swap_chain();
-
+    
+    void create_descriptor_pool();
+    void create_descriptor_sets();
+    void create_descriptor_set_layout();
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
@@ -52,15 +62,23 @@ class Renderer
 
     void create_vertex_buffer();
     void create_index_buffer();
+    void create_uniform_buffers();
+    void update_uniform_buffer(uint32_t current_image);
 
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
                        VkMemoryPropertyFlags properties, VkBuffer& buffer,
                        VkDeviceMemory& buffer_memory);
     void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
+
   private:
     std::vector<Vertex> m_vertices = {};
     std::vector<uint16_t> m_indices = {};
+
+    std::vector<VkBuffer> m_uniform_buffers = {};
+    std::vector<VkDeviceMemory> m_uniform_buffers_memory = {};
+    std::vector<void*> m_uniform_buffers_mapped = {};
+
     VkBuffer m_vertex_buffer = {};
     VkDeviceMemory m_vertex_buffer_memory = {};
     VkBuffer m_index_buffer = {};
@@ -76,6 +94,9 @@ class Renderer
     VkExtent2D m_swap_chain_extent = {};
     std::vector<VkImageView> m_swap_chain_image_views = {};
 
+    VkDescriptorPool m_descriptor_pool = {};
+    std::vector<VkDescriptorSet> m_descriptor_sets = {};
+    VkDescriptorSetLayout m_descriptor_set_layout = {};
     VkPipelineLayout m_pipeline_layout = {};
     VkPipeline m_graphics_pipeline = {};
 

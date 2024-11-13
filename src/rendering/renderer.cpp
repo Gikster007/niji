@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <stdexcept>
 #include <fstream>
+#include <chrono>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 using namespace molten;
 
@@ -28,10 +31,15 @@ void Renderer::init()
 {
     create_swap_chain();
     create_image_views();
+    create_descriptor_set_layout();
     create_graphics_pipeline();
 
     create_vertex_buffer();
     create_index_buffer();
+    create_uniform_buffers();
+
+    create_descriptor_pool();
+    create_descriptor_sets();
 
     create_command_buffers();
     create_sync_objects();
@@ -61,6 +69,8 @@ void molten::Renderer::draw()
 
     vkResetCommandBuffer(m_command_buffers[current_frame], 0);
     record_command_buffer(m_command_buffers[current_frame], image_index);
+
+    update_uniform_buffer(current_frame);
 
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -104,6 +114,16 @@ void molten::Renderer::draw()
 void molten::Renderer::cleanup()
 {
     cleanup_swap_chain();
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroyBuffer(m_context->m_device, m_uniform_buffers[i], nullptr);
+        vkFreeMemory(m_context->m_device, m_uniform_buffers_memory[i], nullptr);
+    }
+
+    vkDestroyDescriptorPool(m_context->m_device, m_descriptor_pool, nullptr);
+
+    vkDestroyDescriptorSetLayout(m_context->m_device, m_descriptor_set_layout, nullptr);
 
     vkDestroyBuffer(m_context->m_device, m_index_buffer, nullptr);
     vkFreeMemory(m_context->m_device, m_index_buffer_memory, nullptr);
@@ -356,7 +376,7 @@ void Renderer::create_graphics_pipeline()
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
     rasterizer.depthBiasClamp = 0.0f;
@@ -395,8 +415,8 @@ void Renderer::create_graphics_pipeline()
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 0;
-    pipeline_layout_info.pSetLayouts = nullptr;
+    pipeline_layout_info.setLayoutCount = 1;
+    pipeline_layout_info.pSetLayouts = &m_descriptor_set_layout;
     pipeline_layout_info.pushConstantRangeCount = 0;
     pipeline_layout_info.pPushConstantRanges = nullptr;
 
@@ -551,8 +571,10 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
     vkCmdBindIndexBuffer(command_buffer, m_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+    
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout, 0,
+                            1, &m_descriptor_sets[current_frame], 0, nullptr);
 
-    //vkCmdDraw(command_buffer, static_cast<uint32_t>(m_vertices.size()), 1, 0, 0);
     vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(m_indices.size()), 1, 0, 0, 0);
 
     m_context->EndRendering(command_buffer); // vkCmdEndRenderingKHR
@@ -650,9 +672,50 @@ void Renderer::create_index_buffer()
     vkFreeMemory(m_context->m_device, staging_buffer_memory, nullptr);
 }
 
+void Renderer::create_uniform_buffers()
+{
+    VkDeviceSize buffer_size = sizeof(UniformBufferObject);
+
+    m_uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniform_buffers_memory.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniform_buffers_mapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                      m_uniform_buffers[i], m_uniform_buffers_memory[i]);
+
+        vkMapMemory(m_context->m_device, m_uniform_buffers_memory[i], 0, buffer_size, 0,
+                    &m_uniform_buffers_mapped[i]);
+    }
+}
+
+void Renderer::update_uniform_buffer(uint32_t current_image)
+{
+    static auto start_time = std::chrono::high_resolution_clock::now();
+
+    auto current_time = std::chrono::high_resolution_clock::now();
+    float time =
+        std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time)
+            .count();
+
+    UniformBufferObject ubo = {};
+    ubo.model =
+        glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                           glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f),
+                                m_swap_chain_extent.width / (float)m_swap_chain_extent.height, 0.1f,
+                                10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(m_uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+}
+
 void Renderer::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                                     VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                                     VkDeviceMemory& buffer_memory)
+                             VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                             VkDeviceMemory& buffer_memory)
 {
     VkBufferCreateInfo buffer_info = {};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -712,6 +775,78 @@ void Renderer::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSiz
     vkQueueWaitIdle(m_context->m_graphics_queue);
 
     vkFreeCommandBuffers(m_context->m_device, m_context->m_command_pool, 1, &command_buffer);
+}
+
+void Renderer::create_descriptor_pool()
+{
+    VkDescriptorPoolSize pool_size = {};
+    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+    pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(m_context->m_device, &pool_info, nullptr, &m_descriptor_pool) !=
+        VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Descriptor Pool!");
+}
+
+void Renderer::create_descriptor_sets()
+{
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_descriptor_set_layout);
+    VkDescriptorSetAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    alloc_info.descriptorPool = m_descriptor_pool;
+    alloc_info.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    alloc_info.pSetLayouts = layouts.data();
+
+    m_descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(m_context->m_device, &alloc_info, m_descriptor_sets.data()) !=
+        VK_SUCCESS)
+        throw std::runtime_error("Failed to Allocate Descriptor Sets!");
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        VkDescriptorBufferInfo buffer_info = {};
+        buffer_info.buffer = m_uniform_buffers[i];
+        buffer_info.offset = 0;
+        buffer_info.range = sizeof(UniformBufferObject);
+        
+        VkWriteDescriptorSet descriptor_write = {};
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = m_descriptor_sets[i];
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pBufferInfo = &buffer_info;
+        descriptor_write.pImageInfo = nullptr;
+        descriptor_write.pTexelBufferView = nullptr;
+
+        vkUpdateDescriptorSets(m_context->m_device, 1, &descriptor_write, 0, nullptr);
+    }
+}
+
+void Renderer::create_descriptor_set_layout()
+{
+    VkDescriptorSetLayoutBinding ubo_layout_binding = {};
+    ubo_layout_binding.binding = 0;
+    ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    ubo_layout_binding.descriptorCount = 1;
+    ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    ubo_layout_binding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &ubo_layout_binding;
+
+    if (vkCreateDescriptorSetLayout(m_context->m_device, &layout_info, nullptr,
+                                    &m_descriptor_set_layout) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Descriptor Set Layout");
 }
 
 VkVertexInputBindingDescription Vertex::get_binding_description()
