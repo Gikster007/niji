@@ -6,10 +6,16 @@
 
 ## Feature Checklist
 - [x] Triangle Rendering :)
-- [ ] (Vertex) Buffers
+- [x] (Vertex) Buffers
 - [ ] Texturing
 - [ ] Model Loading
 - [ ] Dear ImGUI Implementation
 - [ ] ECS System
 - [ ] PBR Lighting 
 and more...
+
+## How to build
+`Windows`
+- Download and Install the latest [vulkan sdk](https://www.lunarg.com/vulkan-sdk/)
+- Download and Install the latest [CMake release](https://cmake.org/download/)
+- In your IDE of choice, open and build the project!
