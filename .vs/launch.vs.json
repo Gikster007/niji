@@ -7,6 +7,13 @@
       "projectTarget": "molten.exe (Debug\\molten.exe)",
       "name": "molten.exe (Debug\\molten.exe)",
       "currentDir": "${workspaceRoot}"
+    },
+    {
+      "type": "default",
+      "project": "CMakeLists.txt",
+      "projectTarget": "molten.exe (Release\\molten.exe)",
+      "name": "molten.exe (Release\\molten.exe)",
+      "currentDir": "${workspaceRoot}"
     }
   ]
 }
