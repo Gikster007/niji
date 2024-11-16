@@ -15,10 +15,10 @@ Renderer::Renderer(Context& context)
     m_context = &context;
 
     // Triangle 1
-    m_vertices.push_back({{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}});
-    m_vertices.push_back({{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}});
-    m_vertices.push_back({{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}});
-    m_vertices.push_back({{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
 
     m_indices.push_back(0);
     m_indices.push_back(1);
@@ -36,6 +36,8 @@ void Renderer::init()
     create_graphics_pipeline();
 
     create_texture_iamge();
+    create_texture_image_view();
+    create_texture_sampler();
 
     create_vertex_buffer();
     create_index_buffer();
@@ -117,6 +119,10 @@ void molten::Renderer::draw()
 void molten::Renderer::cleanup()
 {
     cleanup_swap_chain();
+
+    vkDestroySampler(m_context->m_device, m_texture_sampler, nullptr);
+
+    vkDestroyImageView(m_context->m_device, m_texture_image_view, nullptr);
 
     vkDestroyImage(m_context->m_device, m_texture_image, nullptr);
     vkFreeMemory(m_context->m_device, m_texture_image_memory, nullptr);
@@ -275,23 +281,8 @@ void Renderer::create_image_views()
     m_swap_chain_image_views.resize(m_swap_chain_images.size());
     for (size_t i = 0; i < m_swap_chain_images.size(); i++)
     {
-        VkImageViewCreateInfo create_info = {};
-        create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        create_info.image = m_swap_chain_images[i];
-        create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        create_info.format = m_swap_chain_image_format;
-        create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        create_info.subresourceRange.baseMipLevel = 0;
-        create_info.subresourceRange.levelCount = 1;
-        create_info.subresourceRange.baseArrayLayer = 0;
-        create_info.subresourceRange.layerCount = 1;
-        if (vkCreateImageView(m_context->m_device, &create_info, nullptr,
-                              &m_swap_chain_image_views[i]) != VK_SUCCESS)
-            throw std::runtime_error("Failed to Create Image Views");
+        m_swap_chain_image_views[i] =
+            create_image_view(m_swap_chain_images[i], m_swap_chain_image_format);
     }
 }
 
@@ -805,6 +796,11 @@ void Renderer::create_texture_iamge()
     vkFreeMemory(m_context->m_device, staging_buffer_memory, nullptr);
 }
 
+void Renderer::create_texture_image_view()
+{
+    m_texture_image_view = create_image_view(m_texture_image, VK_FORMAT_R8G8B8A8_SRGB);
+}
+
 void Renderer::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                             VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
                             VkImage& image, VkDeviceMemory& image_memory)
@@ -841,6 +837,28 @@ void Renderer::create_image(uint32_t width, uint32_t height, VkFormat format, Vk
         throw std::runtime_error("Failed to Allocate Image Memory!");
 
     vkBindImageMemory(m_context->m_device, image, image_memory, 0);
+}
+
+VkImageView Renderer::create_image_view(VkImage image, VkFormat format)
+{
+    VkImageViewCreateInfo view_info{};
+    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_info.image = image;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.format = format;
+    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    VkImageView image_view;
+    if (vkCreateImageView(m_context->m_device, &view_info, nullptr, &image_view) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create texture image view!");
+    }
+
+    return image_view;
 }
 
 void Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout,
@@ -885,8 +903,7 @@ void Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLa
         throw std::invalid_argument("Unsupported Layout Transition");
 
     vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr,
-                         1,
-                         &barrier);
+                         1, &barrier);
 
     end_single_time_commands(command_buffer);
 }
@@ -912,6 +929,34 @@ void Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t wid
                            &region);
 
     end_single_time_commands(command_buffer);
+}
+
+void Renderer::create_texture_sampler()
+{
+    VkPhysicalDeviceProperties properties = {};
+    vkGetPhysicalDeviceProperties(m_context->m_physical_device, &properties);
+
+    VkSamplerCreateInfo sampler_info = {};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.anisotropyEnable = VK_TRUE;
+    sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.mipLodBias = 0.0f;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 0.0f;
+
+    if (vkCreateSampler(m_context->m_device, &sampler_info, nullptr, &m_texture_sampler) !=
+        VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Texture Sampler!");
 }
 
 VkCommandBuffer Renderer::begin_single_time_commands()
@@ -950,14 +995,16 @@ void Renderer::end_single_time_commands(VkCommandBuffer command_buffer)
 
 void Renderer::create_descriptor_pool()
 {
-    VkDescriptorPoolSize pool_size = {};
-    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    std::array<VkDescriptorPoolSize, 2> pool_sizes = {};
+    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_sizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.poolSizeCount = 1;
-    pool_info.pPoolSizes = &pool_size;
+    pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
+    pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     if (vkCreateDescriptorPool(m_context->m_device, &pool_info, nullptr, &m_descriptor_pool) !=
@@ -986,18 +1033,34 @@ void Renderer::create_descriptor_sets()
         buffer_info.offset = 0;
         buffer_info.range = sizeof(UniformBufferObject);
 
-        VkWriteDescriptorSet descriptor_write = {};
-        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = m_descriptor_sets[i];
-        descriptor_write.dstBinding = 0;
-        descriptor_write.dstArrayElement = 0;
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor_write.descriptorCount = 1;
-        descriptor_write.pBufferInfo = &buffer_info;
-        descriptor_write.pImageInfo = nullptr;
-        descriptor_write.pTexelBufferView = nullptr;
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView = m_texture_image_view;
+        image_info.sampler = m_texture_sampler;
 
-        vkUpdateDescriptorSets(m_context->m_device, 1, &descriptor_write, 0, nullptr);
+        std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
+        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[0].dstSet = m_descriptor_sets[i];
+        descriptor_writes[0].dstBinding = 0;
+        descriptor_writes[0].dstArrayElement = 0;
+        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_writes[0].descriptorCount = 1;
+        descriptor_writes[0].pBufferInfo = &buffer_info;
+        descriptor_writes[0].pTexelBufferView = nullptr;
+        descriptor_writes[0].pImageInfo = nullptr;
+
+        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[1].dstSet = m_descriptor_sets[i];
+        descriptor_writes[1].dstBinding = 1;
+        descriptor_writes[1].dstArrayElement = 0;
+        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[1].descriptorCount = 1;
+        descriptor_writes[1].pBufferInfo = nullptr;
+        descriptor_writes[1].pTexelBufferView = nullptr;
+        descriptor_writes[1].pImageInfo = &image_info;
+
+        vkUpdateDescriptorSets(m_context->m_device, static_cast<uint32_t>(descriptor_writes.size()),
+                               descriptor_writes.data(), 0, nullptr);
     }
 }
 
@@ -1010,10 +1073,20 @@ void Renderer::create_descriptor_set_layout()
     ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     ubo_layout_binding.pImmutableSamplers = nullptr;
 
+    VkDescriptorSetLayoutBinding sampler_layout_binding = {};
+    sampler_layout_binding.binding = 1;
+    sampler_layout_binding.descriptorCount = 1;
+    sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sampler_layout_binding.pImmutableSamplers = nullptr;
+    sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {ubo_layout_binding,
+                                                            sampler_layout_binding};
+
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &ubo_layout_binding;
+    layout_info.bindingCount = bindings.size();
+    layout_info.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(m_context->m_device, &layout_info, nullptr,
                                     &m_descriptor_set_layout) != VK_SUCCESS)
@@ -1030,16 +1103,23 @@ VkVertexInputBindingDescription Vertex::get_binding_description()
     return binding_description;
 }
 
-std::array<VkVertexInputAttributeDescription, 2> Vertex::get_attribute_description()
+std::array<VkVertexInputAttributeDescription, 3> Vertex::get_attribute_description()
 {
-    std::array<VkVertexInputAttributeDescription, 2> attribute_descriptions = {};
+    std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions = {};
     attribute_descriptions[0].binding = 0;
     attribute_descriptions[0].location = 0;
     attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
     attribute_descriptions[0].offset = offsetof(Vertex, pos);
+
     attribute_descriptions[1].binding = 0;
     attribute_descriptions[1].location = 1;
     attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     attribute_descriptions[1].offset = offsetof(Vertex, color);
+
+    attribute_descriptions[2].binding = 0;
+    attribute_descriptions[2].location = 2;
+    attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[2].offset = offsetof(Vertex, tex_coord);
+
     return attribute_descriptions;
 }

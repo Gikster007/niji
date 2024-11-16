@@ -14,9 +14,10 @@ struct Vertex
 {
     glm::vec2 pos = {};
     glm::vec3 color = {};
+    glm::vec2 tex_coord = {};
 
     static VkVertexInputBindingDescription get_binding_description();
-    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description();
+    static std::array<VkVertexInputAttributeDescription, 3> get_attribute_description();
 };
 
 struct UniformBufferObject
@@ -74,11 +75,15 @@ class Renderer
     void end_single_time_commands(VkCommandBuffer command_buffer);
 
     void create_texture_iamge();
+    void create_texture_image_view();
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
                       VkDeviceMemory& image_memory);
+    VkImageView create_image_view(VkImage image, VkFormat format);
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+    void create_texture_sampler();
 
   private:
     std::vector<Vertex> m_vertices = {};
@@ -89,7 +94,10 @@ class Renderer
     std::vector<void*> m_uniform_buffers_mapped = {};
 
     VkImage m_texture_image = {};
+    VkImageView m_texture_image_view = {};
     VkDeviceMemory m_texture_image_memory = {};
+
+    VkSampler m_texture_sampler = {};
 
     VkBuffer m_vertex_buffer = {};
     VkDeviceMemory m_vertex_buffer_memory = {};

@@ -268,7 +268,10 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
             !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
     }
 
-    return indices.is_complete() && extensions_supported && swap_chain_adequate;
+    VkPhysicalDeviceFeatures supported_features = {};
+    vkGetPhysicalDeviceFeatures(device, &supported_features);
+
+    return indices.is_complete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
 }
 
 void Context::create_logical_device()
@@ -291,6 +294,7 @@ void Context::create_logical_device()
     }
 
     VkPhysicalDeviceFeatures device_features = {};
+    device_features.samplerAnisotropy = VK_TRUE;
 
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {};
     dynamic_rendering_feature.sType =
