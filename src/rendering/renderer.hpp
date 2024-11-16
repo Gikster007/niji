@@ -14,7 +14,7 @@ struct Vertex
 {
     glm::vec2 pos = {};
     glm::vec3 color = {};
-    
+
     static VkVertexInputBindingDescription get_binding_description();
     static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description();
 };
@@ -48,7 +48,7 @@ class Renderer
     void recreate_swap_chain();
     void create_image_views();
     void cleanup_swap_chain();
-    
+
     void create_descriptor_pool();
     void create_descriptor_sets();
     void create_descriptor_set_layout();
@@ -69,7 +69,16 @@ class Renderer
                        VkMemoryPropertyFlags properties, VkBuffer& buffer,
                        VkDeviceMemory& buffer_memory);
     void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
+    
+    VkCommandBuffer begin_single_time_commands();
+    void end_single_time_commands(VkCommandBuffer command_buffer);
 
+    void create_texture_iamge();
+    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+                      VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
+                      VkDeviceMemory& image_memory);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
   private:
     std::vector<Vertex> m_vertices = {};
@@ -78,6 +87,9 @@ class Renderer
     std::vector<VkBuffer> m_uniform_buffers = {};
     std::vector<VkDeviceMemory> m_uniform_buffers_memory = {};
     std::vector<void*> m_uniform_buffers_mapped = {};
+
+    VkImage m_texture_image = {};
+    VkDeviceMemory m_texture_image_memory = {};
 
     VkBuffer m_vertex_buffer = {};
     VkDeviceMemory m_vertex_buffer_memory = {};

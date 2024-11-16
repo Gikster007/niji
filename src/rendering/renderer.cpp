@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <stb_image.h>
 
 using namespace molten;
 
@@ -33,6 +34,8 @@ void Renderer::init()
     create_image_views();
     create_descriptor_set_layout();
     create_graphics_pipeline();
+
+    create_texture_iamge();
 
     create_vertex_buffer();
     create_index_buffer();
@@ -114,6 +117,9 @@ void molten::Renderer::draw()
 void molten::Renderer::cleanup()
 {
     cleanup_swap_chain();
+
+    vkDestroyImage(m_context->m_device, m_texture_image, nullptr);
+    vkFreeMemory(m_context->m_device, m_texture_image_memory, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -571,7 +577,7 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
     vkCmdBindIndexBuffer(command_buffer, m_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-    
+
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline_layout, 0,
                             1, &m_descriptor_sets[current_frame], 0, nullptr);
 
@@ -743,6 +749,173 @@ void Renderer::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
 
 void Renderer::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
 {
+    VkCommandBuffer command_buffer = begin_single_time_commands();
+
+    VkCommandBufferBeginInfo begin_info = {};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    VkBufferCopy copy_region = {};
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = size;
+    vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
+
+    end_single_time_commands(command_buffer);
+}
+
+void Renderer::create_texture_iamge()
+{
+    int width = -1, height = -1, channels = -1;
+    stbi_uc* pixels = stbi_load("textures/photon-the-final-gathering.jpg", &width, &height,
+                                &channels, STBI_rgb_alpha);
+    VkDeviceSize image_size = width * height * 4;
+    if (!pixels)
+        throw std::runtime_error("Failed to Load Texture Image!");
+
+    VkBuffer staging_buffer = {};
+    VkDeviceMemory staging_buffer_memory = {};
+
+    create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  staging_buffer, staging_buffer_memory);
+
+    void* data = nullptr;
+    vkMapMemory(m_context->m_device, staging_buffer_memory, 0, image_size, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(image_size));
+    vkUnmapMemory(m_context->m_device, staging_buffer_memory);
+
+    stbi_image_free(pixels);
+
+    create_image(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_texture_image, m_texture_image_memory);
+
+    transition_image_layout(m_texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copy_buffer_to_image(staging_buffer, m_texture_image, static_cast<uint32_t>(width),
+                         static_cast<uint32_t>(height));
+    transition_image_layout(m_texture_image, VK_FORMAT_R8G8B8A8_SRGB,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(m_context->m_device, staging_buffer, nullptr);
+    vkFreeMemory(m_context->m_device, staging_buffer_memory, nullptr);
+}
+
+void Renderer::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+                            VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                            VkImage& image, VkDeviceMemory& image_memory)
+{
+    VkImageCreateInfo image_info = {};
+    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.extent.width = static_cast<uint32_t>(width);
+    image_info.extent.height = static_cast<uint32_t>(height);
+    image_info.extent.depth = 1;
+    image_info.mipLevels = 1;
+    image_info.arrayLayers = 1;
+    image_info.format = format;
+    image_info.tiling = tiling;
+    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_info.usage = usage;
+    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.flags = 0;
+
+    if (vkCreateImage(m_context->m_device, &image_info, nullptr, &image) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Image!");
+
+    VkMemoryRequirements mem_requirements = {};
+    vkGetImageMemoryRequirements(m_context->m_device, image, &mem_requirements);
+
+    VkMemoryAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize = mem_requirements.size;
+    alloc_info.memoryTypeIndex =
+        m_context->find_memory_type(mem_requirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(m_context->m_device, &alloc_info, nullptr, &image_memory) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Allocate Image Memory!");
+
+    vkBindImageMemory(m_context->m_device, image, image_memory, 0);
+}
+
+void Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout,
+                                       VkImageLayout new_layout)
+{
+    VkCommandBuffer command_buffer = begin_single_time_commands();
+
+    VkPipelineStageFlags source_stage = {};
+    VkPipelineStageFlags destination_stage = {};
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+        new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+        throw std::invalid_argument("Unsupported Layout Transition");
+
+    vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr,
+                         1,
+                         &barrier);
+
+    end_single_time_commands(command_buffer);
+}
+
+void Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+{
+    VkCommandBuffer command_buffer = begin_single_time_commands();
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {width, height, 1};
+
+    vkCmdCopyBufferToImage(command_buffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                           &region);
+
+    end_single_time_commands(command_buffer);
+}
+
+VkCommandBuffer Renderer::begin_single_time_commands()
+{
     VkCommandBufferAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -757,13 +930,11 @@ void Renderer::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSiz
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     vkBeginCommandBuffer(command_buffer, &begin_info);
+    return command_buffer;
+}
 
-    VkBufferCopy copy_region = {};
-    copy_region.srcOffset = 0;
-    copy_region.dstOffset = 0;
-    copy_region.size = size;
-    vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-
+void Renderer::end_single_time_commands(VkCommandBuffer command_buffer)
+{
     vkEndCommandBuffer(command_buffer);
 
     VkSubmitInfo submit_info = {};
@@ -814,7 +985,7 @@ void Renderer::create_descriptor_sets()
         buffer_info.buffer = m_uniform_buffers[i];
         buffer_info.offset = 0;
         buffer_info.range = sizeof(UniformBufferObject);
-        
+
         VkWriteDescriptorSet descriptor_write = {};
         descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptor_write.dstSet = m_descriptor_sets[i];
