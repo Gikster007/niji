@@ -1,13 +1,13 @@
 # Molten Engine ***WIP***
 
-### Custom Engine/Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` ...
+### Custom Engine/Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image`...
 
 <br>
 
 ## Feature Checklist
 - [x] Triangle Rendering :)
 - [x] (Vertex) Buffers
-- [ ] Texturing
+- [x] Texturing
 - [ ] Model Loading
 - [ ] Dear ImGUI Implementation
 - [ ] ECS System
