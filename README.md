@@ -1,4 +1,4 @@
-# Molten Engine ***WIP***
+# Niji Engine ***WIP***
 
 ### Custom Engine/Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image`...
 
