@@ -1,6 +1,6 @@
 #include "engine.hpp"
 
-using namespace molten;
+using namespace niji;
 
 void Engine::run()
 {

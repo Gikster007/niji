@@ -4,15 +4,15 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "molten.exe (Debug\\molten.exe)",
-      "name": "molten.exe (Debug\\molten.exe)",
+      "projectTarget": "niji.exe (Debug\\niji.exe)",
+      "name": "niji.exe (Debug\\niji.exe)",
       "currentDir": "${workspaceRoot}"
     },
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "molten.exe (Release\\molten.exe)",
-      "name": "molten.exe (Release\\molten.exe)",
+      "projectTarget": "niji.exe (Release\\niji.exe)",
+      "name": "niji.exe (Release\\niji.exe)",
       "currentDir": "${workspaceRoot}"
     }
   ]

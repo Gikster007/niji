@@ -8,7 +8,7 @@
 
 #include "core/context.hpp"
 
-namespace molten
+namespace niji
 {
 struct Vertex
 {
@@ -132,4 +132,4 @@ class Renderer
     std::vector<VkSemaphore> m_render_finished_semaphores = {};
     std::vector<VkFence> m_in_flight_fences = {};
 };
-} // namespace molten
+} // namespace niji

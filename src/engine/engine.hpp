@@ -6,7 +6,7 @@
 #include "core/context.hpp"
 #include "rendering/renderer.hpp"
 
-namespace molten
+namespace niji
 {
 class Engine
 {
@@ -26,4 +26,4 @@ class Engine
     Context m_context = {};
     Renderer m_renderer = {};
 };
-} // namespace molten
+} // namespace niji

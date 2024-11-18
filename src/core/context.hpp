@@ -4,7 +4,7 @@
 
 class GLFWwindow;
 
-namespace molten
+namespace niji
 {
 struct QueueFamilyIndices
 {
@@ -86,4 +86,4 @@ class Context
     VkQueue m_present_queue = {};
     VkCommandPool m_command_pool = {};
 };
-} // namespace molten
+} // namespace niji

@@ -4,7 +4,7 @@
 
 int main()
 {
-    molten::Engine engine;
+    niji::Engine engine;
 
     engine.run();
 

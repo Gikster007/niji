@@ -8,7 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
 
-using namespace molten;
+using namespace niji;
 
 Renderer::Renderer(Context& context)
 {
@@ -134,7 +134,7 @@ void Renderer::init()
     create_sync_objects();
 }
 
-void molten::Renderer::draw()
+void Renderer::draw()
 {
     vkWaitForFences(m_context->m_device, 1, &m_in_flight_fences[current_frame], VK_TRUE,
                     UINT64_MAX);
@@ -200,7 +200,7 @@ void molten::Renderer::draw()
     current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void molten::Renderer::cleanup()
+void Renderer::cleanup()
 {
     cleanup_swap_chain();
 
@@ -371,7 +371,7 @@ void Renderer::create_image_views()
     }
 }
 
-void molten::Renderer::cleanup_swap_chain()
+void Renderer::cleanup_swap_chain()
 {
     vkDestroyImageView(m_context->m_device, m_depth_image_view, nullptr);
     vkDestroyImage(m_context->m_device, m_depth_image, nullptr);
