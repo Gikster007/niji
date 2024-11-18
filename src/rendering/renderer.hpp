@@ -12,7 +12,7 @@ namespace molten
 {
 struct Vertex
 {
-    glm::vec2 pos = {};
+    glm::vec3 pos = {};
     glm::vec3 color = {};
     glm::vec2 tex_coord = {};
 
@@ -79,11 +79,13 @@ class Renderer
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
                       VkDeviceMemory& image_memory);
-    VkImageView create_image_view(VkImage image, VkFormat format);
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
     void create_texture_sampler();
+
+    void create_depth_resources();
 
   private:
     std::vector<Vertex> m_vertices = {};
@@ -96,6 +98,10 @@ class Renderer
     VkImage m_texture_image = {};
     VkImageView m_texture_image_view = {};
     VkDeviceMemory m_texture_image_memory = {};
+
+    VkImage m_depth_image = {};
+    VkImageView m_depth_image_view = {};
+    VkDeviceMemory m_depth_image_memory = {};
 
     VkSampler m_texture_sampler = {};
 

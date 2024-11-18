@@ -14,18 +14,100 @@ Renderer::Renderer(Context& context)
 {
     m_context = &context;
 
-    // Triangle 1
-    m_vertices.push_back({{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
-    m_vertices.push_back({{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
-    m_vertices.push_back({{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
-    m_vertices.push_back({{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
-
+    //// Quad 1
+    //m_vertices.push_back({{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    //m_vertices.push_back({{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    //m_vertices.push_back({{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    //m_vertices.push_back({{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    //m_indices.push_back(0);
+    //m_indices.push_back(1);
+    //m_indices.push_back(2);
+    //m_indices.push_back(2);
+    //m_indices.push_back(3);
+    //m_indices.push_back(0);
+    //// Quad 2
+    //m_vertices.push_back({{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    //m_vertices.push_back({{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    //m_vertices.push_back({{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    //m_vertices.push_back({{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    //m_indices.push_back(4);
+    //m_indices.push_back(5);
+    //m_indices.push_back(6);
+    //m_indices.push_back(6);
+    //m_indices.push_back(7);
+    //m_indices.push_back(4);
+    //  Front face
+    m_vertices.push_back({{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
     m_indices.push_back(0);
     m_indices.push_back(1);
     m_indices.push_back(2);
     m_indices.push_back(2);
     m_indices.push_back(3);
     m_indices.push_back(0);
+
+    // Back face
+    m_vertices.push_back({{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    m_indices.push_back(4);
+    m_indices.push_back(5);
+    m_indices.push_back(6);
+    m_indices.push_back(6);
+    m_indices.push_back(7);
+    m_indices.push_back(4);
+
+    // Left face
+    m_vertices.push_back({{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{-0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    m_indices.push_back(8);
+    m_indices.push_back(9);
+    m_indices.push_back(10);
+    m_indices.push_back(10);
+    m_indices.push_back(11);
+    m_indices.push_back(8);
+
+    // Right face
+    m_vertices.push_back({{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    m_indices.push_back(12);
+    m_indices.push_back(13);
+    m_indices.push_back(14);
+    m_indices.push_back(14);
+    m_indices.push_back(15);
+    m_indices.push_back(12);
+
+    // Top face
+    m_vertices.push_back({{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    m_indices.push_back(16);
+    m_indices.push_back(17);
+    m_indices.push_back(18);
+    m_indices.push_back(18);
+    m_indices.push_back(19);
+    m_indices.push_back(16);
+
+    // Bottom face
+    m_vertices.push_back({{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    m_vertices.push_back({{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}});
+    m_vertices.push_back({{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}});
+    m_indices.push_back(20);
+    m_indices.push_back(21);
+    m_indices.push_back(22);
+    m_indices.push_back(22);
+    m_indices.push_back(23);
+    m_indices.push_back(20);
+
 }
 
 void Renderer::init()
@@ -34,6 +116,8 @@ void Renderer::init()
     create_image_views();
     create_descriptor_set_layout();
     create_graphics_pipeline();
+
+    create_depth_resources();
 
     create_texture_iamge();
     create_texture_image_view();
@@ -274,6 +358,7 @@ void Renderer::recreate_swap_chain()
 
     create_swap_chain();
     create_image_views();
+    create_depth_resources();
 }
 
 void Renderer::create_image_views()
@@ -281,17 +366,16 @@ void Renderer::create_image_views()
     m_swap_chain_image_views.resize(m_swap_chain_images.size());
     for (size_t i = 0; i < m_swap_chain_images.size(); i++)
     {
-        m_swap_chain_image_views[i] =
-            create_image_view(m_swap_chain_images[i], m_swap_chain_image_format);
+        m_swap_chain_image_views[i] = create_image_view(
+            m_swap_chain_images[i], m_swap_chain_image_format, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 }
 
 void molten::Renderer::cleanup_swap_chain()
 {
-    /*for (auto framebuffer : m_swap_chain_frame_buffers)
-    {
-        vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-    }*/
+    vkDestroyImageView(m_context->m_device, m_depth_image_view, nullptr);
+    vkDestroyImage(m_context->m_device, m_depth_image, nullptr);
+    vkFreeMemory(m_context->m_device, m_depth_image_memory, nullptr);
 
     for (auto image_view : m_swap_chain_image_views)
     {
@@ -372,7 +456,7 @@ void Renderer::create_graphics_pipeline()
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
@@ -425,6 +509,19 @@ void Renderer::create_graphics_pipeline()
     pipeline_rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     pipeline_rendering_info.colorAttachmentCount = 1;
     pipeline_rendering_info.pColorAttachmentFormats = &m_swap_chain_image_format;
+    pipeline_rendering_info.depthAttachmentFormat = m_context->find_depth_format();
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
+    depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil.depthTestEnable = VK_TRUE;
+    depth_stencil.depthWriteEnable = VK_TRUE;
+    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.minDepthBounds = 0.0f;
+    depth_stencil.maxDepthBounds = 1.0f;
+    depth_stencil.stencilTestEnable = VK_FALSE;
+    depth_stencil.front = {};
+    depth_stencil.back = {};
 
     VkGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -435,7 +532,7 @@ void Renderer::create_graphics_pipeline()
     pipeline_info.pViewportState = &viewport_state;
     pipeline_info.pRasterizationState = &rasterizer;
     pipeline_info.pMultisampleState = &multisampling;
-    pipeline_info.pDepthStencilState = nullptr;
+    pipeline_info.pDepthStencilState = &depth_stencil;
     pipeline_info.pColorBlendState = &color_blending;
     pipeline_info.pDynamicState = &dynamic_state;
     pipeline_info.layout = m_pipeline_layout;
@@ -520,6 +617,13 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     color_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     color_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     color_attachment_info.clearValue = clear_color;
+    VkRenderingAttachmentInfoKHR depth_attachment_info = {};
+    depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depth_attachment_info.imageView = m_depth_image_view;
+    depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
+    depth_attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth_attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth_attachment_info.clearValue = {1.0f, 0.0f};
     VkRenderingInfoKHR render_info = {};
     render_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     render_info.renderArea.offset = {0, 0};
@@ -527,6 +631,7 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     render_info.layerCount = 1;
     render_info.colorAttachmentCount = 1;
     render_info.pColorAttachments = &color_attachment_info;
+    render_info.pDepthAttachment = &depth_attachment_info;
 
     VkImageMemoryBarrier image_memory_barrier = {};
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -545,6 +650,30 @@ void Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t im
     vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr,
                          1, &image_memory_barrier);
+
+    VkImageMemoryBarrier depth_memory_barrier = {};
+    depth_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    depth_memory_barrier.srcAccessMask = 0;
+    depth_memory_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    depth_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth_memory_barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    depth_memory_barrier.image = m_depth_image;
+    VkImageSubresourceRange depth_subresource_range = {};
+    depth_subresource_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    depth_subresource_range.baseMipLevel = 0;
+    depth_subresource_range.levelCount = 1;
+    depth_subresource_range.baseArrayLayer = 0;
+    depth_subresource_range.layerCount = 1;
+    VkFormat depth_format = m_context->find_depth_format();
+    if (m_context->has_stencil_component(depth_format))
+    {
+        depth_subresource_range.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    depth_memory_barrier.subresourceRange = depth_subresource_range;
+
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                         &depth_memory_barrier);
 
     m_context->BeginRendering(command_buffer, &render_info); // vkCmdBeginRenderingKHR
 
@@ -792,7 +921,8 @@ void Renderer::create_texture_iamge()
 
 void Renderer::create_texture_image_view()
 {
-    m_texture_image_view = create_image_view(m_texture_image, VK_FORMAT_R8G8B8A8_SRGB);
+    m_texture_image_view =
+        create_image_view(m_texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void Renderer::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
@@ -833,14 +963,15 @@ void Renderer::create_image(uint32_t width, uint32_t height, VkFormat format, Vk
     vkBindImageMemory(m_context->m_device, image, image_memory, 0);
 }
 
-VkImageView Renderer::create_image_view(VkImage image, VkFormat format)
+VkImageView Renderer::create_image_view(VkImage image, VkFormat format,
+                                        VkImageAspectFlags aspect_flags)
 {
     VkImageViewCreateInfo view_info{};
     view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     view_info.image = image;
     view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
     view_info.format = format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.aspectMask = aspect_flags;
     view_info.subresourceRange.baseMipLevel = 0;
     view_info.subresourceRange.levelCount = 1;
     view_info.subresourceRange.baseArrayLayer = 0;
@@ -870,11 +1001,20 @@ void Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLa
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
+    if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        if (m_context->has_stencil_component(format))
+            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    else
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
     if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
         new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
@@ -892,6 +1032,16 @@ void Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLa
 
         source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+             new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     }
     else
         throw std::invalid_argument("Unsupported Layout Transition");
@@ -951,6 +1101,18 @@ void Renderer::create_texture_sampler()
     if (vkCreateSampler(m_context->m_device, &sampler_info, nullptr, &m_texture_sampler) !=
         VK_SUCCESS)
         throw std::runtime_error("Failed to Create Texture Sampler!");
+}
+
+void Renderer::create_depth_resources()
+{
+    VkFormat depth_format = m_context->find_depth_format();
+    create_image(m_swap_chain_extent.width, m_swap_chain_extent.height, depth_format,
+                 VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depth_image, m_depth_image_memory);
+    m_depth_image_view = create_image_view(m_depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    transition_image_layout(m_depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 VkCommandBuffer Renderer::begin_single_time_commands()
@@ -1102,7 +1264,7 @@ std::array<VkVertexInputAttributeDescription, 3> Vertex::get_attribute_descripti
     std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions = {};
     attribute_descriptions[0].binding = 0;
     attribute_descriptions[0].location = 0;
-    attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attribute_descriptions[0].offset = offsetof(Vertex, pos);
 
     attribute_descriptions[1].binding = 0;

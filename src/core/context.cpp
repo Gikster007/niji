@@ -186,10 +186,10 @@ std::vector<const char*> Context::get_required_extensions()
     return extensions;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL Context::debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-    VkDebugUtilsMessageTypeFlagsEXT message_type,
-    const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data)
+VKAPI_ATTR VkBool32 VKAPI_CALL
+Context::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                        VkDebugUtilsMessageTypeFlagsEXT message_type,
+                        const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data)
 {
     std::cerr << "validation Layer: " << callback_data->pMessage << std::endl;
 
@@ -271,12 +271,14 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
     VkPhysicalDeviceFeatures supported_features = {};
     vkGetPhysicalDeviceFeatures(device, &supported_features);
 
-    return indices.is_complete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
+    return indices.is_complete() && extensions_supported && swap_chain_adequate &&
+           supported_features.samplerAnisotropy;
 }
 
 void Context::create_logical_device()
 {
-    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(m_physical_device, m_surface);
+    QueueFamilyIndices indices =
+        QueueFamilyIndices::find_queue_families(m_physical_device, m_surface);
 
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     std::set<uint32_t> unique_queue_families = {indices.graphics_family.value(),
@@ -342,8 +344,8 @@ bool Context::check_device_extension_support(VkPhysicalDevice device)
     return required_extensions.empty();
 }
 
-SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(
-    VkPhysicalDevice device, VkSurfaceKHR surface)
+SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(VkPhysicalDevice device,
+                                                                          VkSurfaceKHR surface)
 {
     SwapChainSupportDetails details = {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
@@ -392,11 +394,42 @@ uint32_t Context::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags p
 
     for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
     {
-        if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+        if ((type_filter & (1 << i)) &&
+            (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
             return i;
     }
-    
+
     throw std::runtime_error("Failed to Find Suitable Memory Type!");
+}
+
+VkFormat Context::find_supported_format(const std::vector<VkFormat>& candidates,
+                                        VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates)
+    {
+        VkFormatProperties props = {};
+        vkGetPhysicalDeviceFormatProperties(m_physical_device, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            return format;
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+                 (props.optimalTilingFeatures & features) == features)
+            return format;
+    }
+
+    throw std::runtime_error("Failed to Find Supported Format!");
+}
+
+VkFormat Context::find_depth_format()
+{
+    return find_supported_format(
+        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+bool Context::has_stencil_component(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice device,

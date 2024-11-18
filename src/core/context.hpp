@@ -63,6 +63,10 @@ class Context
     void create_command_pool();
 
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
+    VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling,
+                                   VkFormatFeatureFlags features);
+    VkFormat find_depth_format();
+    bool has_stencil_component(VkFormat format);
 
   private:
     PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;
