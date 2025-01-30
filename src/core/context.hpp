@@ -8,21 +8,21 @@ namespace niji
 {
 struct QueueFamilyIndices
 {
-    std::optional<uint32_t> graphics_family = {};
-    std::optional<uint32_t> present_family = {};
+    std::optional<uint32_t> GraphicsFamily = {};
+    std::optional<uint32_t> PresentFamily = {};
 
     bool is_complete() const
     {
-        return graphics_family.has_value() && present_family.has_value();
+        return GraphicsFamily.has_value() && PresentFamily.has_value();
     }
     static QueueFamilyIndices find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface);
 };
 
 struct SwapChainSupportDetails
 {
-    VkSurfaceCapabilitiesKHR capabilities = {};
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> present_modes;
+    VkSurfaceCapabilitiesKHR Capabilities = {};
+    std::vector<VkSurfaceFormatKHR> Formats;
+    std::vector<VkPresentModeKHR> PresentModes;
     static SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device,
                                                             VkSurfaceKHR surface);
 };
@@ -47,11 +47,11 @@ class Context
     bool check_validation_layer_support();
     std::vector<const char*> get_required_extensions();
     static VKAPI_ATTR VkBool32 VKAPI_CALL
-    debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-                   VkDebugUtilsMessageTypeFlagsEXT message_type,
-                   const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
+    debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                   VkDebugUtilsMessageTypeFlagsEXT messageType,
+                   const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData);
     void setup_debug_messenger();
-    void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info);
+    void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
     void create_surface();
 
@@ -62,7 +62,7 @@ class Context
 
     void create_command_pool();
 
-    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
+    uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling,
                                    VkFormatFeatureFlags features);
     VkFormat find_depth_format();
@@ -73,17 +73,17 @@ class Context
     PFN_vkCmdEndRenderingKHR EndRendering = nullptr;
 
     GLFWwindow* m_window = nullptr;
-    bool m_framebuffer_resized = false;
+    bool m_framebufferResized = false;
     VkInstance m_instance = {};
-    VkDebugUtilsMessengerEXT m_debug_messenger = {};
+    VkDebugUtilsMessengerEXT m_debugMessenger = {};
 
     VkSurfaceKHR m_surface = {};
 
-    VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
+    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};
-    VkQueue m_graphics_queue =
+    VkQueue m_graphicsQueue =
         {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
-    VkQueue m_present_queue = {};
-    VkCommandPool m_command_pool = {};
+    VkQueue m_presentQueue = {};
+    VkCommandPool m_commandPool = {};
 };
 } // namespace niji

@@ -12,9 +12,9 @@ namespace niji
 {
 struct Vertex
 {
-    glm::vec3 pos = {};
-    glm::vec3 color = {};
-    glm::vec2 tex_coord = {};
+    glm::vec3 Pos = {};
+    glm::vec3 Color = {};
+    glm::vec2 TexCoord = {};
 
     static VkVertexInputBindingDescription get_binding_description();
     static std::array<VkVertexInputAttributeDescription, 3> get_attribute_description();
@@ -22,9 +22,9 @@ struct Vertex
 
 struct UniformBufferObject
 {
-    alignas(16) glm::mat4 model = {};
-    alignas(16) glm::mat4 view = {};
-    alignas(16) glm::mat4 proj = {};
+    alignas(16) glm::mat4 Model = {};
+    alignas(16) glm::mat4 View = {};
+    alignas(16) glm::mat4 Proj = {};
 };
 
 class Renderer
@@ -41,9 +41,9 @@ class Renderer
 
   private:
     VkSurfaceFormatKHR choose_swap_surface_format(
-        const std::vector<VkSurfaceFormatKHR>& available_formats);
+        const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR choose_swap_present_mode(
-        const std::vector<VkPresentModeKHR>& available_present_modes);
+        const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
     void create_swap_chain();
     void recreate_swap_chain();
@@ -58,29 +58,30 @@ class Renderer
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
     void create_command_buffers();
-    void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+    void record_command_buffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void create_sync_objects();
 
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
-    void update_uniform_buffer(uint32_t current_image);
+    void update_uniform_buffer(uint32_t currentImage);
 
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
                        VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                       VkDeviceMemory& buffer_memory);
-    void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
-    
+                       VkDeviceMemory& bufferMemory);
+    void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
     VkCommandBuffer begin_single_time_commands();
-    void end_single_time_commands(VkCommandBuffer command_buffer);
+    void end_single_time_commands(VkCommandBuffer commandBuffer);
 
     void create_texture_iamge();
     void create_texture_image_view();
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
-                      VkDeviceMemory& image_memory);
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
-    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+                      VkDeviceMemory& imageMemory);
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
+                                 VkImageLayout newLayout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
     void create_texture_sampler();
@@ -91,45 +92,45 @@ class Renderer
     std::vector<Vertex> m_vertices = {};
     std::vector<uint16_t> m_indices = {};
 
-    std::vector<VkBuffer> m_uniform_buffers = {};
-    std::vector<VkDeviceMemory> m_uniform_buffers_memory = {};
-    std::vector<void*> m_uniform_buffers_mapped = {};
+    std::vector<VkBuffer> m_uniformBuffers = {};
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory = {};
+    std::vector<void*> m_uniformBuffersMapped = {};
 
-    VkImage m_texture_image = {};
-    VkImageView m_texture_image_view = {};
-    VkDeviceMemory m_texture_image_memory = {};
+    VkImage m_textureImage = {};
+    VkImageView m_textureImageView = {};
+    VkDeviceMemory m_textureImageMemory = {};
 
-    VkImage m_depth_image = {};
-    VkImageView m_depth_image_view = {};
-    VkDeviceMemory m_depth_image_memory = {};
+    VkImage m_depthImage = {};
+    VkImageView m_depthImageView = {};
+    VkDeviceMemory m_depthImageMemory = {};
 
-    VkSampler m_texture_sampler = {};
+    VkSampler m_textureSampler = {};
 
-    VkBuffer m_vertex_buffer = {};
-    VkDeviceMemory m_vertex_buffer_memory = {};
-    VkBuffer m_index_buffer = {};
-    VkDeviceMemory m_index_buffer_memory = {};
+    VkBuffer m_vertexBuffer = {};
+    VkDeviceMemory m_vertexBufferMemory = {};
+    VkBuffer m_indexBuffer = {};
+    VkDeviceMemory m_indexBufferMemory = {};
 
     Context* m_context = nullptr;
 
-    uint32_t current_frame = 0;
+    uint32_t m_currentFrame = 0;
 
-    VkSwapchainKHR m_swap_chain = {};
-    std::vector<VkImage> m_swap_chain_images = {};
-    VkFormat m_swap_chain_image_format = {};
-    VkExtent2D m_swap_chain_extent = {};
-    std::vector<VkImageView> m_swap_chain_image_views = {};
+    VkSwapchainKHR m_swapChain = {};
+    std::vector<VkImage> m_swapChainImages = {};
+    VkFormat m_swapChainImageFormat = {};
+    VkExtent2D m_swapChainExtent = {};
+    std::vector<VkImageView> m_swapChainImageViews = {};
 
-    VkDescriptorPool m_descriptor_pool = {};
-    std::vector<VkDescriptorSet> m_descriptor_sets = {};
-    VkDescriptorSetLayout m_descriptor_set_layout = {};
-    VkPipelineLayout m_pipeline_layout = {};
-    VkPipeline m_graphics_pipeline = {};
+    VkDescriptorPool m_descriptorPool = {};
+    std::vector<VkDescriptorSet> m_descriptorSets = {};
+    VkDescriptorSetLayout m_descriptorSetLayout = {};
+    VkPipelineLayout m_pipelineLayout = {};
+    VkPipeline m_graphicsPipeline = {};
 
-    std::vector<VkCommandBuffer> m_command_buffers =
+    std::vector<VkCommandBuffer> m_commandBuffers =
         {}; // Automatically freed when command pool is destroyed
-    std::vector<VkSemaphore> m_image_available_semaphores = {};
-    std::vector<VkSemaphore> m_render_finished_semaphores = {};
-    std::vector<VkFence> m_in_flight_fences = {};
+    std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
+    std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
+    std::vector<VkFence> m_inFlightFences = {};
 };
 } // namespace niji

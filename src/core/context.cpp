@@ -60,12 +60,12 @@ void Context::init_window()
 
 void Context::cleanup()
 {
-    vkDestroyCommandPool(m_device, m_command_pool, nullptr);
+    vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
     vkDestroyDevice(m_device, nullptr);
 
     if (ENABLE_VALIDATION_LAYERS)
-        DestroyDebugUtilsMessengerEXT(m_instance, m_debug_messenger, nullptr);
+        DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
@@ -77,7 +77,7 @@ void Context::cleanup()
 void Context::framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 {
     auto context = reinterpret_cast<Context*>(glfwGetWindowUserPointer(window));
-    context->m_framebuffer_resized = true;
+    context->m_framebufferResized = true;
 }
 
 void Context::create_instance()
@@ -88,47 +88,47 @@ void Context::create_instance()
         throw std::runtime_error("Validation Layers Requested, But Not Available!");
 
     // Create Vulkan Instance
-    VkApplicationInfo app_info = {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "niji";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "niji Engine";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_0;
+    VkApplicationInfo appInfo = {};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "niji";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "niji Engine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_0;
 
     auto extensions = get_required_extensions();
-    VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {};
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
 
-    VkInstanceCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    create_info.pApplicationInfo = &app_info;
-    create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    create_info.ppEnabledExtensionNames = extensions.data();
+    VkInstanceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
     if (ENABLE_VALIDATION_LAYERS)
     {
-        create_info.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-        create_info.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+        createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
-        populate_debug_messenger_create_info(debug_create_info);
-        create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
+        populate_debug_messenger_create_info(debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else
     {
-        create_info.enabledLayerCount = 0;
-        create_info.pNext = nullptr;
+        createInfo.enabledLayerCount = 0;
+        createInfo.pNext = nullptr;
     }
 
-    if (vkCreateInstance(&create_info, nullptr, &m_instance) != VK_SUCCESS)
+    if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS)
         throw std::runtime_error("failed to create instance!");
 
     // Check for Extensions
-    uint32_t extension_count = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-    std::vector<VkExtensionProperties> extensions_list(extension_count);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_list.data());
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> extensionsList(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsList.data());
 
     std::cout << "Available extensions:\n";
-    for (const auto& extension : extensions_list)
+    for (const auto& extension : extensionsList)
     {
         std::cout << '\t' << extension.extensionName << '\n';
     }
@@ -144,26 +144,26 @@ void Context::create_instance()
 
 bool Context::check_validation_layer_support()
 {
-    uint32_t layer_count = 0;
-    vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+    uint32_t layerCount = 0;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
-    std::vector<VkLayerProperties> available_layers(layer_count);
-    vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    for (const char* layer_name : VALIDATION_LAYERS)
+    for (const char* layerName : VALIDATION_LAYERS)
     {
-        bool layer_found = false;
+        bool layerFound = false;
 
-        for (const auto& layer_properties : available_layers)
+        for (const auto& layerProperties : availableLayers)
         {
-            if (strcmp(layer_name, layer_properties.layerName) == 0)
+            if (strcmp(layerName, layerProperties.layerName) == 0)
             {
-                layer_found = true;
+                layerFound = true;
                 break;
             }
         }
 
-        if (!layer_found)
+        if (!layerFound)
         {
             return false;
         }
@@ -174,11 +174,11 @@ bool Context::check_validation_layer_support()
 
 std::vector<const char*> Context::get_required_extensions()
 {
-    uint32_t glfw_ext_count = 0;
-    const char** glfw_ext;
-    glfw_ext = glfwGetRequiredInstanceExtensions(&glfw_ext_count);
+    uint32_t glfwExtCount = 0;
+    const char** glfwExt;
+    glfwExt = glfwGetRequiredInstanceExtensions(&glfwExtCount);
 
-    std::vector<const char*> extensions(glfw_ext, glfw_ext + glfw_ext_count);
+    std::vector<const char*> extensions(glfwExt, glfwExt + glfwExtCount);
 
     if (ENABLE_VALIDATION_LAYERS)
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -187,11 +187,11 @@ std::vector<const char*> Context::get_required_extensions()
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
-Context::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-                        VkDebugUtilsMessageTypeFlagsEXT message_type,
-                        const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data)
+Context::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                        VkDebugUtilsMessageTypeFlagsEXT messageType,
+                        const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData)
 {
-    std::cerr << "validation Layer: " << callback_data->pMessage << std::endl;
+    std::cerr << "validation Layer: " << callbackData->pMessage << std::endl;
 
     return VK_FALSE;
 }
@@ -201,28 +201,28 @@ void Context::setup_debug_messenger()
     if (!ENABLE_VALIDATION_LAYERS)
         return;
 
-    VkDebugUtilsMessengerCreateInfoEXT create_info{};
-    populate_debug_messenger_create_info(create_info);
+    VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+    populate_debug_messenger_create_info(createInfo);
 
-    if (CreateDebugUtilsMessengerEXT(m_instance, &create_info, nullptr, &m_debug_messenger) !=
+    if (CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) !=
         VK_SUCCESS)
     {
         throw std::runtime_error("Failed to Set Up Debug Messenger!");
     }
 }
 
-void Context::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& create_info)
+void Context::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
-    create_info = {};
-    create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+    createInfo = {};
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                               VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                               VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    create_info.pfnUserCallback = debug_callback;
+    createInfo.pfnUserCallback = debug_callback;
 }
 
 void Context::create_surface()
@@ -245,12 +245,12 @@ void Context::pick_physical_device()
     {
         if (is_device_suitable(device))
         {
-            m_physical_device = device;
+            m_physicalDevice = device;
             break;
         }
     }
 
-    if (m_physical_device == VK_NULL_HANDLE)
+    if (m_physicalDevice == VK_NULL_HANDLE)
         throw std::runtime_error("Failed To Find a Suitable GPU!");
 }
 
@@ -258,116 +258,116 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
 {
     QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(device, m_surface);
 
-    bool extensions_supported = check_device_extension_support(device);
-    bool swap_chain_adequate = false;
-    if (extensions_supported)
+    bool extensionsSupported = check_device_extension_support(device);
+    bool swapChainAdequate = false;
+    if (extensionsSupported)
     {
-        SwapChainSupportDetails swap_chain_support =
+        SwapChainSupportDetails swapChainSupport =
             SwapChainSupportDetails::query_swap_chain_support(device, m_surface);
-        swap_chain_adequate =
-            !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
+        swapChainAdequate =
+            !swapChainSupport.Formats.empty() && !swapChainSupport.PresentModes.empty();
     }
 
-    VkPhysicalDeviceFeatures supported_features = {};
-    vkGetPhysicalDeviceFeatures(device, &supported_features);
+    VkPhysicalDeviceFeatures supportedFeatures = {};
+    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    return indices.is_complete() && extensions_supported && swap_chain_adequate &&
-           supported_features.samplerAnisotropy;
+    return indices.is_complete() && extensionsSupported && swapChainAdequate &&
+           supportedFeatures.samplerAnisotropy;
 }
 
 void Context::create_logical_device()
 {
     QueueFamilyIndices indices =
-        QueueFamilyIndices::find_queue_families(m_physical_device, m_surface);
+        QueueFamilyIndices::find_queue_families(m_physicalDevice, m_surface);
 
-    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-    std::set<uint32_t> unique_queue_families = {indices.graphics_family.value(),
-                                                indices.present_family.value()};
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {indices.GraphicsFamily.value(),
+                                                indices.PresentFamily.value()};
 
-    float queue_priority = 1.0f;
-    for (uint32_t queue_family : unique_queue_families)
+    float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies)
     {
-        VkDeviceQueueCreateInfo queue_create_info = {};
-        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queue_create_info.queueFamilyIndex = queue_family;
-        queue_create_info.queueCount = 1;
-        queue_create_info.pQueuePriorities = &queue_priority;
-        queue_create_infos.push_back(queue_create_info);
+        VkDeviceQueueCreateInfo queueCreateInfo = {};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures device_features = {};
-    device_features.samplerAnisotropy = VK_TRUE;
+    VkPhysicalDeviceFeatures deviceFeatures = {};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
-    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {};
-    dynamic_rendering_feature.sType =
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature = {};
+    dynamicRenderingFeature.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
-    dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+    dynamicRenderingFeature.dynamicRendering = VK_TRUE;
 
-    VkDeviceCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.pNext = &dynamic_rendering_feature;
-    create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
-    create_info.pQueueCreateInfos = queue_create_infos.data();
-    create_info.pEnabledFeatures = &device_features;
-    create_info.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
-    create_info.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
+    VkDeviceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pNext = &dynamicRenderingFeature;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size());
+    createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
     if (ENABLE_VALIDATION_LAYERS)
     {
-        create_info.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-        create_info.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+        createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
     }
     else
-        create_info.enabledLayerCount = 0;
+        createInfo.enabledLayerCount = 0;
 
-    if (vkCreateDevice(m_physical_device, &create_info, nullptr, &m_device) != VK_SUCCESS)
+    if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
         throw std::runtime_error("Failed To Create Logical Device!");
 
-    vkGetDeviceQueue(m_device, indices.graphics_family.value(), 0, &m_graphics_queue);
-    vkGetDeviceQueue(m_device, indices.present_family.value(), 0, &m_present_queue);
+    vkGetDeviceQueue(m_device, indices.GraphicsFamily.value(), 0, &m_graphicsQueue);
+    vkGetDeviceQueue(m_device, indices.PresentFamily.value(), 0, &m_presentQueue);
 }
 
 bool Context::check_device_extension_support(VkPhysicalDevice device)
 {
-    uint32_t extension_count = 0;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
-    std::vector<VkExtensionProperties> available_extensions(extension_count);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count,
-                                         available_extensions.data());
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
+                                         availableExtensions.data());
 
-    std::set<std::string> required_extensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
+    std::set<std::string> requiredExtensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
 
-    for (const auto& extension : available_extensions)
+    for (const auto& extension : availableExtensions)
     {
-        required_extensions.erase(extension.extensionName);
+        requiredExtensions.erase(extension.extensionName);
     }
 
-    return required_extensions.empty();
+    return requiredExtensions.empty();
 }
 
 SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(VkPhysicalDevice device,
                                                                           VkSurfaceKHR surface)
 {
     SwapChainSupportDetails details = {};
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.Capabilities);
 
-    uint32_t format_count = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, nullptr);
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
 
-    if (format_count != 0)
+    if (formatCount != 0)
     {
-        details.formats.resize(format_count);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count,
-                                             details.formats.data());
+        details.Formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount,
+                                             details.Formats.data());
     }
 
-    uint32_t present_mode_count = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, nullptr);
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
 
-    if (present_mode_count != 0)
+    if (presentModeCount != 0)
     {
-        details.present_modes.resize(present_mode_count);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count,
-                                                  details.present_modes.data());
+        details.PresentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount,
+                                                  details.PresentModes.data());
     }
 
     return details;
@@ -375,27 +375,27 @@ SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(VkPhys
 
 void Context::create_command_pool()
 {
-    QueueFamilyIndices queue_family_indices =
-        QueueFamilyIndices::find_queue_families(m_physical_device, m_surface);
+    QueueFamilyIndices queueFamilyIndices =
+        QueueFamilyIndices::find_queue_families(m_physicalDevice, m_surface);
 
-    VkCommandPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.GraphicsFamily.value();
 
-    if (vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool) != VK_SUCCESS)
+    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Command Pool!");
 }
 
-uint32_t Context::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
+uint32_t Context::find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
-    VkPhysicalDeviceMemoryProperties mem_properties = {};
-    vkGetPhysicalDeviceMemoryProperties(m_physical_device, &mem_properties);
+    VkPhysicalDeviceMemoryProperties memProperties = {};
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
 
-    for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
     {
-        if ((type_filter & (1 << i)) &&
-            (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+        if ((typeFilter & (1 << i)) &&
+            (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
             return i;
     }
 
@@ -408,7 +408,7 @@ VkFormat Context::find_supported_format(const std::vector<VkFormat>& candidates,
     for (VkFormat format : candidates)
     {
         VkFormatProperties props = {};
-        vkGetPhysicalDeviceFormatProperties(m_physical_device, format, &props);
+        vkGetPhysicalDeviceFormatProperties(m_physicalDevice, format, &props);
 
         if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
             return format;
@@ -437,26 +437,26 @@ QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice devi
 {
     QueueFamilyIndices indices = {};
 
-    uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
     int i = 0;
-    for (const auto& queue_family : queue_families)
+    for (const auto& queueFamily : queueFamilies)
     {
-        VkBool32 present_support = {};
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+        VkBool32 presentSupport = {};
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 
-        if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            indices.graphics_family = i;
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            indices.GraphicsFamily = i;
 
         if (indices.is_complete())
             break;
 
-        if (present_support)
-            indices.present_family = i;
+        if (presentSupport)
+            indices.PresentFamily = i;
 
         i++;
     }
