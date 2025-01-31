@@ -1,6 +1,6 @@
 # Niji Engine ***WIP***
 
-### Custom Engine/Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image`...
+### Toy Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image` `EnTT` ...
 
 <br>
 
@@ -8,9 +8,9 @@
 - [x] Triangle Rendering :)
 - [x] (Vertex) Buffers
 - [x] Texturing
+- [x] ECS System
 - [ ] Model Loading
 - [ ] Dear ImGUI Implementation
-- [ ] ECS System
 - [ ] PBR Lighting 
 and more...
 
