@@ -1,5 +1,4 @@
-# Max <mxcop> ' clang-format
-# 13/12/2023
+# George B. (Gikster007) Clang Format
 
 BasedOnStyle: Microsoft
 IndentWidth: 4
@@ -14,3 +13,7 @@ SortIncludes: false
 DerivePointerAlignment: false
 PointerAlignment: Left
 ReferenceAlignment: Left
+
+# Function Decalration Spacing
+PenaltyBreakBeforeFirstCallParameter: 100
+AlwaysBreakTemplateDeclarations: Yes

@@ -4,9 +4,8 @@
 
 int main()
 {
-    niji::Engine engine;
+    niji::Engine niji = {};
 
-    engine.run();
-
+    niji.run();
     return 0;
 }

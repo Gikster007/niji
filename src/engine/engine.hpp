@@ -4,7 +4,8 @@
 #include <string>
 
 #include "core/context.hpp"
-#include "rendering/renderer.hpp"
+#include "core/ecs.hpp"
+#include "core/rendering/renderer.hpp"
 
 namespace niji
 {
@@ -23,7 +24,7 @@ class Engine
 
   public:
   private:
+    ECS ecs = {};
     Context m_context = {};
-    Renderer m_renderer = {};
 };
 } // namespace niji

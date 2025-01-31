@@ -22,7 +22,7 @@ add_custom_command(TARGET niji PRE_BUILD
 )
 
 # Includes
-target_include_directories(niji PRIVATE "./src/")
+target_include_directories(niji PRIVATE "./src/engine")
 
 # Pre-compiled header
 target_precompile_headers(niji PRIVATE "./src/precomp.hpp")
