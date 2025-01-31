@@ -1,6 +1,6 @@
 # Niji Engine ***WIP***
 
-### Toy Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image` `EnTT` ...
+### Toy Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image` `EnTT` `VMA` ...
 
 <br>
 
