@@ -4,6 +4,9 @@
 
 class GLFWwindow;
 
+struct VmaAllocator_T;
+typedef VmaAllocator_T* VmaAllocator;
+
 namespace niji
 {
 struct QueueFamilyIndices
@@ -43,6 +46,7 @@ class Context
     static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
   private:
+    void init_allocator();
     void create_instance();
     bool check_validation_layer_support();
     std::vector<const char*> get_required_extensions();
@@ -78,6 +82,8 @@ class Context
     VkDebugUtilsMessengerEXT m_debugMessenger = {};
 
     VkSurfaceKHR m_surface = {};
+
+    VmaAllocator m_allocator = {};
 
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};

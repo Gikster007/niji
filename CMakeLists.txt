@@ -14,13 +14,6 @@ target_compile_definitions(niji PRIVATE $<$<CONFIG:Release>:NDEBUG=1>)
 # Add WINDOWS compiler macro
 target_compile_definitions(niji PRIVATE "WINDOWS=$<STREQUAL:${CMAKE_SYSTEM_NAME},Windows>")
 
-# Post build command (copies the asset files)
-add_custom_command(TARGET niji PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory 
-    ${PROJECT_SOURCE_DIR}/lib 
-    ${PROJECT_BINARY_DIR}/$<CONFIG>/lib || (exit 0) # ignore failed copy.
-)
-
 # Includes
 target_include_directories(niji PRIVATE "./src/engine")
 

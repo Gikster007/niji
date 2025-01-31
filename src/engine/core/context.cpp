@@ -4,6 +4,10 @@
 #include <iostream>
 #include <set>
 
+#define VMA_IMPLEMENTATION
+//#define VMA_DEBUG_LOG_FORMAT
+#include <vk_mem_alloc.h>
+
 using namespace niji;
 
 static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
@@ -45,6 +49,8 @@ void Context::init()
     pick_physical_device();
     create_logical_device();
     create_command_pool();
+
+    init_allocator();
 }
 
 void Context::init_window()
@@ -62,6 +68,8 @@ void Context::cleanup()
 {
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
+    vmaDestroyAllocator(m_allocator);
+
     vkDestroyDevice(m_device, nullptr);
 
     if (ENABLE_VALIDATION_LAYERS)
@@ -69,6 +77,7 @@ void Context::cleanup()
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
+
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
@@ -78,6 +87,17 @@ void Context::framebuffer_resize_callback(GLFWwindow* window, int width, int hei
 {
     auto context = reinterpret_cast<Context*>(glfwGetWindowUserPointer(window));
     context->m_framebufferResized = true;
+}
+
+void Context::init_allocator()
+{
+    // initialize the memory allocator
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.device = m_device;
+    allocatorInfo.instance = m_instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &m_allocator);
 }
 
 void Context::create_instance()
@@ -192,6 +212,7 @@ Context::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                         const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData)
 {
     std::cerr << "validation Layer: " << callbackData->pMessage << std::endl;
+    std::cerr << "----------------------------" << std::endl;
 
     return VK_FALSE;
 }
@@ -298,10 +319,16 @@ void Context::create_logical_device()
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
 
+    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures = {};
+    bufferDeviceAddressFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature = {};
     dynamicRenderingFeature.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR;
     dynamicRenderingFeature.dynamicRendering = VK_TRUE;
+    dynamicRenderingFeature.pNext = &bufferDeviceAddressFeatures;
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

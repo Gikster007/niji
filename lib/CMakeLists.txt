@@ -4,10 +4,12 @@ add_subdirectory("glm")
 target_link_libraries(niji PRIVATE glm)
 target_include_directories(niji PRIVATE "./glm/")
 
+# VMA
+# https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+target_include_directories(niji PRIVATE "./vma/")
+
 # GLFW
 # https://github.com/glfw/glfw
-#add_subdirectory("glfw")
-#target_link_libraries(niji PRIVATE glfw)
 target_include_directories(niji PRIVATE ${CMAKE_SOURCE_DIR}/lib/glfw/include)
 set(GLFW_LIBRARY ${CMAKE_SOURCE_DIR}/lib/glfw/glfw3.lib)
 target_link_libraries(niji PRIVATE ${GLFW_LIBRARY})

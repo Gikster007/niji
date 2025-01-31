@@ -9,6 +9,11 @@
 #include "core/context.hpp"
 #include "core/ecs.hpp"
 
+enum VmaMemoryUsage;
+
+struct VmaAllocation_T;
+typedef VmaAllocation_T* VmaAllocation;
+
 namespace niji
 {
 struct Vertex
@@ -69,9 +74,9 @@ class Renderer : public System
     void create_uniform_buffers();
     void update_uniform_buffer(uint32_t currentImage);
 
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                       VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                       VkDeviceMemory& bufferMemory);
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
+                       VkBuffer& buffer, VmaAllocation& allocation, bool persistent = false);
+
     void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     VkCommandBuffer begin_single_time_commands();
@@ -80,8 +85,8 @@ class Renderer : public System
     void create_texture_iamge();
     void create_texture_image_view();
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-                      VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
-                      VkDeviceMemory& imageMemory);
+                      VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
+                      VmaAllocation& allocation);
     VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                  VkImageLayout newLayout);
@@ -96,23 +101,23 @@ class Renderer : public System
     std::vector<uint16_t> m_indices = {};
 
     std::vector<VkBuffer> m_uniformBuffers = {};
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory = {};
+    std::vector<VmaAllocation> m_uniformBuffersAllocations = {};
     std::vector<void*> m_uniformBuffersMapped = {};
 
     VkImage m_textureImage = {};
     VkImageView m_textureImageView = {};
-    VkDeviceMemory m_textureImageMemory = {};
+    VmaAllocation m_textureImageAllocation = {};
 
     VkImage m_depthImage = {};
     VkImageView m_depthImageView = {};
-    VkDeviceMemory m_depthImageMemory = {};
+    VmaAllocation m_depthImageAllocation = {};
 
     VkSampler m_textureSampler = {};
 
     VkBuffer m_vertexBuffer = {};
-    VkDeviceMemory m_vertexBufferMemory = {};
+    VmaAllocation m_vertexBufferAllocation = {};
     VkBuffer m_indexBuffer = {};
-    VkDeviceMemory m_indexBufferMemory = {};
+    VmaAllocation m_indexBufferAllocation = {};
 
     Context* m_context = nullptr;
 

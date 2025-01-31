@@ -4,7 +4,6 @@
 
 using namespace niji;
 
-
 void Engine::run()
 {
     init();
