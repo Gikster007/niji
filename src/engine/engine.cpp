@@ -6,9 +6,7 @@ using namespace niji;
 
 void Engine::run()
 {
-    init();
     update();
-    cleanup();
 }
 
 void Engine::init()
@@ -46,3 +44,5 @@ void Engine::cleanup()
     ecs.~ECS();
     m_context.cleanup();
 }
+
+Engine nijiEngine = {};

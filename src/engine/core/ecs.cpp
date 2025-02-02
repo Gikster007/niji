@@ -1,6 +1,4 @@
 #include "ecs.hpp"
-#include "ecs.hpp"
-#include "ecs.hpp"
 
 using namespace niji;
 

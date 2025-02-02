@@ -12,19 +12,18 @@ namespace niji
 class Engine
 {
   public:
-    Engine() = default;
-    void run();
-
-  private:
+    Engine() : ecs(){}
     void init();
-
-    void update();
-
+    void run();
     void cleanup();
 
-  public:
   private:
-    ECS ecs = {};
+    void update();
+
+  public:
+    ECS ecs;
     Context m_context = {};
 };
 } // namespace niji
+
+extern niji::Engine nijiEngine;

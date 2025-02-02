@@ -414,7 +414,7 @@ void Context::create_command_pool()
         throw std::runtime_error("Failed to Create Command Pool!");
 }
 
-uint32_t Context::find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+uint32_t Context::find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
 {
     VkPhysicalDeviceMemoryProperties memProperties = {};
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
@@ -430,7 +430,7 @@ uint32_t Context::find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags pr
 }
 
 VkFormat Context::find_supported_format(const std::vector<VkFormat>& candidates,
-                                        VkImageTiling tiling, VkFormatFeatureFlags features)
+                                        VkImageTiling tiling, VkFormatFeatureFlags features) const
 {
     for (VkFormat format : candidates)
     {

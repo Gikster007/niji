@@ -33,6 +33,12 @@ struct UniformBufferObject
     alignas(16) glm::mat4 Proj = {};
 };
 
+struct NijiBuffer
+{
+    VkBuffer Buffer = {};
+    VmaAllocation BufferAllocation = {};
+};
+
 class Renderer : public System
 {
   public:

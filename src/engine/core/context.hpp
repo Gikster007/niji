@@ -34,6 +34,7 @@ class Context
 {
     friend class Renderer;
     friend class Engine;
+    friend class Mesh;
 
   public:
     Context() = default;
@@ -66,9 +67,9 @@ class Context
 
     void create_command_pool();
 
-    uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    uint32_t find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
     VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling,
-                                   VkFormatFeatureFlags features);
+                                   VkFormatFeatureFlags features) const;
     VkFormat find_depth_format();
     bool has_stencil_component(VkFormat format);
 

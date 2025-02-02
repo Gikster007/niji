@@ -11,6 +11,9 @@
 using namespace niji;
 
 #include <vk_mem_alloc.h>
+#include <engine.hpp>
+#include <core/components/render-components.hpp>
+#include <core/components/transform.hpp>
 
 Renderer::Renderer(Context& context)
 {
@@ -166,7 +169,7 @@ void Renderer::render()
     }
 
     vkResetFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame]);
-
+    
     vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
     record_command_buffer(m_commandBuffers[m_currentFrame], imageIndex);
 
@@ -710,7 +713,25 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
     scissor.extent = m_swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    VkBuffer vertexBuffers[] = {m_vertexBuffer};
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& modelMesh = model->m_meshes[mesh.MeshID];
+
+        VkBuffer vertexBuffers[] = {modelMesh.m_vertexBuffer.Buffer};
+        VkDeviceSize offsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffer, modelMesh.m_indexBuffer.Buffer, 0, modelMesh.m_ushortIndices ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0,
+                                1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(modelMesh.m_indexCount), 1, 0,
+                         0, 0);
+    }
+
+    /*VkBuffer vertexBuffers[] = {m_vertexBuffer};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
@@ -718,7 +739,7 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
                             &m_descriptorSets[m_currentFrame], 0, nullptr);
 
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_indices.size()), 1, 0, 0, 0);*/
 
     m_context->EndRendering(commandBuffer); // vkCmdEndRenderingKHR
 
@@ -887,7 +908,7 @@ void Renderer::create_texture_iamge()
     int width = -1, height = -1, channels = -1;
     stbi_uc* pixels = stbi_load("textures/photon-the-final-gathering.jpg", &width, &height,
                                 &channels, STBI_rgb_alpha);
-    VkDeviceSize imageSize = width * height * 4;
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
     if (!pixels)
     {
         printf("Failed to load Image!");

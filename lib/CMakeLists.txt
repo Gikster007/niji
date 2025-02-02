@@ -8,6 +8,17 @@ target_include_directories(niji PRIVATE "./glm/")
 # https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
 target_include_directories(niji PRIVATE "./vma/")
 
+# FastGLTF
+# https://github.com/spnda/fastgltf
+include(FetchContent)
+FetchContent_Declare(
+    fastgltf
+    GIT_REPOSITORY https://github.com/spnda/fastgltf.git
+    GIT_TAG main  # or a specific tag/commit
+)
+FetchContent_MakeAvailable(fastgltf)
+target_link_libraries(niji PRIVATE fastgltf)
+
 # GLFW
 # https://github.com/glfw/glfw
 target_include_directories(niji PRIVATE ${CMAKE_SOURCE_DIR}/lib/glfw/include)
