@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/common.hpp"
 #include "renderer.hpp"
 
 #include <fastgltf/types.hpp>
@@ -11,18 +12,10 @@ namespace niji
 class Mesh
 {
   public:
-    Mesh() = default;
     Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive);
 
   private:
-    VkCommandBuffer begin_single_time_commands();
-
-    void end_single_time_commands(VkCommandBuffer commandBuffer);
-
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
-                       VkBuffer& buffer, VmaAllocation& allocation, bool persistent = false);
-
-    void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void cleanup() const;
 
   private:
     friend class Renderer;

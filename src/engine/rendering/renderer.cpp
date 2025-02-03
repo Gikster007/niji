@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include <glm/gtc/matrix_transform.hpp>
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 using namespace niji;
@@ -15,9 +16,9 @@ using namespace niji;
 #include <core/components/render-components.hpp>
 #include <core/components/transform.hpp>
 
-Renderer::Renderer(Context& context)
+Renderer::Renderer()
 {
-    m_context = &context;
+    m_context = &nijiEngine.m_context;
 
     //// Quad 1
     // m_vertices.push_back({{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}});
@@ -118,7 +119,6 @@ Renderer::Renderer(Context& context)
 
 Renderer::~Renderer()
 {
-    cleanup();
 }
 
 void Renderer::init()
@@ -130,7 +130,7 @@ void Renderer::init()
 
     create_depth_resources();
 
-    create_texture_iamge();
+    create_texture_image();
     create_texture_image_view();
     create_texture_sampler();
 
@@ -169,7 +169,7 @@ void Renderer::render()
     }
 
     vkResetFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame]);
-    
+
     vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
     record_command_buffer(m_commandBuffers[m_currentFrame], imageIndex);
 
@@ -242,6 +242,15 @@ void Renderer::cleanup()
     vkDestroyDescriptorPool(m_context->m_device, m_descriptorPool, nullptr);
 
     vkDestroyDescriptorSetLayout(m_context->m_device, m_descriptorSetLayout, nullptr);
+
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& modelMesh = model->m_meshes[mesh.MeshID];
+
+        modelMesh.cleanup();
+    }
 
     vmaDestroyBuffer(m_context->m_allocator, m_indexBuffer, m_indexBufferAllocation);
 
@@ -514,7 +523,14 @@ void Renderer::create_graphics_pipeline()
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& modelMaterial = model->m_materials[mesh.MeshID];
+
+        pipelineLayoutInfo.pSetLayouts = &modelMaterial.m_descriptorSetLayout;
+    }
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
@@ -718,17 +734,19 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
     {
         auto& model = mesh.Model;
         auto& modelMesh = model->m_meshes[mesh.MeshID];
+        auto& modelMaterial = model->m_materials[mesh.MeshID];
 
         VkBuffer vertexBuffers[] = {modelMesh.m_vertexBuffer.Buffer};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, modelMesh.m_indexBuffer.Buffer, 0, modelMesh.m_ushortIndices ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(commandBuffer, modelMesh.m_indexBuffer.Buffer, 0,
+                             modelMesh.m_ushortIndices ? VK_INDEX_TYPE_UINT16
+                                                       : VK_INDEX_TYPE_UINT32);
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0,
-                                1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+                                1, &modelMaterial.m_descriptorSets[m_currentFrame], 0, nullptr);
 
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(modelMesh.m_indexCount), 1, 0,
-                         0, 0);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(modelMesh.m_indexCount), 1, 0, 0, 0);
     }
 
     /*VkBuffer vertexBuffers[] = {m_vertexBuffer};
@@ -840,9 +858,8 @@ void Renderer::create_uniform_buffers()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                      VMA_MEMORY_USAGE_CPU_TO_GPU, m_uniformBuffers[i],
-                      m_uniformBuffersAllocations[i], true);
+        create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU,
+                      m_uniformBuffers[i], m_uniformBuffersAllocations[i], true);
 
         vmaMapMemory(m_context->m_allocator, m_uniformBuffersAllocations[i],
                      &m_uniformBuffersMapped[i]);
@@ -858,16 +875,24 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
         std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo = {};
-    ubo.Model =
-        glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.View = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.Proj =
-        glm::perspective(glm::radians(45.0f),
-                         m_swapChainExtent.width / (float)m_swapChainExtent.height, 0.1f, 10.0f);
-    ubo.Proj[1][1] *= -1;
 
-    memcpy(m_uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& modelMesh = model->m_meshes[mesh.MeshID];
+
+        ubo.Model =
+            glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.View = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                               glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.Proj = glm::perspective(glm::radians(45.0f),
+                                    m_swapChainExtent.width / (float)m_swapChainExtent.height, 0.1f,
+                                    10.0f);
+        ubo.Proj[1][1] *= -1;
+
+        memcpy(model->m_ubo.UniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    }
 }
 
 void Renderer::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -903,7 +928,7 @@ void Renderer::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize 
     end_single_time_commands(commandBuffer);
 }
 
-void Renderer::create_texture_iamge()
+void Renderer::create_texture_image()
 {
     int width = -1, height = -1, channels = -1;
     stbi_uc* pixels = stbi_load("textures/photon-the-final-gathering.jpg", &width, &height,
@@ -1123,7 +1148,7 @@ void Renderer::create_depth_resources()
                  VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                  VMA_MEMORY_USAGE_GPU_ONLY, m_depthImage, m_depthImageAllocation);
     m_depthImageView = create_image_view(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-   
+
     transition_image_layout(m_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }

@@ -2,8 +2,8 @@
 
 #include "engine.hpp"
 #include "core/components/transform.hpp"
-#include "mesh.hpp"
 #include "core/components/render-components.hpp"
+#include "mesh.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -41,6 +41,22 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
         printf("[Model]: Some error occurred while reading the buffer, parsing the JSON, or "
                "validating the data! \n");
         return;
+    }
+
+    // Create UBO
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    m_ubo.UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    m_ubo.UniformBuffersAllocations.resize(MAX_FRAMES_IN_FLIGHT);
+    m_ubo.UniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        nijiEngine.m_context.create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, m_ubo.UniformBuffers[i],
+                                           m_ubo.UniformBuffersAllocations[i], true);
+
+        vmaMapMemory(nijiEngine.m_context.m_allocator, m_ubo.UniformBuffersAllocations[i],
+                     &m_ubo.UniformBuffersMapped[i]);
     }
 
     this->Instantiate(asset.get(), parent);
@@ -88,10 +104,15 @@ void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity p
     auto& primitive = mesh.primitives[0];
 
     m_meshes.emplace_back(Mesh(model, primitive));
-    //m_materials.emplace_back(Material(m_model, primitive));
+    m_materials.emplace_back(Material(model, primitive, m_ubo));
 
     auto& meshComponent = nijiEngine.ecs.add_component<MeshComponent>(nodeEntity);
-    meshComponent.Model.reset(this);
+    meshComponent.Model = this;
     meshComponent.MeshID = node.meshIndex.value();
-    //meshComponent.MaterialID = primitive.material;
+    meshComponent.MaterialID = primitive.materialIndex.value();
+}
+
+void Model::update(float dt)
+{
+
 }

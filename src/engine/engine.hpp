@@ -12,7 +12,8 @@ namespace niji
 class Engine
 {
   public:
-    Engine() : ecs(){}
+    Engine();
+    ~Engine();
     void init();
     void run();
     void cleanup();
@@ -21,8 +22,9 @@ class Engine
     void update();
 
   public:
-    ECS ecs;
-    Context m_context = {};
+    ECS& ecs;
+    Context& m_context;
+    //Renderer& m_renderer;
 };
 } // namespace niji
 

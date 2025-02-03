@@ -1,11 +1,19 @@
 #pragma once
 
+#include "core/common.hpp"
+
 #include <optional>
 
 class GLFWwindow;
 
 struct VmaAllocator_T;
 typedef VmaAllocator_T* VmaAllocator;
+
+struct VmaAllocation_T;
+typedef VmaAllocation_T* VmaAllocation;
+
+enum VmaMemoryUsage;
+
 
 namespace niji
 {
@@ -34,10 +42,12 @@ class Context
 {
     friend class Renderer;
     friend class Engine;
+    friend class Model;
     friend class Mesh;
+    friend class Material;
 
   public:
-    Context() = default;
+    Context();
     void init();
 
     void init_window();
@@ -72,6 +82,27 @@ class Context
                                    VkFormatFeatureFlags features) const;
     VkFormat find_depth_format();
     bool has_stencil_component(VkFormat format);
+
+  private:
+    VkCommandBuffer begin_single_time_commands() const;
+
+    void end_single_time_commands(VkCommandBuffer commandBuffer) const;
+
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
+                       VkBuffer& buffer, VmaAllocation& allocation, bool persistent = false) const;
+
+    void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    NijiTexture create_texture_image(unsigned char* pixels, int width, int height,
+                              int channels);
+    void create_texture_image_view(NijiTexture& texture);
+    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+                      VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
+                      VmaAllocation& allocation);
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
+                                 VkImageLayout newLayout);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
   private:
     PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;

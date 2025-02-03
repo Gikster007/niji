@@ -3,7 +3,11 @@
 using namespace niji;
 
 ECS::ECS() = default;
-ECS::~ECS() = default;
+ECS::~ECS()
+{
+    //systems_cleanup();
+    //remove_deleted();
+}
 
 void ECS::destroy_entity(Entity entity)
 {

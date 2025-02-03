@@ -33,25 +33,18 @@ struct UniformBufferObject
     alignas(16) glm::mat4 Proj = {};
 };
 
-struct NijiBuffer
-{
-    VkBuffer Buffer = {};
-    VmaAllocation BufferAllocation = {};
-};
-
-class Renderer : public System
+class Renderer : System
 {
   public:
-    Renderer() = default;
-    ~Renderer() override;
-    Renderer(Context& context);
+    Renderer();
+    ~Renderer();
 
     void init();
 
-    void update(const float dt) override;
-    void render() override;
+    void update(const float dt);
+    void render();
 
-    void cleanup() override;
+    void cleanup();
 
   private:
     VkSurfaceFormatKHR choose_swap_surface_format(
@@ -64,9 +57,9 @@ class Renderer : public System
     void create_image_views();
     void cleanup_swap_chain();
 
+    void create_descriptor_set_layout();
     void create_descriptor_pool();
     void create_descriptor_sets();
-    void create_descriptor_set_layout();
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
@@ -88,7 +81,7 @@ class Renderer : public System
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer commandBuffer);
 
-    void create_texture_iamge();
+    void create_texture_image();
     void create_texture_image_view();
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
@@ -103,6 +96,7 @@ class Renderer : public System
     void create_depth_resources();
 
   private:
+    friend class Material;
     std::vector<Vertex> m_vertices = {};
     std::vector<uint16_t> m_indices = {};
 
