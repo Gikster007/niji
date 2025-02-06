@@ -25,8 +25,6 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
 {
     fastgltf::Parser parser{};
 
-    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
-
     auto data = fastgltf::GltfDataBuffer::FromPath(gltfPath);
     if (data.error() != fastgltf::Error::None)
     {
@@ -115,4 +113,9 @@ void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity p
 void Model::update(float dt)
 {
 
+}
+
+void Model::cleanup()
+{
+    nijiEngine.m_context.cleanup_ubo(m_ubo);
 }

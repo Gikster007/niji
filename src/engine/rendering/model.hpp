@@ -12,7 +12,7 @@
 
 namespace niji
 {
-class Model : public std::enable_shared_from_this<Model>
+class Model
 {
   public:
     Model(std::filesystem::path gltfPath, Entity parent);
@@ -21,7 +21,10 @@ class Model : public std::enable_shared_from_this<Model>
   private:
     void Instantiate(fastgltf::Asset& model, Entity parent = entt::null);
     void InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity parent);
+    
     void update(float dt);
+
+    void cleanup();
 
   private:
     friend class Renderer;

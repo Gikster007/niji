@@ -22,6 +22,9 @@ class Material
   public:
     Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiUBO& ubo);
 
+    private:
+    void cleanup();
+
   private:
     friend class Renderer;
     MaterialData m_materialData = {};

@@ -248,7 +248,9 @@ void Renderer::cleanup()
     {
         auto& model = mesh.Model;
         auto& modelMesh = model->m_meshes[mesh.MeshID];
-
+        auto& modelMaterial = model->m_materials[mesh.MeshID];
+        model->cleanup();
+        modelMaterial.cleanup();
         modelMesh.cleanup();
     }
 

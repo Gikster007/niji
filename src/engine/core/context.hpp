@@ -14,7 +14,6 @@ typedef VmaAllocation_T* VmaAllocation;
 
 enum VmaMemoryUsage;
 
-
 namespace niji
 {
 struct QueueFamilyIndices
@@ -93,8 +92,7 @@ class Context
 
     void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
-    NijiTexture create_texture_image(unsigned char* pixels, int width, int height,
-                              int channels);
+    NijiTexture create_texture_image(unsigned char* pixels, int width, int height, int channels);
     void create_texture_image_view(NijiTexture& texture);
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
@@ -103,6 +101,10 @@ class Context
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                  VkImageLayout newLayout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+  private:
+    void cleanup_texture(NijiTexture& texture) const;
+    void cleanup_ubo(NijiUBO& ubo) const;
 
   private:
     PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;

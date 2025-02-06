@@ -73,6 +73,11 @@ void Context::cleanup()
 {
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
+    /*char* stats = nullptr;
+    vmaBuildStatsString(m_allocator, &stats, true);
+    std::cout << stats << std::endl;
+    vmaFreeStatsString(m_allocator, stats);*/
+
     vmaDestroyAllocator(m_allocator);
 
     vkDestroyDevice(m_device, nullptr);
@@ -711,11 +716,32 @@ void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t widt
 
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
-
+     
     vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                            &region);
 
     end_single_time_commands(commandBuffer);
+}
+
+void Context::cleanup_texture(NijiTexture& texture) const
+{
+    vkDestroyImageView(m_device, texture.TextureImageView, nullptr);
+    vmaDestroyImage(m_allocator, texture.TextureImage, texture.TextureImageAllocation);
+}
+
+void Context::cleanup_ubo(NijiUBO& ubo) const
+{
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        // Make sure the buffer is unmapped before destroying it
+        if (ubo.UniformBuffersAllocations[i] != VK_NULL_HANDLE)
+        {
+            vmaUnmapMemory(m_allocator, ubo.UniformBuffersAllocations[i]);
+        }
+
+        vmaDestroyBuffer(m_allocator, ubo.UniformBuffers[i],
+                         ubo.UniformBuffersAllocations[i]);
+    }
 }
 
 QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice device,

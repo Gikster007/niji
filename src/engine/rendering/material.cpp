@@ -4,6 +4,7 @@
 #include "core/context.hpp"
 
 #include <stb_image.h>
+#include <vk_mem_alloc.h>
 
 using namespace niji;
 
@@ -238,4 +239,19 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiU
                                    descriptorWrites.data(), 0, nullptr);
         }
     }
+}
+
+void Material::cleanup()
+{
+    vkDestroySampler(nijiEngine.m_context.m_device, m_sampler, nullptr);
+
+    nijiEngine.m_context.cleanup_texture(m_materialData.BaseColor.value());
+    nijiEngine.m_context.cleanup_texture(m_materialData.Emissive.value());
+    nijiEngine.m_context.cleanup_texture(m_materialData.NormalTexture.value());
+    nijiEngine.m_context.cleanup_texture(m_materialData.OcclusionTexture.value());
+    nijiEngine.m_context.cleanup_texture(m_materialData.RoughMetallic.value());
+
+    vkDestroyDescriptorPool(nijiEngine.m_context.m_device, m_descriptorPool, nullptr);
+
+    vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_descriptorSetLayout, nullptr);
 }

@@ -44,7 +44,7 @@ class Renderer : System
     void update(const float dt);
     void render();
 
-    void cleanup();
+    void cleanup() override;
 
   private:
     VkSurfaceFormatKHR choose_swap_surface_format(

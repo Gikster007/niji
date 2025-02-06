@@ -57,6 +57,7 @@ void Engine::update()
 void Engine::cleanup()
 {
     //m_renderer.cleanup();
+    ecs.systems_cleanup();
     m_context.cleanup();
 }
 
