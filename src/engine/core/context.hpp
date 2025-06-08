@@ -44,6 +44,7 @@ class Context
     friend class Model;
     friend class Mesh;
     friend class Material;
+    friend class Buffer;
 
   public:
     Context();
@@ -122,8 +123,7 @@ class Context
 
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};
-    VkQueue m_graphicsQueue =
-        {}; // Doesn't need cleanup. Is implicitly cleaned when device is destroyed
+    VkQueue m_graphicsQueue = {};
     VkQueue m_presentQueue = {};
     VkCommandPool m_commandPool = {};
 };

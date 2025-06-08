@@ -15,8 +15,9 @@ static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
                                              const VkAllocationCallbacks* pAllocator,
                                              VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-        instance, "vkCreateDebugUtilsMessengerEXT");
+    auto func =
+        (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance,
+                                                                  "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
     {
         return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -31,8 +32,8 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
                                           VkDebugUtilsMessengerEXT debugMessenger,
                                           const VkAllocationCallbacks* pAllocator)
 {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-        instance, "vkDestroyDebugUtilsMessengerEXT");
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
+        vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)
     {
         func(instance, debugMessenger, pAllocator);
@@ -87,7 +88,6 @@ void Context::cleanup()
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     vkDestroyInstance(m_instance, nullptr);
-
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
@@ -253,11 +253,11 @@ void Context::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateIn
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debug_callback;
 }
 
@@ -318,7 +318,7 @@ void Context::create_logical_device()
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.GraphicsFamily.value(),
-                                                indices.PresentFamily.value()};
+                                              indices.PresentFamily.value()};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -398,8 +398,7 @@ SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(VkPhys
     if (formatCount != 0)
     {
         details.Formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount,
-                                             details.Formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.Formats.data());
     }
 
     uint32_t presentModeCount = 0;
@@ -464,9 +463,10 @@ VkFormat Context::find_supported_format(const std::vector<VkFormat>& candidates,
 
 VkFormat Context::find_depth_format()
 {
-    return find_supported_format(
-        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    return find_supported_format({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
+                                  VK_FORMAT_D24_UNORM_S8_UINT},
+                                 VK_IMAGE_TILING_OPTIMAL,
+                                 VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 }
 
 bool Context::has_stencil_component(VkFormat format)
@@ -504,12 +504,11 @@ void Context::end_single_time_commands(VkCommandBuffer commandBuffer) const
     vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(m_graphicsQueue);
 
-    vkFreeCommandBuffers(m_device, m_commandPool, 1,
-                         &commandBuffer);
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
 void Context::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
-                         VkBuffer& buffer, VmaAllocation& allocation, bool persistent) const
+                            VkBuffer& buffer, VmaAllocation& allocation, bool persistent) const
 {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -522,8 +521,8 @@ void Context::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemo
     if (persistent)
         allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer,
-                        &allocation, nullptr) != VK_SUCCESS)
+    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) !=
+        VK_SUCCESS)
         throw std::runtime_error("Failed to Create Buffer with VMA!");
 }
 
@@ -540,7 +539,8 @@ void Context::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
     end_single_time_commands(commandBuffer);
 }
 
-NijiTexture Context::create_texture_image(unsigned char* pixels, int width, int height, int channels)
+NijiTexture Context::create_texture_image(unsigned char* pixels, int width, int height,
+                                          int channels)
 {
     NijiTexture texture = {};
 
@@ -568,8 +568,8 @@ NijiTexture Context::create_texture_image(unsigned char* pixels, int width, int 
                  VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                  VMA_MEMORY_USAGE_GPU_ONLY, texture.TextureImage, texture.TextureImageAllocation);
 
-    transition_image_layout(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transition_image_layout(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     copy_buffer_to_image(stagingBuffer, texture.TextureImage, static_cast<uint32_t>(width),
                          static_cast<uint32_t>(height));
     transition_image_layout(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB,
@@ -587,10 +587,9 @@ void Context::create_texture_image_view(NijiTexture& texture)
         create_image_view(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void Context::create_image(uint32_t width, uint32_t height, VkFormat format,
-                                 VkImageTiling tiling, VkImageUsageFlags usage,
-                                 VmaMemoryUsage memoryUsage, VkImage& image,
-                                 VmaAllocation& allocation)
+void Context::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
+                           VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
+                           VmaAllocation& allocation)
 {
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -611,13 +610,13 @@ void Context::create_image(uint32_t width, uint32_t height, VkFormat format,
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = memoryUsage;
 
-    if (vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation,
-                       nullptr) != VK_SUCCESS)
+    if (vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr) !=
+        VK_SUCCESS)
         throw std::runtime_error("Failed to Create Image with VMA!");
 }
 
 VkImageView Context::create_image_view(VkImage image, VkFormat format,
-                                             VkImageAspectFlags aspectFlags)
+                                       VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -640,7 +639,7 @@ VkImageView Context::create_image_view(VkImage image, VkFormat format,
 }
 
 void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                            VkImageLayout newLayout)
+                                      VkImageLayout newLayout)
 {
     VkCommandBuffer commandBuffer = begin_single_time_commands();
 
@@ -704,8 +703,7 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
     end_single_time_commands(commandBuffer);
 }
 
-void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width,
-                                         uint32_t height)
+void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
     VkCommandBuffer commandBuffer = begin_single_time_commands();
 
@@ -721,7 +719,7 @@ void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t widt
 
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
-     
+
     vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                            &region);
 
@@ -744,8 +742,7 @@ void Context::cleanup_ubo(NijiUBO& ubo) const
             vmaUnmapMemory(m_allocator, ubo.UniformBuffersAllocations[i]);
         }
 
-        vmaDestroyBuffer(m_allocator, ubo.UniformBuffers[i],
-                         ubo.UniformBuffersAllocations[i]);
+        vmaDestroyBuffer(m_allocator, ubo.UniformBuffers[i], ubo.UniformBuffersAllocations[i]);
     }
 }
 
