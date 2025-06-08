@@ -30,5 +30,21 @@ target_sources(niji PRIVATE
 	${SOURCES}
 )
 
+set_target_properties(niji PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Debug
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release
+)
+
+# Always copy the assets folder after building
+add_custom_command(TARGET niji POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:niji>/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:niji>/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/textures $<TARGET_FILE_DIR:niji>/textures
+    COMMENT "Copying assets and shaders folders to output directory"
+)
+
 # Sub-directories
 add_subdirectory("lib")
