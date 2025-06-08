@@ -36,17 +36,6 @@
       "inherits": [
         "windows"
       ],
-      "name": "win32",
-      "architecture": {
-        "value": "x86",
-        "strategy": "external"
-      },
-      "displayName": "x86"
-    },
-    {
-      "inherits": [
-        "windows"
-      ],
       "name": "win64",
       "architecture": {
         "value": "x64",
@@ -56,18 +45,6 @@
     }
   ],
   "buildPresets": [
-    {
-      "name": "win32-debug",
-      "displayName": "x86 Debug",
-      "configurePreset": "win32",
-      "configuration": "Debug"
-    },
-    {
-      "name": "win32-release",
-      "displayName": "x86 Release",
-      "configurePreset": "win32",
-      "configuration": "Release"
-    },
     {
       "name": "win64-debug",
       "displayName": "x64 Debug",
