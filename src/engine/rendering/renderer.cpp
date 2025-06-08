@@ -153,6 +153,7 @@ void Renderer::render()
 {
     vkWaitForFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 
+    // Get index of the next available presentable image
     uint32_t imageIndex = UINT64_MAX; // init to high value to avoid confusion
     VkResult result = vkAcquireNextImageKHR(m_context->m_device, m_swapChain, UINT64_MAX,
                                             m_imageAvailableSemaphores[m_currentFrame],
@@ -738,10 +739,10 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
         auto& modelMesh = model->m_meshes[mesh.MeshID];
         auto& modelMaterial = model->m_materials[mesh.MeshID];
 
-        VkBuffer vertexBuffers[] = {modelMesh.m_vertexBuffer.Buffer};
+        VkBuffer vertexBuffers[] = {modelMesh.m_vertexBuffer.Handle};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, modelMesh.m_indexBuffer.Buffer, 0,
+        vkCmdBindIndexBuffer(commandBuffer, modelMesh.m_indexBuffer.Handle, 0,
                              modelMesh.m_ushortIndices ? VK_INDEX_TYPE_UINT16
                                                        : VK_INDEX_TYPE_UINT32);
 

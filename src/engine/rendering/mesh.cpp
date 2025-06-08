@@ -11,10 +11,10 @@ using namespace niji;
 
 void Mesh::cleanup() const
 {
-    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_indexBuffer.Buffer,
+    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_indexBuffer.Handle,
                      m_indexBuffer.BufferAllocation);
 
-    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_vertexBuffer.Buffer,
+    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_vertexBuffer.Handle,
                      m_vertexBuffer.BufferAllocation);
 }
 
@@ -105,68 +105,36 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
 
     // Create Vertex Buffer
     {
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-        VkBuffer stagingBuffer = {};
-        VmaAllocation stagingBufferAllocation = {};
-        nijiEngine.m_context.create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-                      stagingBuffer, stagingBufferAllocation);
-
-        void* data = nullptr;
-        vmaMapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation, &data);
-        memcpy(data, vertices.data(), (size_t)bufferSize);
-        vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation);
-
-        nijiEngine.m_context.create_buffer(bufferSize,
-                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                      VMA_MEMORY_USAGE_GPU_ONLY, m_vertexBuffer.Buffer,
-                      m_vertexBuffer.BufferAllocation);
-
-        nijiEngine.m_context.copy_buffer(stagingBuffer, m_vertexBuffer.Buffer, bufferSize);
-
-        vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
+        BufferDesc desc = {};
+        desc.IsPersistent = false;
+        desc.Size = sizeof(vertices[0]) * vertices.size();
+        desc.Usage = BufferDesc::BufferUsage::Vertex;
+        desc.Name = "Vertex Buffer";
+        m_vertexBuffer = Buffer(desc, vertices.data());
     }
 
     // Create Index Buffer
     {
-        VkDeviceSize bufferSize = {};
-        VkBuffer stagingBuffer = {};
-        VmaAllocation stagingBufferAllocation = {};
+        BufferDesc desc = {};
+        desc.IsPersistent = false;
+        desc.Usage = BufferDesc::BufferUsage::Index;
+        desc.Name = "Index Buffer";
+
+        void* data = nullptr;
 
         if (m_ushortIndices) // Unsigned Short
         {
-            bufferSize = sizeof(ushortIndices[0]) * ushortIndices.size();
-
-            nijiEngine.m_context.create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                               VMA_MEMORY_USAGE_CPU_ONLY,
-                          stagingBuffer, stagingBufferAllocation);
-
-            void* data = nullptr;
-            vmaMapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation, &data);
-            memcpy(data, ushortIndices.data(), (size_t)bufferSize);
-            vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation);
+            desc.Size = sizeof(ushortIndices[0]) * ushortIndices.size();
+            
+            data = ushortIndices.data();
         }
         else // Unsigned Int
         {
-            bufferSize = sizeof(uintIndices[0]) * uintIndices.size();
+            desc.Size = sizeof(uintIndices[0]) * uintIndices.size();
 
-            nijiEngine.m_context.create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                               VMA_MEMORY_USAGE_CPU_ONLY,
-                          stagingBuffer, stagingBufferAllocation);
-
-            void* data = nullptr;
-            vmaMapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation, &data);
-            memcpy(data, uintIndices.data(), (size_t)bufferSize);
-            vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation);
+            data = uintIndices.data();
         }
 
-        nijiEngine.m_context.create_buffer(bufferSize,
-                      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                      VMA_MEMORY_USAGE_GPU_ONLY, m_indexBuffer.Buffer,
-                      m_indexBuffer.BufferAllocation);
-
-        nijiEngine.m_context.copy_buffer(stagingBuffer, m_indexBuffer.Buffer, bufferSize);
-
-        vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
+        m_indexBuffer = Buffer(desc, data);
     }
 }

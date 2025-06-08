@@ -169,6 +169,11 @@ void Context::create_instance()
     EndRendering =
         (PFN_vkCmdEndRenderingKHR)vkGetInstanceProcAddr(m_instance, "vkCmdEndRenderingKHR");
 
+    // Load Debug Name Setting Function
+    SetDebugName =
+        (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_instance,
+                                                                "vkSetDebugUtilsObjectNameEXT");
+
     printf("\n Creating Vulkan Instance - DONE \n");
 }
 

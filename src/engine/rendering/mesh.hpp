@@ -19,8 +19,8 @@ class Mesh
 
   private:
     friend class Renderer;
-    NijiBuffer m_vertexBuffer = {};
-    NijiBuffer m_indexBuffer = {};
+    Buffer m_vertexBuffer = {};
+    Buffer m_indexBuffer = {};
 
     uint64_t m_indexCount = 0;
     bool m_ushortIndices = false;

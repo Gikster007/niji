@@ -109,6 +109,7 @@ class Context
   private:
     PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;
     PFN_vkCmdEndRenderingKHR EndRendering = nullptr;
+    PFN_vkSetDebugUtilsObjectNameEXT SetDebugName = nullptr;
 
     GLFWwindow* m_window = nullptr;
     bool m_framebufferResized = false;

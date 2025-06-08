@@ -1,14 +1,33 @@
 #pragma once
 
-//#include <vector>
-
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
-struct NijiBuffer
+namespace niji
 {
-    VkBuffer Buffer = {};
+void SetObjectName(VkDevice device, VkBuffer buffer, const char* name);
+
+struct BufferDesc
+{
+    VkDeviceSize Size = {};
+    enum class BufferUsage
+    {
+        Invalid,
+        Vertex,
+        Index,
+    } Usage = {};
+    bool IsPersistent = false;
+    char* Name = "Unknown Buffer";
+};
+
+struct Buffer
+{
+    Buffer() = default;
+    Buffer(BufferDesc& desc, void* data);
+
+    VkBuffer Handle = {};
     VmaAllocation BufferAllocation = {};
+    BufferDesc Desc = {};
 };
 
 struct NijiTexture
@@ -24,3 +43,4 @@ struct NijiUBO
     std::vector<VmaAllocation> UniformBuffersAllocations = {};
     std::vector<void*> UniformBuffersMapped = {};
 };
+} // namespace niji
