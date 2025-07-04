@@ -100,16 +100,16 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiU
         m_materialData.BaseColor = loadTexture(material.pbrData.baseColorTexture.value());
 
     if (material.normalTexture.has_value())
-        m_materialData.NormalTexture = loadTexture(material.normalTexture);
+        m_materialData.NormalTexture = loadTexture(material.normalTexture.value());
 
     if (material.occlusionTexture.has_value())
-        m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture);
+        m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture.value());
 
     if (material.pbrData.metallicRoughnessTexture.has_value())
-        m_materialData.RoughMetallic = loadTexture(material.pbrData.metallicRoughnessTexture);
+        m_materialData.RoughMetallic = loadTexture(material.pbrData.metallicRoughnessTexture.value());
 
     if (material.emissiveTexture.has_value())
-        m_materialData.Emissive = loadTexture(material.emissiveTexture);
+        m_materialData.Emissive = loadTexture(material.emissiveTexture.value());
 
     // Create Sampler
     {
