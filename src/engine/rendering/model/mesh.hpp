@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/common.hpp"
-#include "renderer.hpp"
+#include "../renderer.hpp"
 
 #include <fastgltf/types.hpp>
 

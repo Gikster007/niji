@@ -17,8 +17,8 @@
 
 #include <vector>
 
-constexpr uint16_t WIN_WIDTH = 800;
-constexpr uint16_t WIN_HEIGHT = 600;
+constexpr uint16_t WIN_WIDTH = 1920;
+constexpr uint16_t WIN_HEIGHT = 1080;
 const std::vector<const char*> VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char*> DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,

@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "rendering/model.hpp"
+#include "rendering/model/model.hpp"
 
 namespace niji
 {
