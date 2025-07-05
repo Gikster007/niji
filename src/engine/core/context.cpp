@@ -4,9 +4,11 @@
 #include <iostream>
 #include <set>
 
-#define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+
 #include <stb_image.h>
+
+#include "vulkan-functions.hpp"
 
 using namespace niji;
 
@@ -51,12 +53,13 @@ Context::Context()
     create_logical_device();
     create_command_pool();
 
+    LoadVulkanFunctionPointers(m_device);
+
     init_allocator();
 }
 
 void Context::init()
 {
-    
 }
 
 void Context::init_window()
@@ -104,6 +107,7 @@ void Context::init_allocator()
     // initialize the memory allocator
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
     allocatorInfo.device = m_device;
     allocatorInfo.instance = m_instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
@@ -124,7 +128,7 @@ void Context::create_instance()
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "niji Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     auto extensions = get_required_extensions();
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
@@ -162,17 +166,6 @@ void Context::create_instance()
     {
         std::cout << '\t' << extension.extensionName << '\n';
     }
-
-    // Load Functions for Dynamic Rendering
-    BeginRendering =
-        (PFN_vkCmdBeginRenderingKHR)vkGetInstanceProcAddr(m_instance, "vkCmdBeginRenderingKHR");
-    EndRendering =
-        (PFN_vkCmdEndRenderingKHR)vkGetInstanceProcAddr(m_instance, "vkCmdEndRenderingKHR");
-
-    // Load Debug Name Setting Function
-    SetDebugName =
-        (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_instance,
-                                                                "vkSetDebugUtilsObjectNameEXT");
 
     printf("\n Creating Vulkan Instance - DONE \n");
 }
@@ -345,9 +338,20 @@ void Context::create_logical_device()
     dynamicRenderingFeature.dynamicRendering = VK_TRUE;
     dynamicRenderingFeature.pNext = &bufferDeviceAddressFeatures;
 
+    // Add synchronization2 features
+    VkPhysicalDeviceSynchronization2FeaturesKHR synchronization2Feature = {};
+    synchronization2Feature.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR;
+    synchronization2Feature.synchronization2 = VK_TRUE;
+
+    // Chain the pNext pointers properly
+    synchronization2Feature.pNext = &dynamicRenderingFeature;
+    dynamicRenderingFeature.pNext = &bufferDeviceAddressFeatures;
+    bufferDeviceAddressFeatures.pNext = nullptr; // end of chain
+
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pNext = &dynamicRenderingFeature;
+    createInfo.pNext = &synchronization2Feature;
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.pEnabledFeatures = &deviceFeatures;

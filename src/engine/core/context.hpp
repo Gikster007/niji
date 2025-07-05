@@ -40,6 +40,7 @@ struct SwapChainSupportDetails
 class Context
 {
     friend class Renderer;
+    friend class CommandList;
     friend class Engine;
     friend class Model;
     friend class Mesh;
@@ -108,10 +109,6 @@ class Context
     void cleanup_ubo(NijiUBO& ubo) const;
 
   private:
-    PFN_vkCmdBeginRenderingKHR BeginRendering = nullptr;
-    PFN_vkCmdEndRenderingKHR EndRendering = nullptr;
-    PFN_vkSetDebugUtilsObjectNameEXT SetDebugName = nullptr;
-
     GLFWwindow* m_window = nullptr;
     bool m_framebufferResized = false;
     VkInstance m_instance = {};

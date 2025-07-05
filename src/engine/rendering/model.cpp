@@ -11,6 +11,8 @@
 #include <fastgltf/tools.hpp>
 #include <fastgltf/math.hpp>
 
+#include <vk_mem_alloc.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>

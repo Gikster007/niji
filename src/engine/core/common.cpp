@@ -39,26 +39,9 @@ Buffer::Buffer(BufferDesc& desc, void* data)
     nijiEngine.m_context.create_buffer(desc.Size,
                                        usageFlags,
                                        VMA_MEMORY_USAGE_GPU_ONLY, Handle, BufferAllocation, desc.IsPersistent);
-    SetObjectName(nijiEngine.m_context.m_device, Handle, desc.Name);
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_BUFFER, Handle, desc.Name);
 
     nijiEngine.m_context.copy_buffer(stagingBuffer, Handle, desc.Size);
 
     vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
-}
-
-void niji::SetObjectName(VkDevice device, VkBuffer buffer, const char* name)
-{
-    VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-    nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
-    nameInfo.objectHandle = reinterpret_cast<uint64_t>(buffer);
-    nameInfo.pObjectName = name;
-
-    auto func =
-        (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device,
-                                                              "vkSetDebugUtilsObjectNameEXT");
-    if (func)
-    {
-        func(device, &nameInfo);
-    }
 }

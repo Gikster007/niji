@@ -4,7 +4,6 @@
 #include "renderer.hpp"
 
 #include <fastgltf/types.hpp>
-#include <vk_mem_alloc.h>
 
 namespace niji
 {

@@ -9,6 +9,8 @@
 #include "core/context.hpp"
 #include "core/ecs.hpp"
 
+#include "../core/commandlist.hpp"
+
 enum VmaMemoryUsage;
 
 struct VmaAllocation_T;
@@ -135,8 +137,8 @@ class Renderer : System
     VkPipelineLayout m_pipelineLayout = {};
     VkPipeline m_graphicsPipeline = {};
 
-    std::vector<VkCommandBuffer> m_commandBuffers =
-        {}; // Automatically freed when command pool is destroyed
+    std::vector<CommandList> m_commandBuffers = {};
+    //std::vector<VkCommandBuffer> m_commandBuffers = {};
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
     std::vector<VkFence> m_inFlightFences = {};

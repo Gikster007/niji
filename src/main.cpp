@@ -1,5 +1,8 @@
 #include <iostream>
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 #include "engine/engine.hpp"
 #include "rendering/model.hpp"
 #include "core/components/transform.hpp"

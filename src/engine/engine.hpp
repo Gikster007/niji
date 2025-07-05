@@ -5,7 +5,6 @@
 
 #include "core/context.hpp"
 #include "core/ecs.hpp"
-#include "rendering/renderer.hpp"
 
 namespace niji
 {

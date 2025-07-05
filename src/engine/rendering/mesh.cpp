@@ -6,6 +6,7 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <fastgltf/util.hpp>
+#include <vk_mem_alloc.h>
 
 using namespace niji;
 

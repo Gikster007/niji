@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+ 
+
 using namespace niji;
 
 void Engine::run()
@@ -9,7 +11,7 @@ void Engine::run()
     update();
 }
 
-Engine::Engine() : ecs(*new ECS()), m_context(*new Context())//, m_renderer(*new Renderer(m_context))
+Engine::Engine() : ecs(*new ECS()), m_context(*new Context())
 {
 }
 
@@ -22,9 +24,6 @@ Engine::~Engine()
 void Engine::init()
 {
     m_context.init();
-    //m_renderer.init();
-
-    //ecs.register_system<Renderer>(m_context);
 }
 
 void Engine::update()
@@ -40,14 +39,10 @@ void Engine::update()
             (float)((double)std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() /
                     1000000.0);
 
-        //m_renderer.update(dt);
-
         ecs.systems_update(dt);
         ecs.remove_deleted();
 
         ecs.systems_render();
-
-        //m_renderer.render();
 
         time = ctime;
     }
@@ -56,7 +51,6 @@ void Engine::update()
 
 void Engine::cleanup()
 {
-    //m_renderer.cleanup();
     ecs.systems_cleanup();
     m_context.cleanup();
 }

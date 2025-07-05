@@ -4,7 +4,6 @@
 #include "core/context.hpp"
 
 #include <stb_image.h>
-#include <vk_mem_alloc.h>
 
 using namespace niji;
 

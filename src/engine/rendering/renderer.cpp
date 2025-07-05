@@ -9,9 +9,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <vk_mem_alloc.h>
+
 using namespace niji;
 
-#include <vk_mem_alloc.h>
+#include "../core/vulkan-functions.hpp"
 #include <engine.hpp>
 #include <core/components/render-components.hpp>
 #include <core/components/transform.hpp>
@@ -171,8 +173,66 @@ void Renderer::render()
 
     vkResetFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame]);
 
-    vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
-    record_command_buffer(m_commandBuffers[m_currentFrame], imageIndex);
+    // vkResetCommandBuffer(m_commandBuffers[m_currentFrame], 0);
+    // record_command_buffer(m_commandBuffers[m_currentFrame], imageIndex);
+
+    auto& cmd = m_commandBuffers[m_currentFrame];
+    cmd.Reset();
+
+    cmd.BeginList("Forward Pass");
+
+    RenderTarget colorAttachment = {m_swapChainImages[imageIndex],
+                                    m_swapChainImageViews[imageIndex]};
+    colorAttachment.ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
+    VkFormat depthFormat = m_context->find_depth_format();
+    RenderTarget depthStencil = {m_depthImage, m_depthImageView, depthFormat};
+    depthStencil.ClearValue = {1.0f, 0.0f};
+
+    RenderInfo info = {m_swapChainExtent};
+    info.ColorAttachments.push_back(colorAttachment);
+    info.DepthAttachment = depthStencil;
+    info.HasDepth = true;
+
+    cmd.BeginRendering(info);
+
+    cmd.BindPipeline(m_graphicsPipeline);
+
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swapChainExtent.width);
+    viewport.height = static_cast<float>(m_swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    cmd.BindViewport(viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = m_swapChainExtent;
+    cmd.BindScissor(scissor);
+
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& modelMesh = model->m_meshes[mesh.MeshID];
+        auto& modelMaterial = model->m_materials[mesh.MeshID];
+
+        VkBuffer vertexBuffers[] = {modelMesh.m_vertexBuffer.Handle};
+        VkDeviceSize offsets[] = {0};
+        cmd.BindVertexBuffer(0, 1, vertexBuffers, offsets);
+        cmd.BindIndexBuffer(modelMesh.m_indexBuffer.Handle, 0,
+                            modelMesh.m_ushortIndices ? VK_INDEX_TYPE_UINT16
+                                                      : VK_INDEX_TYPE_UINT32);
+
+        cmd.BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
+                               &modelMaterial.m_descriptorSets[m_currentFrame], 0, nullptr);
+
+        cmd.DrawIndexed(static_cast<uint32_t>(modelMesh.m_indexCount), 1, 0, 0, 0);
+    }
+
+    cmd.EndRendering(info);
+    cmd.EndList();
 
     update_uniform_buffer(m_currentFrame);
 
@@ -184,7 +244,7 @@ void Renderer::render()
     submitInfo.pWaitSemaphores = wait_semaphores;
     submitInfo.pWaitDstStageMask = wait_stages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame];
+    submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame].m_commandBuffer;
     VkSemaphore signal_semaphores[] = {m_renderFinishedSemaphores[m_currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signal_semaphores;
@@ -324,7 +384,7 @@ void Renderer::create_swap_chain()
     VkPresentModeKHR presentMode = choose_swap_present_mode(swapChainSupport.PresentModes);
     VkExtent2D extent = choose_swap_extent(swapChainSupport.Capabilities);
 
-    uint32_t imageCount = swapChainSupport.Capabilities.minImageCount + 1;
+    uint32_t imageCount = swapChainSupport.Capabilities.minImageCount;
     if (swapChainSupport.Capabilities.maxImageCount > 0 &&
         imageCount > swapChainSupport.Capabilities.maxImageCount)
         imageCount = swapChainSupport.Capabilities.maxImageCount;
@@ -625,16 +685,6 @@ VkShaderModule Renderer::create_shader_module(const std::vector<char>& code)
 void Renderer::create_command_buffers()
 {
     m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_context->m_commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t)m_commandBuffers.size();
-
-    if (vkAllocateCommandBuffers(m_context->m_device, &allocInfo, m_commandBuffers.data()) !=
-        VK_SUCCESS)
-        throw std::runtime_error("Failed to Allocate Command Buffers!");
 }
 
 void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
@@ -647,7 +697,7 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
         throw std::runtime_error("Failed to Begin Recording Command Buffer!");
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
 
     VkRenderingAttachmentInfoKHR colorAttachmentInfo = {};
     colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
@@ -714,7 +764,7 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
                          VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1,
                          &depthMemoryBarrier);
 
-    m_context->BeginRendering(commandBuffer, &renderInfo); // vkCmdBeginRenderingKHR
+    VKCmdBeginRenderingKHR(commandBuffer, &renderInfo); // vkCmdBeginRenderingKHR
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
 
@@ -752,17 +802,7 @@ void Renderer::record_command_buffer(VkCommandBuffer commandBuffer, uint32_t ima
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(modelMesh.m_indexCount), 1, 0, 0, 0);
     }
 
-    /*VkBuffer vertexBuffers[] = {m_vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1,
-                            &m_descriptorSets[m_currentFrame], 0, nullptr);
-
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_indices.size()), 1, 0, 0, 0);*/
-
-    m_context->EndRendering(commandBuffer); // vkCmdEndRenderingKHR
+    VKCmdEndRenderingKHR(commandBuffer); // vkCmdEndRenderingKHR
 
     VkImageMemoryBarrier imMemBarrier = {};
     imMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
