@@ -14,7 +14,7 @@ include(FetchContent)
 FetchContent_Declare(
     fastgltf
     GIT_REPOSITORY https://github.com/spnda/fastgltf.git
-    GIT_TAG main  # or a specific tag/commit
+    GIT_TAG main
 )
 FetchContent_MakeAvailable(fastgltf)
 target_link_libraries(niji PRIVATE fastgltf)
