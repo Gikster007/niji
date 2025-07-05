@@ -53,7 +53,7 @@ Context::Context()
     create_logical_device();
     create_command_pool();
 
-    LoadVulkanFunctionPointers(m_device);
+    load_vulkan_function_pointers(m_device);
 
     init_allocator();
 }

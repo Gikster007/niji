@@ -6,7 +6,7 @@ PFN_vkCmdEndRenderingKHR VKCmdEndRenderingKHR = nullptr;
 PFN_vkSetDebugUtilsObjectNameEXT VKSetDebugUtilsObjectNameEXT = nullptr;
 PFN_vkCmdPipelineBarrier2KHR VKCmdPipelineBarrier2KHR = nullptr;
 
-void niji::LoadVulkanFunctionPointers(VkDevice device)
+void niji::load_vulkan_function_pointers(VkDevice device)
 {
     VKCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(
         vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));

@@ -21,7 +21,7 @@ CommandList::CommandList()
         throw std::runtime_error("Failed to Allocate Command Buffers!");
 }
 
-void CommandList::BeginList(const char* debugName) const
+void CommandList::begin_list(const char* debugName) const
 {
     vkResetCommandBuffer(m_commandBuffer, 0);
 
@@ -50,7 +50,7 @@ void CommandList::BeginList(const char* debugName) const
         vkCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);*/
 }
 
-void CommandList::BeginRendering(const RenderInfo& info) const
+void CommandList::begin_rendering(const RenderInfo& info) const
 {
     std::vector<VkRenderingAttachmentInfoKHR> colorAttachments(info.ColorAttachments.size());
     for (size_t i = 0; i < info.ColorAttachments.size(); ++i)
@@ -89,45 +89,45 @@ void CommandList::BeginRendering(const RenderInfo& info) const
     {
         auto& rt = colorAttachments[i];
         auto& infoRT = info.ColorAttachments[i];
-        TransitionImage(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
+        transition_image(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
                         TransitionType::ColorAttachment);
     }
 
     auto& depthInfoRT = info.DepthAttachment;
-    TransitionImage(depthInfoRT.Image, depthInfoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED,
+    transition_image(depthInfoRT.Image, depthInfoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED,
                     depthAttachment.imageLayout,
                     TransitionType::DepthStencilAttachment);
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);
 }
 
-void CommandList::BindPipeline(const VkPipeline& pipeline) const
+void CommandList::bind_pipeline(const VkPipeline& pipeline) const
 {
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
-void CommandList::BindViewport(const VkViewport& viewport) const
+void CommandList::bind_viewport(const VkViewport& viewport) const
 {
     vkCmdSetViewport(m_commandBuffer, 0, 1, &viewport);
 }
 
-void CommandList::BindScissor(const VkRect2D& scissor) const
+void CommandList::bind_scissor(const VkRect2D& scissor) const
 {
     vkCmdSetScissor(m_commandBuffer, 0, 1, &scissor);
 }
 
-void CommandList::BindVertexBuffer(uint32_t firstBinding, uint32_t bindingCount,
+void CommandList::bind_vertex_buffer(uint32_t firstBinding, uint32_t bindingCount,
                                    const VkBuffer* buffers, const VkDeviceSize* offsets) const
 {
     vkCmdBindVertexBuffers(m_commandBuffer, firstBinding, bindingCount, buffers, offsets);
 }
 
-void CommandList::BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) const
+void CommandList::bind_index_buffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) const
 {
     vkCmdBindIndexBuffer(m_commandBuffer, buffer, offset, indexType);
 }
 
-void CommandList::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
+void CommandList::bind_descriptor_sets(VkPipelineBindPoint pipelineBindPoint,
                                            VkPipelineLayout layout, uint32_t firstSet,
                                            uint32_t descriptorSetCount,
                                            const VkDescriptorSet* pDescriptorSets,
@@ -139,26 +139,26 @@ void CommandList::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint,
                             pDynamicOffsets);
 }
 
-void CommandList::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
+void CommandList::draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
                               int32_t vertexOffset, uint32_t firstInstance) const
 {
     vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset,
                      firstInstance);
 }
 
-void CommandList::EndRendering(const RenderInfo& info) const
+void CommandList::end_rendering(const RenderInfo& info) const
 {
     VKCmdEndRenderingKHR(m_commandBuffer);
 
     for (int i = 0; i < info.ColorAttachments.size(); i++)
     {
         auto& rt = info.ColorAttachments[i];
-        TransitionImage(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        transition_image(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
     }
 }
 
-void CommandList::EndList() const
+void CommandList::end_list() const
 {
     /*auto vkCmdEndDebugUtilsLabelEXT =
         (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetDeviceProcAddr(nijiEngine.m_context.m_device,
@@ -170,12 +170,12 @@ void CommandList::EndList() const
         throw std::runtime_error("Failed to record command buffer!");
 }
 
-void CommandList::Reset() const
+void CommandList::reset() const
 {
     vkResetCommandBuffer(m_commandBuffer, 0);
 }
 
-void CommandList::Cleanup()
+void CommandList::cleanup()
 {
     if (m_commandBuffer != VK_NULL_HANDLE)
     {
@@ -184,7 +184,7 @@ void CommandList::Cleanup()
     }
 }
 
-void CommandList::TransitionImage(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                   VkAccessFlags srcAccess, VkAccessFlags dstAccess,
                                   VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
                                   VkImageAspectFlags aspectMask, uint32_t mipLevels,
@@ -214,7 +214,7 @@ void CommandList::TransitionImage(VkImage image, VkImageLayout oldLayout, VkImag
     VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
 }
 
-void CommandList::TransitionImage(VkImage image, VkFormat format, VkImageLayout oldLayout,
+void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                   VkImageLayout newLayout, TransitionType usage, uint32_t mipLevels,
                                   uint32_t layerCount) const
 {
@@ -268,6 +268,6 @@ void CommandList::TransitionImage(VkImage image, VkFormat format, VkImageLayout 
         break;
     }
 
-    TransitionImage(image, oldLayout, newLayout, srcAccessMask, dstAccessMask, srcStage, dstStage,
+    transition_image(image, oldLayout, newLayout, srcAccessMask, dstAccessMask, srcStage, dstStage,
                     aspectMask, mipLevels, layerCount);
 }

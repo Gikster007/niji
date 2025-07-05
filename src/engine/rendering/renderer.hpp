@@ -59,67 +59,28 @@ class Renderer : System
     void create_image_views();
     void cleanup_swap_chain();
 
-    void create_descriptor_set_layout();
-    void create_descriptor_pool();
-    void create_descriptor_sets();
     void create_graphics_pipeline();
     static std::vector<char> read_file(const std::string& filename);
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
     void create_command_buffers();
-    void record_command_buffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void create_sync_objects();
 
-    void create_vertex_buffer();
-    void create_index_buffer();
     void create_uniform_buffers();
     void update_uniform_buffer(uint32_t currentImage);
-
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
-                       VkBuffer& buffer, VmaAllocation& allocation, bool persistent = false);
-
-    void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-    VkCommandBuffer begin_single_time_commands();
-    void end_single_time_commands(VkCommandBuffer commandBuffer);
-
-    void create_texture_image();
-    void create_texture_image_view();
-    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-                      VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
-                      VmaAllocation& allocation);
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
-    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                 VkImageLayout newLayout);
-    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-    void create_texture_sampler();
 
     void create_depth_resources();
 
   private:
     friend class Material;
-    std::vector<Vertex> m_vertices = {};
-    std::vector<uint16_t> m_indices = {};
 
     std::vector<VkBuffer> m_uniformBuffers = {};
     std::vector<VmaAllocation> m_uniformBuffersAllocations = {};
     std::vector<void*> m_uniformBuffersMapped = {};
 
-    VkImage m_textureImage = {};
-    VkImageView m_textureImageView = {};
-    VmaAllocation m_textureImageAllocation = {};
-
     VkImage m_depthImage = {};
     VkImageView m_depthImageView = {};
     VmaAllocation m_depthImageAllocation = {};
-
-    VkSampler m_textureSampler = {};
-
-    VkBuffer m_vertexBuffer = {};
-    VmaAllocation m_vertexBufferAllocation = {};
-    VkBuffer m_indexBuffer = {};
-    VmaAllocation m_indexBufferAllocation = {};
 
     Context* m_context = nullptr;
 
@@ -131,14 +92,10 @@ class Renderer : System
     VkExtent2D m_swapChainExtent = {};
     std::vector<VkImageView> m_swapChainImageViews = {};
 
-    VkDescriptorPool m_descriptorPool = {};
-    std::vector<VkDescriptorSet> m_descriptorSets = {};
-    VkDescriptorSetLayout m_descriptorSetLayout = {};
     VkPipelineLayout m_pipelineLayout = {};
     VkPipeline m_graphicsPipeline = {};
 
     std::vector<CommandList> m_commandBuffers = {};
-    //std::vector<VkCommandBuffer> m_commandBuffers = {};
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
     std::vector<VkFence> m_inFlightFences = {};

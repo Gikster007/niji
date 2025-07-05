@@ -7,5 +7,5 @@ extern PFN_vkCmdPipelineBarrier2KHR VKCmdPipelineBarrier2KHR;
 
 namespace niji
 {
-void LoadVulkanFunctionPointers(VkDevice device);
+void load_vulkan_function_pointers(VkDevice device);
 }
