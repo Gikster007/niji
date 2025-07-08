@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/common.hpp"
-
 #include <optional>
+
+#include "core/common.hpp"
 
 class GLFWwindow;
 

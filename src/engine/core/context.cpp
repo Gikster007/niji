@@ -5,11 +5,11 @@
 #include <set>
 
 #include <vk_mem_alloc.h>
-
 #include <stb_image.h>
 
+#include "rendering/swapchain.hpp"
+
 #include "vulkan-functions.hpp"
-#include "../rendering/swapchain.hpp"
 
 using namespace niji;
 

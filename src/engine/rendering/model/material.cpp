@@ -1,9 +1,11 @@
 #include "material.hpp"
 
-#include "engine.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include "core/context.hpp"
 
-#include <stb_image.h>
+#include "engine.hpp"
 
 using namespace niji;
 

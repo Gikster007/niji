@@ -4,9 +4,9 @@
 #define DEBUG_ALLOCATIONS 0
 #include <vk_mem_alloc.h>
 
-#include "engine/engine.hpp"
-#include "rendering/model/model.hpp"
 #include "core/components/transform.hpp"
+#include "rendering/model/model.hpp"
+#include "engine/engine.hpp"
 
 int main()
 {

@@ -1,10 +1,10 @@
 #include "transform.hpp"
 
+#include <cassert>
+
 #include <entt/entity/helper.hpp>
 
 #include "engine.hpp"
-
-#include <cassert>
 
 using namespace niji;
 using namespace glm;

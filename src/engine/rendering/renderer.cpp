@@ -6,18 +6,17 @@
 #include <chrono>
 
 #include <glm/gtc/matrix_transform.hpp>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 #include <vk_mem_alloc.h>
 
 using namespace niji;
 
-#include "../core/vulkan-functions.hpp"
-#include <engine.hpp>
-#include <core/components/render-components.hpp>
-#include <core/components/transform.hpp>
+#include "core/components/render-components.hpp"
+#include "core/components/transform.hpp"
+#include "core/vulkan-functions.hpp"
+
 #include "swapchain.hpp"
+#include "engine.hpp"
 
 Renderer::Renderer()
 {

@@ -1,10 +1,11 @@
 #pragma once
 
+#include <string>
+
+#include <glm/glm.hpp>
+
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
-
-#include <string>
-#include <glm/glm.hpp>
 
 namespace niji
 {

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <fastgltf/types.hpp>
+
 #include "core/common.hpp"
 #include "../renderer.hpp"
-
-#include <fastgltf/types.hpp>
 
 namespace niji
 {

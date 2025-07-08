@@ -1,9 +1,10 @@
 #pragma once
 
 #include <cassert>
-#include <glm/glm.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <string>
+
+#include <glm/gtx/quaternion.hpp>
+#include <glm/glm.hpp>
 
 #include "core/ecs.hpp"
 
