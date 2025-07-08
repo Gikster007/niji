@@ -8,7 +8,7 @@
 
 using namespace niji;
 
-void ForwardPass::init(VkFormat& swapchainFormat, VkExtent2D swapChainExtent, VkDescriptorSetLayout& globalLayout)
+void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout)
 {
     // Create Pass Data Buffer
     VkDeviceSize bufferSize = sizeof(RenderFlags);
@@ -83,14 +83,14 @@ void ForwardPass::init(VkFormat& swapchainFormat, VkExtent2D swapChainExtent, Vk
 
     pipelineDesc.Topology = PipelineDesc::PrimitiveTopology::TRIANGLE_LIST;
 
-    pipelineDesc.Viewport.Width = swapChainExtent.width;
-    pipelineDesc.Viewport.Height = swapChainExtent.height;
+    pipelineDesc.Viewport.Width = swapchain.m_extent.width;
+    pipelineDesc.Viewport.Height = swapchain.m_extent.height;
     pipelineDesc.Viewport.MaxDepth = 1.0f;
     pipelineDesc.Viewport.MinDepth = 0.0f;
-    pipelineDesc.Viewport.ScissorWidth = swapChainExtent.width;
-    pipelineDesc.Viewport.ScissorHeight = swapChainExtent.height;
+    pipelineDesc.Viewport.ScissorWidth = swapchain.m_extent.width;
+    pipelineDesc.Viewport.ScissorHeight = swapchain.m_extent.height;
 
-    pipelineDesc.ColorAttachmentFormat = swapchainFormat;
+    pipelineDesc.ColorAttachmentFormat = swapchain.m_format;
 
     pipelineDesc.VertexLayout =
         DEFINE_VERTEX_LAYOUT(Vertex,
@@ -137,20 +137,21 @@ void ForwardPass::update(Renderer& renderer)
 
 void ForwardPass::record(Renderer& renderer, CommandList& cmd)
 {
+    Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
     cmd.reset();
 
     cmd.begin_list("Forward Pass");
 
-    RenderTarget colorAttachment = {renderer.m_swapChainImages[renderer.m_imageIndex],
-                                    renderer.m_swapChainImageViews[renderer.m_imageIndex]};
+    RenderTarget colorAttachment = {swapchain.m_images[renderer.m_imageIndex],
+                                    swapchain.m_imageViews[renderer.m_imageIndex]};
     colorAttachment.ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
     VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    RenderTarget depthStencil = {renderer.m_depthImage, renderer.m_depthImageView, depthFormat};
+    RenderTarget depthStencil = {swapchain.m_depthImage, swapchain.m_depthImageView, depthFormat};
     depthStencil.ClearValue = {1.0f, 0.0f};
 
-    RenderInfo info = {renderer.m_swapChainExtent};
+    RenderInfo info = {swapchain.m_extent};
     info.ColorAttachments.push_back(colorAttachment);
     info.DepthAttachment = depthStencil;
     info.HasDepth = true;
@@ -159,8 +160,8 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
 
     cmd.bind_pipeline(m_pipeline.PipelineObject);
 
-    cmd.bind_viewport(renderer.m_swapChainExtent);
-    cmd.bind_scissor(renderer.m_swapChainExtent);
+    cmd.bind_viewport(swapchain.m_extent);
+    cmd.bind_scissor(swapchain.m_extent);
 
     auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())

@@ -9,6 +9,7 @@
 #include <stb_image.h>
 
 #include "vulkan-functions.hpp"
+#include "../rendering/swapchain.hpp"
 
 using namespace niji;
 
@@ -409,34 +410,6 @@ bool Context::check_device_extension_support(VkPhysicalDevice device)
     }
 
     return requiredExtensions.empty();
-}
-
-SwapChainSupportDetails SwapChainSupportDetails::query_swap_chain_support(VkPhysicalDevice device,
-                                                                          VkSurfaceKHR surface)
-{
-    SwapChainSupportDetails details = {};
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.Capabilities);
-
-    uint32_t formatCount = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-
-    if (formatCount != 0)
-    {
-        details.Formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.Formats.data());
-    }
-
-    uint32_t presentModeCount = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
-
-    if (presentModeCount != 0)
-    {
-        details.PresentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount,
-                                                  details.PresentModes.data());
-    }
-
-    return details;
 }
 
 void Context::create_command_pool()

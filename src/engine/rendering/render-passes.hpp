@@ -5,13 +5,15 @@
 #include "../core/commandlist.hpp"
 #include "../core/common.hpp"
 
+#include "swapchain.hpp"
+
 namespace niji
 {
 
 class RenderPass
 {
   public:
-    virtual void init(VkFormat& swapchainFormat, VkExtent2D swapChainExtent, VkDescriptorSetLayout& globalLayout) = 0;
+    virtual void init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout) = 0;
     virtual void update(Renderer& renderer) = 0;
     virtual void record(Renderer& renderer, CommandList& cmd) = 0;
     virtual void cleanup() = 0;
@@ -33,8 +35,7 @@ class ForwardPass final : public RenderPass
     {
     }
 
-    void init(VkFormat& swapchainFormat, VkExtent2D swapChainExtent,
-              VkDescriptorSetLayout& globalLayout);
+    void init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout);
     void update(Renderer& renderer);
     void record(Renderer& renderer, CommandList& cmd);
     void cleanup();

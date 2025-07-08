@@ -28,18 +28,10 @@ struct QueueFamilyIndices
     static QueueFamilyIndices find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface);
 };
 
-struct SwapChainSupportDetails
-{
-    VkSurfaceCapabilitiesKHR Capabilities = {};
-    std::vector<VkSurfaceFormatKHR> Formats;
-    std::vector<VkPresentModeKHR> PresentModes;
-    static SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device,
-                                                            VkSurfaceKHR surface);
-};
-
 class Context
 {
     friend class Renderer;
+    friend class Swapchain;
     friend class CommandList;
     friend class Engine;
     friend class Model;

@@ -10,26 +10,10 @@
 #include "core/ecs.hpp"
 
 #include "render-passes.hpp"
-
-enum VmaMemoryUsage;
-
-struct VmaAllocation_T;
-typedef VmaAllocation_T* VmaAllocation;
+#include "swapchain.hpp"
 
 namespace niji
 {
-
-struct Vertex
-{
-    glm::vec3 Pos = {};
-    glm::vec3 Color = {};
-    glm::vec3 Normal = {};
-    glm::vec2 TexCoord = {};
-
-    static VkVertexInputBindingDescription get_binding_description();
-    static std::array<VkVertexInputAttributeDescription, 3> get_attribute_description();
-};
-
 class Renderer : System
 {
   public:
@@ -44,53 +28,32 @@ class Renderer : System
     void cleanup() override;
 
   private:
-    VkSurfaceFormatKHR choose_swap_surface_format(
-        const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR choose_swap_present_mode(
-        const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
-    void create_swap_chain();
-    void recreate_swap_chain();
-    void create_image_views();
-    void cleanup_swap_chain();
-
-    void create_command_buffers();
     void create_sync_objects();
     
     void update_uniform_buffer(uint32_t currentImage);
-
-    void create_depth_resources();
 
   private:
     friend class Material;
     friend class ForwardPass;
 
     std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_ubos = {};
+    std::vector<CommandList> m_commandBuffers = {};
+    std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 
-    VkImage m_depthImage = {};
-    VkImageView m_depthImageView = {};
-    VmaAllocation m_depthImageAllocation = {};
+    Swapchain m_swapchain = {};
 
     Context* m_context = nullptr;
 
     uint32_t m_currentFrame = 0;
     uint32_t m_imageIndex = UINT64_MAX;
 
-    VkSwapchainKHR m_swapChain = {};
-    std::vector<VkImage> m_swapChainImages = {};
-    VkFormat m_swapChainImageFormat = {};
-    VkExtent2D m_swapChainExtent = {};
-    std::vector<VkImageView> m_swapChainImageViews = {};
-
     VkDescriptorSetLayout m_globalSetLayout = {};
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};
     VkDescriptorPool m_descriptorPool = {};
 
-    std::vector<CommandList> m_commandBuffers = {};
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
     std::vector<VkFence> m_inFlightFences = {};
 
-    std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 };
 } // namespace niji
