@@ -25,7 +25,7 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
     }
 
     {
-        std::array<VkDescriptorSetLayoutBinding, 4> bindings = {};
+        std::array<VkDescriptorSetLayoutBinding, 8> bindings = {};
         bindings[0] = {};
         bindings[0].binding = 0;
         bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -46,12 +46,15 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
         bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         bindings[2].pImmutableSamplers = nullptr;
 
-        bindings[3] = {};
-        bindings[3].binding = 3;
-        bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        bindings[3].descriptorCount = 5;
-        bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        bindings[3].pImmutableSamplers = nullptr;
+        // bindings 3–7 = individual sampled images
+        for (int i = 0; i < 5; ++i)
+        {
+            bindings[3 + i] = {};
+            bindings[3 + i].binding = 3 + i;
+            bindings[3 + i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            bindings[3 + i].descriptorCount = 1;
+            bindings[3 + i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
 
         VkDescriptorSetLayoutCreateInfo pushLayoutInfo = {};
         pushLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -72,7 +75,7 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
     pipelineDesc.VertexShader = "shaders/vert.spv";
     pipelineDesc.FragmentShader = "shaders/frag.spv";
 
-    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::BACK;
+    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
     pipelineDesc.Rasterizer.RasterizerDiscardEnable = false;
     pipelineDesc.Rasterizer.DepthClampEnable = false;
@@ -84,6 +87,8 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
     pipelineDesc.Viewport.Height = swapChainExtent.height;
     pipelineDesc.Viewport.MaxDepth = 1.0f;
     pipelineDesc.Viewport.MinDepth = 0.0f;
+    pipelineDesc.Viewport.ScissorWidth = swapChainExtent.width;
+    pipelineDesc.Viewport.ScissorHeight = swapChainExtent.height;
 
     pipelineDesc.VertexLayout =
         DEFINE_VERTEX_LAYOUT(Vertex,
@@ -97,7 +102,7 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
 
 void ForwardPass::update(Renderer& renderer)
 {
-    const uint32_t frameIndex = renderer.m_currentFrame;
+    const uint32_t& frameIndex = renderer.m_currentFrame;
 
     static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -130,7 +135,7 @@ void ForwardPass::update(Renderer& renderer)
 
 void ForwardPass::record(Renderer& renderer, CommandList& cmd)
 {
-    const uint32_t frameIndex = renderer.m_currentFrame;
+    const uint32_t& frameIndex = renderer.m_currentFrame;
 
     cmd.reset();
 
@@ -151,20 +156,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
     cmd.begin_rendering(info);
 
     cmd.bind_pipeline(m_pipeline.PipelineObject);
-
-    /*VkViewport viewport = {};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_swapChainExtent.width);
-    viewport.height = static_cast<float>(m_swapChainExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    cmd.bind_viewport(viewport);
-
-    VkRect2D scissor = {};
-    scissor.offset = {0, 0};
-    scissor.extent = m_swapChainExtent;
-    cmd.bind_scissor(scissor);*/
 
     auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
@@ -196,70 +187,50 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
             bufferInfo.offset = 0;
             bufferInfo.range = sizeof(RenderFlags);
 
-            VkWriteDescriptorSet uboWrite = {};
-            uboWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            uboWrite.dstBinding = 0;
-            uboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            uboWrite.descriptorCount = 1;
-            uboWrite.pBufferInfo = &bufferInfo;
-            writes.push_back(uboWrite);
-
             // UBO - Material
             VkDescriptorBufferInfo matBufferInfo = {};
             matBufferInfo.buffer = material.m_data[frameIndex].Handle;
             matBufferInfo.offset = 0;
             matBufferInfo.range = sizeof(ModelData);
 
-            VkWriteDescriptorSet matWrite = {};
-            matWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            matWrite.dstBinding = 1;
-            matWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            matWrite.descriptorCount = 1;
-            matWrite.pBufferInfo = &matBufferInfo;
-            writes.push_back(matWrite);
+            // -- RenderFlags UBO (binding 0)
+            writes.push_back({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
+                              VK_NULL_HANDLE, // dstSet
+                              0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nullptr, &bufferInfo,
+                              nullptr});
 
-            // Sampler
-            VkDescriptorImageInfo samplerInfo = {};
-            samplerInfo.sampler = material.m_sampler;
+            // -- ModelData UBO (binding 1)
+            writes.push_back({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, VK_NULL_HANDLE, 1, 0,
+                              1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nullptr, &matBufferInfo,
+                              nullptr});
 
-            VkWriteDescriptorSet samplerWrite = {};
-            samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            samplerWrite.dstBinding = 2;
-            samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-            samplerWrite.descriptorCount = 1;
-            samplerWrite.pImageInfo = &samplerInfo;
-            writes.push_back(samplerWrite);
+            // -- Sampler (binding 2)
+            VkDescriptorImageInfo samplerInfo = {material.m_sampler, VK_NULL_HANDLE,
+                                                 VK_IMAGE_LAYOUT_UNDEFINED};
+            writes.push_back({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, VK_NULL_HANDLE, 2, 0,
+                              1, VK_DESCRIPTOR_TYPE_SAMPLER, &samplerInfo, nullptr, nullptr});
 
-            // Sampled Images (up to 5)
-            std::vector<VkDescriptorImageInfo> imageInfos;
-            std::vector<std::optional<NijiTexture>> textures = {
-                material.m_materialData.BaseColor,        material.m_materialData.NormalTexture,
-                material.m_materialData.OcclusionTexture, material.m_materialData.RoughMetallic,
-                material.m_materialData.Emissive,
-            };
+            std::array<std::optional<NijiTexture>*, 5> textures = {
+                &material.m_materialData.BaseColor, &material.m_materialData.NormalTexture,
+                &material.m_materialData.OcclusionTexture, &material.m_materialData.RoughMetallic,
+                &material.m_materialData.Emissive};
 
-            for (auto& tex : textures)
+            // -- Textures (binding 3..7)
+            for (int i = 0; i < 5; ++i)
             {
-                // if (tex.has_value())
-                imageInfos.push_back(tex->ImageInfo);
-                // else
-                //{
-                //     // Fallback black texture?
-                //     VkDescriptorImageInfo dummy = {};
-                //     dummy.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                //     dummy.imageView = renderer.getBlackImageView();
-                //     dummy.sampler = VK_NULL_HANDLE;
-                //     imageInfos.push_back(dummy);
-                // }
+                VkWriteDescriptorSet write = {};
+                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.pNext = nullptr;
+                write.dstSet = VK_NULL_HANDLE;
+                write.dstBinding = 3 + i;
+                write.dstArrayElement = 0;
+                write.descriptorCount = 1;
+                write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                write.pImageInfo = &textures[i]->value().ImageInfo;
+                write.pBufferInfo = nullptr;
+                write.pTexelBufferView = nullptr;
+                writes.push_back(write);
             }
-
-            VkWriteDescriptorSet imageWrite = {};
-            imageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            imageWrite.dstBinding = 3;
-            imageWrite.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-            imageWrite.descriptorCount = static_cast<uint32_t>(imageInfos.size());
-            imageWrite.pImageInfo = imageInfos.data();
-            writes.push_back(imageWrite);
 
             // Push Descriptor Set
             cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 1,

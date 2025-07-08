@@ -23,11 +23,10 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-    outColor = vec4(1.0f);
     if (flags.Albedo == 1)
     {
         outColor = texture(sampler2D(baseColor, linearSampler), fragTexCoord);
     }
-//    else if (flags.Normals == 1)
-//        outColor = texture(sampler2D(normalMap, linearSampler), fragTexCoord);
+    else if (flags.Normals == 1)
+        outColor = texture(sampler2D(normalMap, linearSampler), fragTexCoord);
 }

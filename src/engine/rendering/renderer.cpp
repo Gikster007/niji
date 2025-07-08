@@ -133,6 +133,7 @@ void Renderer::init()
 void Renderer::update(const float dt)
 {
     update_uniform_buffer(m_currentFrame);
+
     for (auto& pass : m_renderPasses)
     {
         pass->update(*this);
@@ -165,8 +166,6 @@ void Renderer::render()
     {
         pass->record(*this, cmd);
     }
-
-    // update_uniform_buffer(m_currentFrame);
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
