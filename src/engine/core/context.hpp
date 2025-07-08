@@ -46,6 +46,8 @@ class Context
     friend class Mesh;
     friend class Material;
     friend class Buffer;
+    friend class Pipeline;
+    friend class ForwardPass;
 
   public:
     Context();

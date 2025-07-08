@@ -27,10 +27,10 @@ class Model
     void cleanup();
 
   private:
-    friend class Renderer;
+    friend class ForwardPass;
+
     std::vector<niji::Mesh> m_meshes = {};
     std::vector<niji::Material> m_materials = {};
-    NijiUBO m_ubo = {};
 
 };
 } // namespace niji

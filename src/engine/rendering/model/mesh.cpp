@@ -104,6 +104,19 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
         }
     }
 
+    // Load Normals
+    {
+        auto normals = primitive.findAttribute("NORMAL");
+        if (normals != primitive.attributes.end())
+        {
+            fastgltf::iterateAccessorWithIndex<glm::vec3>(model,
+                                                          model.accessors[(*normals).accessorIndex],
+                                                          [&](glm::vec3 n, size_t index) {
+                                                              vertices[index].Normal = n;
+                                                          });
+        }
+    }
+
     // Create Vertex Buffer
     {
         BufferDesc desc = {};

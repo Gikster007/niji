@@ -3,6 +3,9 @@
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
+#include <string>
+#include <glm/glm.hpp>
+
 namespace niji
 {
 template <typename HandleType>
@@ -23,15 +26,33 @@ void SetObjectName(VkDevice device, VkObjectType type, HandleType handle, const 
     }
 }
 
+struct UniformBufferObject
+{
+    alignas(16) glm::mat4 View = {};
+    alignas(16) glm::mat4 Proj = {};
+};
+struct ModelData
+{
+    alignas(16) glm::mat4 Model = {};
+};
+struct RenderFlags
+{
+    alignas(16) int Albedo = 1;
+    alignas(16) int Normals = 0;
+};
+
 struct BufferDesc
 {
     VkDeviceSize Size = {};
+
     enum class BufferUsage
     {
         Invalid,
         Vertex,
         Index,
+        Uniform,
     } Usage = {};
+
     bool IsPersistent = false;
     char* Name = "Unknown Buffer";
 };
@@ -44,6 +65,8 @@ struct Buffer
     VkBuffer Handle = {};
     VmaAllocation BufferAllocation = {};
     BufferDesc Desc = {};
+
+    void* Data = nullptr;
 };
 
 struct NijiTexture
@@ -51,6 +74,8 @@ struct NijiTexture
     VkImage TextureImage = {};
     VkImageView TextureImageView = {};
     VmaAllocation TextureImageAllocation = {};
+
+    VkDescriptorImageInfo ImageInfo = {};
 };
 
 struct NijiUBO
@@ -58,6 +83,115 @@ struct NijiUBO
     std::vector<VkBuffer> UniformBuffers = {};
     std::vector<VmaAllocation> UniformBuffersAllocations = {};
     std::vector<void*> UniformBuffersMapped = {};
+};
+
+struct VertexLayout
+{
+    VertexLayout() = default;
+
+    VkVertexInputBindingDescription Binding = {};
+    std::vector<VkVertexInputAttributeDescription> Attributes = {};
+};
+
+struct VertexElement
+{
+    VertexElement() = default;
+
+    uint32_t Location = {};
+    VkFormat Format = {};
+    size_t Offset = {};
+};
+
+#define DEFINE_VERTEX_LAYOUT(type, ...)                                                            \
+    []() -> VertexLayout {                                                                         \
+        VertexLayout layout = {};                                                                  \
+        layout.Binding.binding = 0;                                                                \
+        layout.Binding.stride = sizeof(type);                                                      \
+        layout.Binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;                                    \
+        layout.Attributes = {__VA_ARGS__};                                                         \
+        return layout;                                                                             \
+    }()
+
+#define VertexElement(Location, Format, Offset)                                                    \
+    VkVertexInputAttributeDescription                                                              \
+    {                                                                                              \
+        Location, 0, Format, Offset                                                                \
+    }
+
+struct Viewport
+{
+    Viewport() = default;
+
+    // Viewport Related
+    float Width = 0.0f;
+    float Height = 0.0f;
+    float MinDepth = 0.0f;
+    float MaxDepth = 1.0f;
+    // Scissor Related
+    uint32_t ScissorWidth = 0;
+    uint32_t ScissorHeight = 0;
+};
+
+struct RasterizerState
+{
+    RasterizerState() = default;
+
+    bool DepthClampEnable = false;
+    bool RasterizerDiscardEnable = false;
+    enum class PolygonMode
+    {
+        FILL,
+        LINE,
+        POINT
+    } PolyMode = PolygonMode::FILL;
+    enum class CullingMode
+    {
+        NONE,
+        FRONT,
+        BACK,
+        FRONT_AND_BACK
+    } CullMode = CullingMode::NONE;
+    float LineWidth = 1.0f;
+};
+
+struct PipelineDesc
+{
+    PipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
+        : GlobalDescriptorSetLayout(globalLayout), PassDescriptorSetLayout(passlLayout)
+    {
+    }
+
+    std::string VertexShader = {};
+    std::string FragmentShader = {};
+    VertexLayout VertexLayout = {};
+    enum class PrimitiveTopology
+    {
+        POINT,
+        LINE_LIST,
+        LINE_STRIP,
+        TRIANGLE_LIST,
+        TRIANGLE_STRIP
+    } Topology = PrimitiveTopology::TRIANGLE_LIST;
+    Viewport Viewport = {};
+    RasterizerState Rasterizer = {};
+
+    char* Name = "Unknown Pipeline";
+
+  private:
+    friend class Pipeline;
+    VkDescriptorSetLayout& GlobalDescriptorSetLayout;
+    VkDescriptorSetLayout& PassDescriptorSetLayout;
+    //VkDescriptorSetLayout& MaterialDescriptorSetLayout;
+};
+
+struct Pipeline
+{
+    Pipeline() = default;
+    Pipeline(PipelineDesc& desc);
+
+    VkPipeline PipelineObject = {};
+    VkPipelineLayout PipelineLayout = {};
+    char* Name = nullptr;
 };
 
 enum class TransitionType
@@ -73,11 +207,11 @@ enum class TransitionType
 struct RenderTarget
 {
     RenderTarget() = default;
-    RenderTarget(VkImage image, VkImageView view, VkFormat format = VK_FORMAT_UNDEFINED,
+    RenderTarget(VkImage image, VkImageView view, VkFormat Format = VK_FORMAT_UNDEFINED,
                  VkImageLayout layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
                  VkAttachmentLoadOp load = VK_ATTACHMENT_LOAD_OP_CLEAR,
                  VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE, VkClearValue clear = {})
-        : Image(image), ImageView(view), Format(format), ImageLayout(layout), LoadOp(load),
+        : Image(image), ImageView(view), Format(Format), ImageLayout(layout), LoadOp(load),
           StoreOp(store), ClearValue(clear)
     {
     }

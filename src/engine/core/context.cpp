@@ -270,17 +270,34 @@ void Context::pick_physical_device()
     std::vector<VkPhysicalDevice> devices(device_count);
     vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
 
+    VkPhysicalDevice backup = {};
+
+    VkPhysicalDeviceProperties props = {};
     for (const auto& device : devices)
     {
+        vkGetPhysicalDeviceProperties(device, &props);
+
         if (is_device_suitable(device))
         {
-            m_physicalDevice = device;
-            break;
+            if (props.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            {
+                backup = device;
+                continue;
+            }
+            else
+            {
+                m_physicalDevice = device;
+                break;
+            }
         }
     }
 
-    if (m_physicalDevice == VK_NULL_HANDLE)
+    if (m_physicalDevice == VK_NULL_HANDLE && backup != VK_NULL_HANDLE)
+        m_physicalDevice = backup;
+    else if (backup == VK_NULL_HANDLE)
         throw std::runtime_error("Failed To Find a Suitable GPU!");
+
+    printf("Picked %s For Rendering \n", props.deviceName);
 }
 
 bool Context::is_device_suitable(VkPhysicalDevice device)

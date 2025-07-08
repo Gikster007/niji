@@ -90,13 +90,12 @@ void CommandList::begin_rendering(const RenderInfo& info) const
         auto& rt = colorAttachments[i];
         auto& infoRT = info.ColorAttachments[i];
         transition_image(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
-                        TransitionType::ColorAttachment);
+                         TransitionType::ColorAttachment);
     }
 
     auto& depthInfoRT = info.DepthAttachment;
     transition_image(depthInfoRT.Image, depthInfoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED,
-                    depthAttachment.imageLayout,
-                    TransitionType::DepthStencilAttachment);
+                     depthAttachment.imageLayout, TransitionType::DepthStencilAttachment);
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);
 }
@@ -117,30 +116,40 @@ void CommandList::bind_scissor(const VkRect2D& scissor) const
 }
 
 void CommandList::bind_vertex_buffer(uint32_t firstBinding, uint32_t bindingCount,
-                                   const VkBuffer* buffers, const VkDeviceSize* offsets) const
+                                     const VkBuffer* buffers, const VkDeviceSize* offsets) const
 {
     vkCmdBindVertexBuffers(m_commandBuffer, firstBinding, bindingCount, buffers, offsets);
 }
 
-void CommandList::bind_index_buffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) const
+void CommandList::bind_index_buffer(VkBuffer buffer, VkDeviceSize offset,
+                                    VkIndexType indexType) const
 {
     vkCmdBindIndexBuffer(m_commandBuffer, buffer, offset, indexType);
 }
 
 void CommandList::bind_descriptor_sets(VkPipelineBindPoint pipelineBindPoint,
-                                           VkPipelineLayout layout, uint32_t firstSet,
-                                           uint32_t descriptorSetCount,
-                                           const VkDescriptorSet* pDescriptorSets,
-                                           uint32_t dynamicOffsetCount,
-                                           const uint32_t* pDynamicOffsets) const
+                                       VkPipelineLayout layout, uint32_t firstSet,
+                                       uint32_t descriptorSetCount,
+                                       const VkDescriptorSet* pDescriptorSets,
+                                       uint32_t dynamicOffsetCount,
+                                       const uint32_t* pDynamicOffsets) const
 {
     vkCmdBindDescriptorSets(m_commandBuffer, pipelineBindPoint, layout, firstSet,
                             descriptorSetCount, pDescriptorSets, dynamicOffsetCount,
                             pDynamicOffsets);
 }
 
+void CommandList::push_descriptor_set(VkPipelineBindPoint pipelineBindPoint,
+                                      VkPipelineLayout layout, uint32_t set,
+                                      uint32_t descriptorWriteCount,
+                                      const VkWriteDescriptorSet* pDescriptorWrites)
+{
+    VKCmdPushDescriptorSetKHR(m_commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount,
+                              pDescriptorWrites);
+}
+
 void CommandList::draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
-                              int32_t vertexOffset, uint32_t firstInstance) const
+                               int32_t vertexOffset, uint32_t firstInstance) const
 {
     vkCmdDrawIndexed(m_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset,
                      firstInstance);
@@ -154,7 +163,7 @@ void CommandList::end_rendering(const RenderInfo& info) const
     {
         auto& rt = info.ColorAttachments[i];
         transition_image(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
+                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
     }
 }
 
@@ -179,16 +188,17 @@ void CommandList::cleanup()
 {
     if (m_commandBuffer != VK_NULL_HANDLE)
     {
-        vkFreeCommandBuffers(nijiEngine.m_context.m_device, nijiEngine.m_context.m_commandPool, 1, &m_commandBuffer);
+        vkFreeCommandBuffers(nijiEngine.m_context.m_device, nijiEngine.m_context.m_commandPool, 1,
+                             &m_commandBuffer);
         m_commandBuffer = VK_NULL_HANDLE;
     }
 }
 
 void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                  VkAccessFlags srcAccess, VkAccessFlags dstAccess,
-                                  VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
-                                  VkImageAspectFlags aspectMask, uint32_t mipLevels,
-                                  uint32_t layerCount) const
+                                   VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                                   VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+                                   VkImageAspectFlags aspectMask, uint32_t mipLevels,
+                                   uint32_t layerCount) const
 {
     VkImageMemoryBarrier2 barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -215,8 +225,8 @@ void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkIma
 }
 
 void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                  VkImageLayout newLayout, TransitionType usage, uint32_t mipLevels,
-                                  uint32_t layerCount) const
+                                   VkImageLayout newLayout, TransitionType usage,
+                                   uint32_t mipLevels, uint32_t layerCount) const
 {
     VkAccessFlags srcAccessMask = 0;
     VkAccessFlags dstAccessMask = 0;
@@ -269,5 +279,5 @@ void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout
     }
 
     transition_image(image, oldLayout, newLayout, srcAccessMask, dstAccessMask, srcStage, dstStage,
-                    aspectMask, mipLevels, layerCount);
+                     aspectMask, mipLevels, layerCount);
 }

@@ -23,7 +23,6 @@ class Engine
   public:
     ECS& ecs;
     Context& m_context;
-    //Renderer& m_renderer;
 };
 } // namespace niji
 

@@ -7,8 +7,22 @@
 
 using namespace niji;
 
-Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiUBO& ubo)
+Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive)
 {
+    // Create Material Data Buffer
+    VkDeviceSize bufferSize = sizeof(ModelData);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        ModelData ubo = {};
+        BufferDesc bufferDesc = {};
+        bufferDesc.IsPersistent = true;
+        bufferDesc.Name = "Model Data";
+        bufferDesc.Size = sizeof(ModelData);
+        bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
+        m_data[i] = Buffer(bufferDesc, &ubo);
+    }
+
     if (!primitive.materialIndex.has_value())
     {
         printf("[Material]: Model has no Material data! \n");
@@ -89,7 +103,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiU
             return std::nullopt;
         }
 
-        NijiTexture finalTexture = nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
+        NijiTexture finalTexture =
+            nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
         nijiEngine.m_context.create_texture_image_view(finalTexture);
         return finalTexture;
     };
@@ -105,7 +120,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiU
         m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture.value());
 
     if (material.pbrData.metallicRoughnessTexture.has_value())
-        m_materialData.RoughMetallic = loadTexture(material.pbrData.metallicRoughnessTexture.value());
+        m_materialData.RoughMetallic =
+            loadTexture(material.pbrData.metallicRoughnessTexture.value());
 
     if (material.emissiveTexture.has_value())
         m_materialData.Emissive = loadTexture(material.emissiveTexture.value());
@@ -138,104 +154,20 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiU
             throw std::runtime_error("[Material]: Failed to Create Texture Sampler!");
     }
 
-    // Create Descriptor Layouts for Mesh-Specific Textures
+    std::array<std::optional<NijiTexture>*, 5> textures = {&m_materialData.BaseColor,
+                                                           &m_materialData.NormalTexture,
+                                                           &m_materialData.OcclusionTexture,
+                                                           &m_materialData.RoughMetallic,
+                                                           &m_materialData.Emissive};
+
+    for (auto* textureOpt : textures)
     {
-        VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-        uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        uboLayoutBinding.pImmutableSamplers = nullptr;
-
-        VkDescriptorSetLayoutBinding samplerLayoutBinding = {};
-        samplerLayoutBinding.binding = 1;
-        samplerLayoutBinding.descriptorCount = 1;
-        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerLayoutBinding.pImmutableSamplers = nullptr;
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding,
-                                                                samplerLayoutBinding};
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = bindings.size();
-        layoutInfo.pBindings = bindings.data();
-
-        if (vkCreateDescriptorSetLayout(nijiEngine.m_context.m_device, &layoutInfo, nullptr,
-                                        &m_descriptorSetLayout) != VK_SUCCESS)
-            throw std::runtime_error("[Material]: Failed to Create Descriptor Set Layout");
-    }
-
-    // Create Descriptor Pool for Mesh-Specific Textures
-    {
-        std::array<VkDescriptorPoolSize, 2> poolSizes = {};
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-        VkDescriptorPoolCreateInfo poolInfo = {};
-        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-        if (vkCreateDescriptorPool(nijiEngine.m_context.m_device, &poolInfo, nullptr, &m_descriptorPool) !=
-            VK_SUCCESS)
-            throw std::runtime_error("Failed to Create Descriptor Pool!");
-    }
-
-    // Create Descriptor Sets for Mesh-Specific Textures
-    {
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayout);
-        VkDescriptorSetAllocateInfo allocInfo = {};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        allocInfo.pSetLayouts = layouts.data();
-
-        m_descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(nijiEngine.m_context.m_device, &allocInfo, m_descriptorSets.data()) !=
-            VK_SUCCESS)
-            throw std::runtime_error("Failed to Allocate Descriptor Sets!");
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        if (textureOpt->has_value())
         {
-            VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = ubo.UniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkDescriptorImageInfo imageInfo = {};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = m_materialData.BaseColor.value().TextureImageView;
-            imageInfo.sampler = m_sampler;
-
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = m_descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
-            descriptorWrites[0].pTexelBufferView = nullptr;
-            descriptorWrites[0].pImageInfo = nullptr;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = m_descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pBufferInfo = nullptr;
-            descriptorWrites[1].pTexelBufferView = nullptr;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(nijiEngine.m_context.m_device,
-                                   static_cast<uint32_t>(descriptorWrites.size()),
-                                   descriptorWrites.data(), 0, nullptr);
+            auto& texture = textureOpt->value();
+            texture.ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            texture.ImageInfo.imageView = texture.TextureImageView;
+            texture.ImageInfo.sampler = VK_NULL_HANDLE;
         }
     }
 }
@@ -250,7 +182,7 @@ void Material::cleanup()
     nijiEngine.m_context.cleanup_texture(m_materialData.OcclusionTexture.value());
     nijiEngine.m_context.cleanup_texture(m_materialData.RoughMetallic.value());
 
-    vkDestroyDescriptorPool(nijiEngine.m_context.m_device, m_descriptorPool, nullptr);
-
-    vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_descriptorSetLayout, nullptr);
+    //vkDestroyDescriptorPool(nijiEngine.m_context.m_device, m_descriptorPool, nullptr);
+    //
+    //vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_descriptorSetLayout, nullptr);
 }

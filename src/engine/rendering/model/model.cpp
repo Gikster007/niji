@@ -43,22 +43,6 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
         return;
     }
 
-    // Create UBO
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-    m_ubo.UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    m_ubo.UniformBuffersAllocations.resize(MAX_FRAMES_IN_FLIGHT);
-    m_ubo.UniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        nijiEngine.m_context.create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, m_ubo.UniformBuffers[i],
-                                           m_ubo.UniformBuffersAllocations[i], true);
-
-        vmaMapMemory(nijiEngine.m_context.m_allocator, m_ubo.UniformBuffersAllocations[i],
-                     &m_ubo.UniformBuffersMapped[i]);
-    }
-
     this->Instantiate(asset.get(), parent);
 }
 
@@ -104,7 +88,7 @@ void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity p
     auto& primitive = mesh.primitives[0];
 
     m_meshes.emplace_back(Mesh(model, primitive));
-    m_materials.emplace_back(Material(model, primitive, m_ubo));
+    m_materials.emplace_back(Material(model, primitive));
 
     auto& meshComponent = nijiEngine.ecs.add_component<MeshComponent>(nodeEntity);
     meshComponent.Model = this;
@@ -119,5 +103,5 @@ void Model::update(float dt)
 
 void Model::cleanup()
 {
-    nijiEngine.m_context.cleanup_ubo(m_ubo);
+    //nijiEngine.m_context.cleanup_ubo(m_ubo);
 }

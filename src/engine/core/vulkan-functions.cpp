@@ -5,6 +5,8 @@ PFN_vkCmdBeginRenderingKHR VKCmdBeginRenderingKHR = nullptr;
 PFN_vkCmdEndRenderingKHR VKCmdEndRenderingKHR = nullptr;
 PFN_vkSetDebugUtilsObjectNameEXT VKSetDebugUtilsObjectNameEXT = nullptr;
 PFN_vkCmdPipelineBarrier2KHR VKCmdPipelineBarrier2KHR = nullptr;
+PFN_vkCmdPushDescriptorSetKHR VKCmdPushDescriptorSetKHR = nullptr;
+
 
 void niji::load_vulkan_function_pointers(VkDevice device)
 {
@@ -16,4 +18,6 @@ void niji::load_vulkan_function_pointers(VkDevice device)
         vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT"));
     VKCmdPipelineBarrier2KHR = reinterpret_cast<PFN_vkCmdPipelineBarrier2KHR>(
         vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier2KHR"));
+    VKCmdPushDescriptorSetKHR = reinterpret_cast<PFN_vkCmdPushDescriptorSetKHR>(
+        vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR"));
 }

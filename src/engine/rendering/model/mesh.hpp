@@ -17,7 +17,8 @@ class Mesh
     void cleanup() const;
 
   private:
-    friend class Renderer;
+    friend class ForwardPass;
+
     Buffer m_vertexBuffer = {};
     Buffer m_indexBuffer = {};
 

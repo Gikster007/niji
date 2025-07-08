@@ -9,7 +9,7 @@
 #include "core/context.hpp"
 #include "core/ecs.hpp"
 
-#include "../core/commandlist.hpp"
+#include "render-passes.hpp"
 
 enum VmaMemoryUsage;
 
@@ -18,21 +18,16 @@ typedef VmaAllocation_T* VmaAllocation;
 
 namespace niji
 {
+
 struct Vertex
 {
     glm::vec3 Pos = {};
     glm::vec3 Color = {};
+    glm::vec3 Normal = {};
     glm::vec2 TexCoord = {};
 
     static VkVertexInputBindingDescription get_binding_description();
     static std::array<VkVertexInputAttributeDescription, 3> get_attribute_description();
-};
-
-struct UniformBufferObject
-{
-    alignas(16) glm::mat4 Model = {};
-    alignas(16) glm::mat4 View = {};
-    alignas(16) glm::mat4 Proj = {};
 };
 
 class Renderer : System
@@ -59,10 +54,6 @@ class Renderer : System
     void create_image_views();
     void cleanup_swap_chain();
 
-    void create_graphics_pipeline();
-    static std::vector<char> read_file(const std::string& filename);
-    VkShaderModule create_shader_module(const std::vector<char>& code);
-
     void create_command_buffers();
     void create_sync_objects();
 
@@ -73,10 +64,13 @@ class Renderer : System
 
   private:
     friend class Material;
+    friend class ForwardPass;
 
     std::vector<VkBuffer> m_uniformBuffers = {};
     std::vector<VmaAllocation> m_uniformBuffersAllocations = {};
     std::vector<void*> m_uniformBuffersMapped = {};
+
+    std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_ubos = {};
 
     VkImage m_depthImage = {};
     VkImageView m_depthImageView = {};
@@ -85,6 +79,7 @@ class Renderer : System
     Context* m_context = nullptr;
 
     uint32_t m_currentFrame = 0;
+    uint32_t m_imageIndex = UINT64_MAX;
 
     VkSwapchainKHR m_swapChain = {};
     std::vector<VkImage> m_swapChainImages = {};
@@ -95,9 +90,15 @@ class Renderer : System
     VkPipelineLayout m_pipelineLayout = {};
     VkPipeline m_graphicsPipeline = {};
 
+    VkDescriptorSetLayout m_globalSetLayout = {};
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};
+    VkDescriptorPool m_descriptorPool = {};
+
     std::vector<CommandList> m_commandBuffers = {};
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
     std::vector<VkFence> m_inFlightFences = {};
+
+    std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 };
 } // namespace niji

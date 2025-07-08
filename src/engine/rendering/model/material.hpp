@@ -20,20 +20,18 @@ struct MaterialData
 class Material
 {
   public:
-    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, NijiUBO& ubo);
+    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive);
 
     private:
     void cleanup();
 
   private:
-    friend class Renderer;
+    friend class ForwardPass;
+
     MaterialData m_materialData = {};
+    std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_data = {};
 
     VkSampler m_sampler = {};
-
-    VkDescriptorPool m_descriptorPool = {};
-    std::vector<VkDescriptorSet> m_descriptorSets = {};
-    VkDescriptorSetLayout m_descriptorSetLayout = {};
 };
 
 } // namespace niji
