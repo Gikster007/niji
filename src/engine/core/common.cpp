@@ -52,6 +52,7 @@ Buffer::Buffer(BufferDesc& desc, void* data)
 
     nijiEngine.m_context.create_buffer(desc.Size, usageFlags, memUsage, Handle, BufferAllocation,
                                        desc.IsPersistent);
+    vmaSetAllocationName(nijiEngine.m_context.m_allocator, BufferAllocation, desc.Name);
 
     if (desc.Usage != BufferDesc::BufferUsage::Uniform)
     {
@@ -61,9 +62,61 @@ Buffer::Buffer(BufferDesc& desc, void* data)
     else if (desc.Usage == BufferDesc::BufferUsage::Uniform)
     {
         vmaMapMemory(nijiEngine.m_context.m_allocator, BufferAllocation, &Data);
+        Mapped = true;
     }
 
     SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_BUFFER, Handle, desc.Name);
+}
+
+Buffer::~Buffer()
+{
+    cleanup();
+}
+
+Buffer::Buffer(Buffer&& other) noexcept
+{
+    *this = std::move(other);
+}
+
+Buffer& Buffer::operator=(Buffer&& other) noexcept
+{
+    if (this != &other)
+    {
+        cleanup();
+
+        Handle = other.Handle;
+        BufferAllocation = other.BufferAllocation;
+        Desc = std::move(other.Desc);
+        Data = other.Data;
+        Mapped = other.Mapped;
+
+        other.Handle = VK_NULL_HANDLE;
+        other.BufferAllocation = nullptr;
+        other.Data = nullptr;
+        other.Mapped = false;
+    }
+    return *this;
+}
+
+void Buffer::cleanup()
+{
+    if (BufferAllocation != nullptr)
+    {
+        if (Mapped)
+        {
+            vmaUnmapMemory(nijiEngine.m_context.m_allocator, BufferAllocation);
+            Mapped = false;
+        }
+
+        if (Handle != VK_NULL_HANDLE)
+        {
+            vmaDestroyBuffer(nijiEngine.m_context.m_allocator, Handle, BufferAllocation);
+        }
+
+        Handle = VK_NULL_HANDLE;
+        BufferAllocation = nullptr;
+        Data = nullptr;
+    }
 }
 
 std::vector<char> read_file(const std::string& filename)
@@ -195,16 +248,13 @@ Pipeline::Pipeline(PipelineDesc& desc)
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    /*std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT,
+    std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT,
                                                  VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dynamicState = {};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();*/
-
-    // auto bindingDescription = Vertex::get_binding_description();
-    // auto attributeDescription = Vertex::get_attribute_description();
+    dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -298,10 +348,7 @@ Pipeline::Pipeline(PipelineDesc& desc)
     VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {};
     pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     pipelineRenderingInfo.colorAttachmentCount = 1;
-    { // TODO: Make this nicer by using the passed in Format in the desc
-        VkFormat temp = VK_FORMAT_B8G8R8A8_SRGB;
-        pipelineRenderingInfo.pColorAttachmentFormats = &temp;
-    }
+    pipelineRenderingInfo.pColorAttachmentFormats = &desc.ColorAttachmentFormat;
     pipelineRenderingInfo.depthAttachmentFormat = nijiEngine.m_context.find_depth_format();
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
@@ -327,7 +374,7 @@ Pipeline::Pipeline(PipelineDesc& desc)
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = /*&dynamicState*/ nullptr;
+    pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = PipelineLayout;
     pipelineInfo.renderPass = nullptr /*m_render_pass*/;
     pipelineInfo.pNext = &pipelineRenderingInfo;
@@ -341,4 +388,19 @@ Pipeline::Pipeline(PipelineDesc& desc)
 
     vkDestroyShaderModule(nijiEngine.m_context.m_device, fragShaderModule, nullptr);
     vkDestroyShaderModule(nijiEngine.m_context.m_device, vertShaderModule, nullptr);
+}
+
+void Pipeline::cleanup()
+{
+    if (PipelineObject)
+        vkDestroyPipeline(nijiEngine.m_context.m_device, PipelineObject, nullptr);
+    if (PipelineLayout)
+        vkDestroyPipelineLayout(nijiEngine.m_context.m_device, PipelineLayout, nullptr);
+    Name = nullptr;
+}
+
+void NijiTexture::cleanup() const
+{
+    vkDestroyImageView(nijiEngine.m_context.m_device, TextureImageView, nullptr);
+    vmaDestroyImage(nijiEngine.m_context.m_allocator, TextureImage, TextureImageAllocation);
 }

@@ -32,7 +32,6 @@ void Renderer::init()
 {
     create_swap_chain();
     create_image_views();
-    // create_graphics_pipeline();
 
     // 1. Create global descriptor set layout (set = 0)
     std::vector<VkDescriptorSetLayoutBinding> bindings = {
@@ -111,20 +110,18 @@ void Renderer::init()
                                writes.data(), 0, nullptr);
     }
 
+    // Render Passes
     {
         m_renderPasses.push_back(std::make_unique<ForwardPass>());
     }
-
     {
         for (auto& pass : m_renderPasses)
         {
-            pass->init(m_swapChainExtent, m_globalSetLayout);
+            pass->init(m_swapChainImageFormat, m_swapChainExtent, m_globalSetLayout);
         }
     }
 
     create_depth_resources();
-
-    create_uniform_buffers();
 
     create_command_buffers();
     create_sync_objects();
@@ -142,12 +139,14 @@ void Renderer::update(const float dt)
 
 void Renderer::render()
 {
-    vkWaitForFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
+    VkFence frameFence = m_inFlightFences[m_currentFrame];
+    vkWaitForFences(m_context->m_device, 1, &frameFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(m_context->m_device, 1, &frameFence);
 
+    VkSemaphore acquire_semaphore = m_imageAvailableSemaphores[m_currentFrame];
     // Get index of the next available presentable image
     VkResult result = vkAcquireNextImageKHR(m_context->m_device, m_swapChain, UINT64_MAX,
-                                            m_imageAvailableSemaphores[m_currentFrame],
-                                            VK_NULL_HANDLE, &m_imageIndex);
+                                            acquire_semaphore, VK_NULL_HANDLE, &m_imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -159,26 +158,24 @@ void Renderer::render()
         throw std::runtime_error("Failed to Acquire Swap Chain Image!");
     }
 
-    vkResetFences(m_context->m_device, 1, &m_inFlightFences[m_currentFrame]);
-
     auto& cmd = m_commandBuffers[m_currentFrame];
     for (auto& pass : m_renderPasses)
     {
         pass->record(*this, cmd);
     }
 
+    VkSemaphore submit_semaphore = m_renderFinishedSemaphores[m_imageIndex];
+
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkSemaphore wait_semaphores[] = {m_imageAvailableSemaphores[m_currentFrame]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = wait_semaphores;
+    submitInfo.pWaitSemaphores = &acquire_semaphore;
     submitInfo.pWaitDstStageMask = wait_stages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame].m_commandBuffer;
-    VkSemaphore signal_semaphores[] = {m_renderFinishedSemaphores[m_currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signal_semaphores;
+    submitInfo.pSignalSemaphores = &submit_semaphore;
 
     if (vkQueueSubmit(m_context->m_graphicsQueue, 1, &submitInfo,
                       m_inFlightFences[m_currentFrame]) != VK_SUCCESS)
@@ -187,7 +184,7 @@ void Renderer::render()
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signal_semaphores;
+    presentInfo.pWaitSemaphores = &submit_semaphore;
 
     VkSwapchainKHR swapChains[] = {m_swapChain};
     presentInfo.swapchainCount = 1;
@@ -213,31 +210,32 @@ void Renderer::cleanup()
 {
     cleanup_swap_chain();
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        // Make sure the buffer is unmapped before destroying it
-        if (m_uniformBuffersAllocations[i] != VK_NULL_HANDLE)
-        {
-            vmaUnmapMemory(m_context->m_allocator, m_uniformBuffersAllocations[i]);
-        }
-
-        vmaDestroyBuffer(m_context->m_allocator, m_uniformBuffers[i],
-                         m_uniformBuffersAllocations[i]);
-    }
-
-    /*auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
     {
         auto& model = mesh.Model;
         auto& modelMesh = model->m_meshes[mesh.MeshID];
         auto& modelMaterial = model->m_materials[mesh.MeshID];
         model->cleanup();
-        modelMaterial.cleanup();
-        modelMesh.cleanup();
-    }*/
+    }
 
-    vkDestroyPipeline(m_context->m_device, m_graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(m_context->m_device, m_pipelineLayout, nullptr);
+    for (int i = 0; i < m_ubos.size(); i++)
+    {
+        m_ubos[i].cleanup();
+    }
+
+    for (auto& pass : m_renderPasses)
+    {
+        pass->cleanup();
+        pass.release();
+    }
+    m_renderPasses.clear();
+
+    {
+        vkDestroyDescriptorSetLayout(m_context->m_device, m_globalSetLayout,
+                                     nullptr);
+        vkDestroyDescriptorPool(m_context->m_device, m_descriptorPool, nullptr);
+    }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -425,25 +423,6 @@ void Renderer::create_sync_objects()
     }
 }
 
-void Renderer::create_uniform_buffers()
-{
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-    m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    m_uniformBuffersAllocations.resize(MAX_FRAMES_IN_FLIGHT);
-    m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        m_context->create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                 VMA_MEMORY_USAGE_CPU_TO_GPU, m_uniformBuffers[i],
-                                 m_uniformBuffersAllocations[i], true);
-
-        vmaMapMemory(m_context->m_allocator, m_uniformBuffersAllocations[i],
-                     &m_uniformBuffersMapped[i]);
-    }
-}
-
 void Renderer::update_uniform_buffer(uint32_t currentImage)
 {
     static auto startTime = std::chrono::high_resolution_clock::now();
@@ -463,7 +442,6 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
 
     memcpy(m_ubos[currentImage].Data, &ubo, sizeof(ubo));
 }
-
 
 void Renderer::create_depth_resources()
 {

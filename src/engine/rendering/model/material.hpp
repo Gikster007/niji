@@ -22,10 +22,10 @@ class Material
   public:
     Material(fastgltf::Asset& model, fastgltf::Primitive& primitive);
 
-    private:
     void cleanup();
 
   private:
+    friend class Renderer;
     friend class ForwardPass;
 
     MaterialData m_materialData = {};

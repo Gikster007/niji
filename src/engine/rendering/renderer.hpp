@@ -56,8 +56,7 @@ class Renderer : System
 
     void create_command_buffers();
     void create_sync_objects();
-
-    void create_uniform_buffers();
+    
     void update_uniform_buffer(uint32_t currentImage);
 
     void create_depth_resources();
@@ -65,10 +64,6 @@ class Renderer : System
   private:
     friend class Material;
     friend class ForwardPass;
-
-    std::vector<VkBuffer> m_uniformBuffers = {};
-    std::vector<VmaAllocation> m_uniformBuffersAllocations = {};
-    std::vector<void*> m_uniformBuffersMapped = {};
 
     std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_ubos = {};
 
@@ -86,9 +81,6 @@ class Renderer : System
     VkFormat m_swapChainImageFormat = {};
     VkExtent2D m_swapChainExtent = {};
     std::vector<VkImageView> m_swapChainImageViews = {};
-
-    VkPipelineLayout m_pipelineLayout = {};
-    VkPipeline m_graphicsPipeline = {};
 
     VkDescriptorSetLayout m_globalSetLayout = {};
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};

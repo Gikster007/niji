@@ -46,10 +46,6 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
     this->Instantiate(asset.get(), parent);
 }
 
-Model::~Model()
-{
-}
-
 void Model::Instantiate(fastgltf::Asset& model, Entity parent)
 {
     for (uint32_t node : model.scenes[0].nodeIndices)
@@ -103,5 +99,14 @@ void Model::update(float dt)
 
 void Model::cleanup()
 {
-    //nijiEngine.m_context.cleanup_ubo(m_ubo);
+    for (int i = 0; i < m_meshes.size(); i++)
+    {
+        m_meshes[i].cleanup();
+    }
+    //m_meshes.clear();
+    for (int i = 0; i < m_materials.size(); i++)
+    {
+        m_materials[i].cleanup();
+    }
+    //m_materials.clear();
 }

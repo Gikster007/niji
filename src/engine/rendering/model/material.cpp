@@ -176,13 +176,14 @@ void Material::cleanup()
 {
     vkDestroySampler(nijiEngine.m_context.m_device, m_sampler, nullptr);
 
-    nijiEngine.m_context.cleanup_texture(m_materialData.BaseColor.value());
-    nijiEngine.m_context.cleanup_texture(m_materialData.Emissive.value());
-    nijiEngine.m_context.cleanup_texture(m_materialData.NormalTexture.value());
-    nijiEngine.m_context.cleanup_texture(m_materialData.OcclusionTexture.value());
-    nijiEngine.m_context.cleanup_texture(m_materialData.RoughMetallic.value());
-
-    //vkDestroyDescriptorPool(nijiEngine.m_context.m_device, m_descriptorPool, nullptr);
-    //
-    //vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_descriptorSetLayout, nullptr);
+    m_materialData.BaseColor->cleanup();
+    m_materialData.Emissive->cleanup();
+    m_materialData.NormalTexture->cleanup();
+    m_materialData.OcclusionTexture->cleanup();
+    m_materialData.RoughMetallic->cleanup();
+    
+    for (int i = 0; i < m_data.size(); i++)
+    {
+        m_data[i].cleanup();
+    }
 }

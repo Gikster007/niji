@@ -10,13 +10,10 @@
 
 using namespace niji;
 
-void Mesh::cleanup() const
+void Mesh::cleanup()
 {
-    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_indexBuffer.Handle,
-                     m_indexBuffer.BufferAllocation);
-
-    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, m_vertexBuffer.Handle,
-                     m_vertexBuffer.BufferAllocation);
+    m_vertexBuffer.cleanup();
+    m_indexBuffer.cleanup();
 }
 
 Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)

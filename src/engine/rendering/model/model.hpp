@@ -16,7 +16,6 @@ class Model
 {
   public:
     Model(std::filesystem::path gltfPath, Entity parent);
-    ~Model();
 
   private:
     void Instantiate(fastgltf::Asset& model, Entity parent = entt::null);
@@ -27,6 +26,7 @@ class Model
     void cleanup();
 
   private:
+    friend class Renderer;
     friend class ForwardPass;
 
     std::vector<niji::Mesh> m_meshes = {};

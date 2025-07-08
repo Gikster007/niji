@@ -1,6 +1,7 @@
 #include <iostream>
 
 #define VMA_IMPLEMENTATION
+#define DEBUG_ALLOCATIONS 0
 #include <vk_mem_alloc.h>
 
 #include "engine/engine.hpp"

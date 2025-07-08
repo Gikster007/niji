@@ -8,7 +8,7 @@
 
 using namespace niji;
 
-void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& globalLayout)
+void ForwardPass::init(VkFormat& swapchainFormat, VkExtent2D swapChainExtent, VkDescriptorSetLayout& globalLayout)
 {
     // Create Pass Data Buffer
     VkDeviceSize bufferSize = sizeof(RenderFlags);
@@ -90,6 +90,8 @@ void ForwardPass::init(VkExtent2D swapChainExtent, VkDescriptorSetLayout& global
     pipelineDesc.Viewport.ScissorWidth = swapChainExtent.width;
     pipelineDesc.Viewport.ScissorHeight = swapChainExtent.height;
 
+    pipelineDesc.ColorAttachmentFormat = swapchainFormat;
+
     pipelineDesc.VertexLayout =
         DEFINE_VERTEX_LAYOUT(Vertex,
                              VertexElement(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)),
@@ -156,6 +158,9 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
     cmd.begin_rendering(info);
 
     cmd.bind_pipeline(m_pipeline.PipelineObject);
+
+    cmd.bind_viewport(renderer.m_swapChainExtent);
+    cmd.bind_scissor(renderer.m_swapChainExtent);
 
     auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
@@ -242,4 +247,19 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
 
     cmd.end_rendering(info);
     cmd.end_list();
+}
+
+void RenderPass::base_cleanup()
+{
+    m_pipeline.cleanup();
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        m_passBuffer[i].cleanup();
+    }
+    vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_passDescriptorSetLayout, nullptr);
+}
+
+void ForwardPass::cleanup()
+{
+    base_cleanup();
 }

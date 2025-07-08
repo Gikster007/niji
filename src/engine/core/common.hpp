@@ -61,28 +61,33 @@ struct Buffer
 {
     Buffer() = default;
     Buffer(BufferDesc& desc, void* data);
+    ~Buffer();
+
+    Buffer(Buffer&& other) noexcept;
+    Buffer& operator=(Buffer&& other) noexcept;
+
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
+
+    void cleanup();
 
     VkBuffer Handle = {};
     VmaAllocation BufferAllocation = {};
     BufferDesc Desc = {};
 
     void* Data = nullptr;
+    bool Mapped = false;
 };
 
 struct NijiTexture
 {
+    void cleanup() const;
+
     VkImage TextureImage = {};
     VkImageView TextureImageView = {};
     VmaAllocation TextureImageAllocation = {};
 
     VkDescriptorImageInfo ImageInfo = {};
-};
-
-struct NijiUBO
-{
-    std::vector<VkBuffer> UniformBuffers = {};
-    std::vector<VmaAllocation> UniformBuffersAllocations = {};
-    std::vector<void*> UniformBuffersMapped = {};
 };
 
 struct VertexLayout
@@ -174,6 +179,7 @@ struct PipelineDesc
     } Topology = PrimitiveTopology::TRIANGLE_LIST;
     Viewport Viewport = {};
     RasterizerState Rasterizer = {};
+    VkFormat ColorAttachmentFormat = {};
 
     char* Name = "Unknown Pipeline";
 
@@ -181,13 +187,14 @@ struct PipelineDesc
     friend class Pipeline;
     VkDescriptorSetLayout& GlobalDescriptorSetLayout;
     VkDescriptorSetLayout& PassDescriptorSetLayout;
-    //VkDescriptorSetLayout& MaterialDescriptorSetLayout;
 };
 
 struct Pipeline
 {
     Pipeline() = default;
     Pipeline(PipelineDesc& desc);
+
+    void cleanup();
 
     VkPipeline PipelineObject = {};
     VkPipelineLayout PipelineLayout = {};

@@ -13,10 +13,10 @@ class Mesh
   public:
     Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive);
 
-  private:
-    void cleanup() const;
+    void cleanup();
 
   private:
+    friend class Renderer;
     friend class ForwardPass;
 
     Buffer m_vertexBuffer = {};

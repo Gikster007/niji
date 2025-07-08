@@ -13,8 +13,8 @@ class CommandList
 
     void begin_rendering(const RenderInfo& info) const;
     void bind_pipeline(const VkPipeline& pipeline) const;
-    void bind_viewport(const VkViewport& viewport) const;
-    void bind_scissor(const VkRect2D& scissor) const;
+    void bind_viewport(const VkExtent2D& extent) const;
+    void bind_scissor(const VkExtent2D& extent) const;
     
     void bind_vertex_buffer(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* buffers,
                          const VkDeviceSize* offsets) const;
