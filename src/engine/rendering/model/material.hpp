@@ -20,7 +20,8 @@ struct MaterialData
 class Material
 {
   public:
-    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive);
+    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
+             std::filesystem::path gltfPath);
 
     void cleanup();
 

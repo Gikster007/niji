@@ -5,6 +5,8 @@
 #include <set>
 
 #include <vk_mem_alloc.h>
+
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include "rendering/swapchain.hpp"
@@ -78,7 +80,7 @@ void Context::cleanup()
 {
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
-#ifdef DEBUG_ALLOCATIONS
+#if DEBUG_ALLOCATIONS 
     char* statsString = nullptr;
     vmaBuildStatsString(m_allocator, &statsString, VK_TRUE);
     printf("%s\n", statsString);

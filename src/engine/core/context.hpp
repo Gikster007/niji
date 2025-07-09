@@ -14,6 +14,8 @@ typedef VmaAllocation_T* VmaAllocation;
 
 enum VmaMemoryUsage;
 
+class CameraSystem;
+
 namespace niji
 {
 struct QueueFamilyIndices
@@ -43,6 +45,7 @@ class Context
     friend class ForwardPass;
     friend class ImGuiPass;
     friend class NijiTexture;
+    friend class CameraSystem;
 
   public:
     Context();

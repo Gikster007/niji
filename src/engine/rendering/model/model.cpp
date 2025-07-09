@@ -25,9 +25,20 @@ using namespace niji;
 
 Model::Model(std::filesystem::path gltfPath, Entity parent)
 {
+    m_gltfPath = gltfPath;
+    m_parent = parent;
+}
+
+Model::~Model()
+{
+    cleanup();
+}
+
+void Model::Instantiate()
+{
     fastgltf::Parser parser{};
 
-    auto data = fastgltf::GltfDataBuffer::FromPath(gltfPath);
+    auto data = fastgltf::GltfDataBuffer::FromPath(m_gltfPath);
     if (data.error() != fastgltf::Error::None)
     {
         printf("[Model]: The file couldn't be loaded, or the buffer could not be allocated! \n");
@@ -35,7 +46,7 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
     }
 
     auto asset =
-        parser.loadGltf(data.get(), gltfPath.parent_path(), fastgltf::Options::LoadExternalBuffers);
+        parser.loadGltf(data.get(), m_gltfPath.parent_path(), fastgltf::Options::LoadExternalBuffers);
     if (auto error = asset.error(); error != fastgltf::Error::None)
     {
         printf("[Model]: Some error occurred while reading the buffer, parsing the JSON, or "
@@ -43,18 +54,16 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
         return;
     }
 
-    this->Instantiate(asset.get(), parent);
-}
-
-void Model::Instantiate(fastgltf::Asset& model, Entity parent)
-{
+    auto& model = asset.get();
+    
     for (uint32_t node : model.scenes[0].nodeIndices)
     {
-        InstantiateNode(model, node, parent);
+        InstantiateNode(model, m_gltfPath, node, m_parent);
     }
 }
 
-void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity parent)
+void Model::InstantiateNode(fastgltf::Asset& model, std::filesystem::path gltfPath,
+                            uint32_t nodeIndex, Entity parent)
 {
     auto& node = model.nodes[nodeIndex];
     auto nodeEntity = nijiEngine.ecs.create_entity();
@@ -72,7 +81,7 @@ void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity p
 
     // Recurse over child nodes
     for (uint32_t node : node.children)
-        InstantiateNode(model, node, parent);
+        InstantiateNode(model, gltfPath, node, nodeEntity);
 
     if (!node.meshIndex.has_value())
     {
@@ -81,15 +90,39 @@ void Model::InstantiateNode(fastgltf::Asset& model, uint32_t nodeIndex, Entity p
     }
 
     auto& mesh = model.meshes[node.meshIndex.value()];
-    auto& primitive = mesh.primitives[0];
+    /*auto& primitive = mesh.primitives[0];
 
     m_meshes.emplace_back(Mesh(model, primitive));
-    m_materials.emplace_back(Material(model, primitive));
+    m_materials.emplace_back(Material(model, primitive, gltfPath));
 
     auto& meshComponent = nijiEngine.ecs.add_component<MeshComponent>(nodeEntity);
     meshComponent.Model = this;
     meshComponent.MeshID = node.meshIndex.value();
-    meshComponent.MaterialID = primitive.materialIndex.value();
+    meshComponent.MaterialID = primitive.materialIndex.value();*/
+
+    // Loop over all primitives in this mesh
+    for (size_t primIndex = 0; primIndex < mesh.primitives.size(); ++primIndex)
+    {
+        auto& primitive = mesh.primitives[primIndex];
+
+        size_t meshID = m_meshes.size();
+        size_t materialID = m_materials.size();
+
+        m_meshes.emplace_back(Mesh(model, primitive));
+        m_materials.emplace_back(Material(model, primitive, gltfPath));
+
+        // Alternatively: create child entity per primitive if needed
+        Entity primitiveEntity = nijiEngine.ecs.create_entity();
+        auto& primTrans = nijiEngine.ecs.add_component<Transform>(primitiveEntity);
+        primTrans.SetParent(nodeEntity);
+        primTrans.SetFromMatrix(glm::make_mat4(matrix.data()));
+
+        auto& meshComponent = nijiEngine.ecs.add_component<MeshComponent>(primitiveEntity);
+        meshComponent.Model = shared_from_this();
+        meshComponent.MeshID = meshID;
+        meshComponent.MaterialID = materialID;
+        
+    }
 }
 
 void Model::update(float dt)

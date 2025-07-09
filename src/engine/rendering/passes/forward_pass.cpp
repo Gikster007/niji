@@ -129,8 +129,9 @@ void ForwardPass::update(Renderer& renderer)
             auto& modelMesh = model->m_meshes[mesh.MeshID];
             auto& material = model->m_materials[mesh.MaterialID];
 
-            ubo.Model =
-                glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            // ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
+            // 0.0f, 1.0f));
+            ubo.Model = trans.World();
 
             memcpy(material.m_data[frameIndex].Data, &ubo, sizeof(ubo));
         }
@@ -216,6 +217,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
             // -- Textures (binding 3..7)
             for (int i = 0; i < 5; ++i)
             {
+                bool hasValue = textures[i]->has_value();
                 VkWriteDescriptorSet write = {};
                 write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 write.pNext = nullptr;
@@ -224,7 +226,8 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
                 write.dstArrayElement = 0;
                 write.descriptorCount = 1;
                 write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-                write.pImageInfo = &textures[i]->value().ImageInfo;
+                write.pImageInfo = hasValue ? &textures[i]->value().ImageInfo
+                                            : &renderer.m_fallbackTexture.ImageInfo;
                 write.pBufferInfo = nullptr;
                 write.pTexelBufferView = nullptr;
                 writes.push_back(write);

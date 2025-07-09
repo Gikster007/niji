@@ -15,6 +15,8 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
+#define DEBUG_ALLOCATIONS 0
+
 #include <vector>
 
 constexpr uint16_t WIN_WIDTH = 1920;

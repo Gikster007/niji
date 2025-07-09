@@ -1,6 +1,5 @@
 #include "material.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include "core/context.hpp"
@@ -9,7 +8,8 @@
 
 using namespace niji;
 
-Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive)
+Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
+                   std::filesystem::path gltfPath)
 {
     // Create Material Data Buffer
     VkDeviceSize bufferSize = sizeof(ModelData);
@@ -71,9 +71,12 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive)
         if (std::holds_alternative<fastgltf::sources::URI>(image.data))
         {
             // Image is stored as a URI (external file)
+            std::filesystem::path baseDir = gltfPath.parent_path();
             auto& uri = std::get<fastgltf::sources::URI>(image.data);
+            std::filesystem::path fullTexturePath = baseDir / uri.uri.fspath();
 
-            imageData = stbi_load(uri.uri.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+            imageData = stbi_load(fullTexturePath.string().c_str(), &width, &height, &channels,
+                                  STBI_rgb_alpha);
         }
         else if (std::holds_alternative<fastgltf::sources::Vector>(image.data))
         {
@@ -176,14 +179,20 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive)
 
 void Material::cleanup()
 {
-    vkDestroySampler(nijiEngine.m_context.m_device, m_sampler, nullptr);
+    if (m_sampler != VK_NULL_HANDLE)
+        vkDestroySampler(nijiEngine.m_context.m_device, m_sampler, nullptr);
 
-    m_materialData.BaseColor->cleanup();
-    m_materialData.Emissive->cleanup();
-    m_materialData.NormalTexture->cleanup();
-    m_materialData.OcclusionTexture->cleanup();
-    m_materialData.RoughMetallic->cleanup();
-    
+    if (m_materialData.BaseColor.has_value())
+        m_materialData.BaseColor->cleanup();
+    if (m_materialData.Emissive.has_value())
+        m_materialData.Emissive->cleanup();
+    if (m_materialData.NormalTexture.has_value())
+        m_materialData.NormalTexture->cleanup();
+    if (m_materialData.OcclusionTexture.has_value())
+        m_materialData.OcclusionTexture->cleanup();
+    if (m_materialData.RoughMetallic.has_value())
+        m_materialData.RoughMetallic->cleanup();
+
     for (int i = 0; i < m_data.size(); i++)
     {
         m_data[i].cleanup();

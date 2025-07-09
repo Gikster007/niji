@@ -10,10 +10,13 @@
 #include <vk_mem_alloc.h>
 
 #include <imgui.h>
+#include <stb_image.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 
 using namespace niji;
+
+#include "../../app/camera_system.hpp"
 
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
@@ -34,6 +37,26 @@ Renderer::~Renderer()
 
 void Renderer::init()
 {
+    {
+        int width = -1, height = -1, channels = -1;
+        unsigned char* imageData = nullptr;
+
+        imageData = stbi_load("assets/missing.png", &width, &height, &channels, STBI_rgb_alpha);
+
+        if (!imageData)
+        {
+            printf("[Renderer] Failed to load Fallback Texture");
+        }
+
+        m_fallbackTexture =
+            nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
+        nijiEngine.m_context.create_texture_image_view(m_fallbackTexture);
+
+        m_fallbackTexture.ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        m_fallbackTexture.ImageInfo.imageView = m_fallbackTexture.TextureImageView;
+        m_fallbackTexture.ImageInfo.sampler = VK_NULL_HANDLE;
+    }
+
     // 1. Create global descriptor set layout (set = 0)
     std::vector<VkDescriptorSetLayoutBinding> bindings = {
         // binding 0 = matrices
@@ -186,7 +209,7 @@ void Renderer::render()
         info.PrepareForPresent = i == m_renderPasses.size() - 1 ? true : false;
 
         pass->record(*this, cmd, info);
-        
+
         i++;
     }
 
@@ -238,14 +261,16 @@ void Renderer::cleanup()
 {
     m_swapchain.cleanup();
 
-    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    /*auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
     {
         auto& model = mesh.Model;
         auto& modelMesh = model->m_meshes[mesh.MeshID];
         auto& modelMaterial = model->m_materials[mesh.MeshID];
         model->cleanup();
-    }
+    }*/
+
+    m_fallbackTexture.cleanup();
 
     for (int i = 0; i < m_ubos.size(); i++)
     {
@@ -307,13 +332,16 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
     float time =
         std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
+    auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+    auto& camera = cameraSystem.m_camera;
+
     UniformBufferObject ubo = {};
 
-    ubo.View = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.Proj = glm::perspective(glm::radians(45.0f),
+    ubo.View = camera.GetViewMatrix();
+    ubo.Proj = camera.GetProjectionMatrix(); /*glm::perspective(glm::radians(45.0f),
                                 m_swapchain.m_extent.width / (float)m_swapchain.m_extent.height,
-                                0.1f, 10.0f);
+                                0.1f, 10.0f);*/
+        
     ubo.Proj[1][1] *= -1;
 
     memcpy(m_ubos[currentImage].Data, &ubo, sizeof(ubo));
