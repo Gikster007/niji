@@ -74,8 +74,8 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
     PipelineDesc pipelineDesc = {globalLayout, m_passDescriptorSetLayout};
 
     pipelineDesc.Name = "Forward Pass";
-    pipelineDesc.VertexShader = "shaders/vert.spv";
-    pipelineDesc.FragmentShader = "shaders/frag.spv";
+    pipelineDesc.VertexShader = "shaders/spirv/forward_pass.vert.spv";
+    pipelineDesc.FragmentShader = "shaders/spirv/forward_pass.frag.spv";
 
     pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;

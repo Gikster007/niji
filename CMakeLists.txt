@@ -30,6 +30,49 @@ target_sources(niji PRIVATE
 	${SOURCES}
 )
 
+# Shader directories
+set(SHADER_SRC_DIR "${CMAKE_SOURCE_DIR}/shaders")
+set(SHADER_OUT_DIR "${CMAKE_SOURCE_DIR}/shaders/spirv")
+
+file(GLOB SLANG_FILES "${SHADER_SRC_DIR}/*.slang")
+set(SLANG_SPV_OUTPUTS "")
+
+foreach(SLANG_FILE ${SLANG_FILES})
+    get_filename_component(FILE_NAME ${SLANG_FILE} NAME_WE)
+
+    # Vertex shader output path
+    set(VERT_OUT "${SHADER_OUT_DIR}/${FILE_NAME}.vert.spv")
+    add_custom_command(
+        OUTPUT ${VERT_OUT}
+        COMMAND ${CMAKE_COMMAND} -E echo "Compiling vertex shader: ${FILE_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E echo ""
+        COMMAND slangc ${SLANG_FILE} -entry vertex_main -profile vs_6_0 -target spirv -o ${VERT_OUT}
+        DEPENDS ${SLANG_FILE}
+        VERBATIM
+    )
+    list(APPEND SLANG_SPV_OUTPUTS ${VERT_OUT})
+
+    # Fragment shader output path
+    set(FRAG_OUT "${SHADER_OUT_DIR}/${FILE_NAME}.frag.spv")
+    add_custom_command(
+        OUTPUT ${FRAG_OUT}
+        COMMAND ${CMAKE_COMMAND} -E echo "Compiling fragment shader: ${FILE_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E echo ""
+        COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile ps_6_0 -target spirv -o ${FRAG_OUT}
+        DEPENDS ${SLANG_FILE}
+        VERBATIM
+    )
+    list(APPEND SLANG_SPV_OUTPUTS ${FRAG_OUT})
+endforeach()
+
+# CompileShaders target that depends on all SPIR-V outputs
+add_custom_target(CompileShaders ALL
+    DEPENDS ${SLANG_SPV_OUTPUTS}
+)
+
+# Make sure shaders compile before niji builds
+add_dependencies(niji CompileShaders)
+
 set_target_properties(niji PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/Debug
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release

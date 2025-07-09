@@ -9,6 +9,8 @@
 
 #include <vk_mem_alloc.h>
 
+#include <slang/slang.h>
+
 #include <imgui.h>
 #include <stb_image.h>
 #include <backends/imgui_impl_glfw.h>
@@ -260,15 +262,6 @@ void Renderer::render()
 void Renderer::cleanup()
 {
     m_swapchain.cleanup();
-
-    /*auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
-    for (auto&& [entity, trans, mesh] : view.each())
-    {
-        auto& model = mesh.Model;
-        auto& modelMesh = model->m_meshes[mesh.MeshID];
-        auto& modelMaterial = model->m_materials[mesh.MeshID];
-        model->cleanup();
-    }*/
 
     m_fallbackTexture.cleanup();
 
