@@ -50,6 +50,7 @@ class Renderer : System
     VkDescriptorSetLayout m_globalSetLayout = {};
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};
     VkDescriptorPool m_descriptorPool = {};
+    VkDescriptorPool m_imguiDescriptorPool = {};
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};

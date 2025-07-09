@@ -181,12 +181,6 @@ void CommandList::end_rendering(const RenderInfo& info) const
 
 void CommandList::end_list() const
 {
-    /*auto vkCmdEndDebugUtilsLabelEXT =
-        (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetDeviceProcAddr(nijiEngine.m_context.m_device,
-                                                            "vkCmdEndDebugUtilsLabelEXT");
-    if (vkCmdEndDebugUtilsLabelEXT)
-        vkCmdEndDebugUtilsLabelEXT(m_commandBuffer);*/
-
     if (vkEndCommandBuffer(m_commandBuffer) != VK_SUCCESS)
         throw std::runtime_error("Failed to record command buffer!");
 }

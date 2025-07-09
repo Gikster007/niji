@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+#include <imgui.h>
+
 #include "../engine.hpp"
 #include "../core/components/transform.hpp"
 #include "../core/components/render-components.hpp"
@@ -140,10 +142,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
-    cmd.reset();
-
-    cmd.begin_list("Forward Pass");
-
     RenderTarget colorAttachment = {swapchain.m_images[renderer.m_imageIndex],
                                     swapchain.m_imageViews[renderer.m_imageIndex]};
     colorAttachment.ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -162,6 +160,12 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
 
     cmd.bind_viewport(swapchain.m_extent);
     cmd.bind_scissor(swapchain.m_extent);
+
+    ImGui::Begin("Demo Window");
+    static bool b = true;
+    ImGui::ShowDemoWindow(&b);
+    ImGui::Text("Hello, Vulkan + ImGui!");
+    ImGui::End();
 
     auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
@@ -247,7 +251,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
     }
 
     cmd.end_rendering(info);
-    cmd.end_list();
 }
 
 void RenderPass::base_cleanup()
