@@ -255,10 +255,11 @@ struct RenderInfo
     VkRect2D RenderArea = {{0, 0}, {0, 0}};
     uint32_t LayerCount = 1;
 
-    std::vector<RenderTarget> ColorAttachments = {};
+    RenderTarget ColorAttachment = {};
     RenderTarget DepthAttachment = {};
 
     bool HasDepth = false;
+    bool PrepareForPresent = false;
 };
 
 } // namespace niji

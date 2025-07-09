@@ -49,6 +49,7 @@ class CommandList
 
   private:
     friend class Renderer;
+    friend class ImGuiPass;
 
     VkCommandBuffer m_commandBuffer = {};
 };

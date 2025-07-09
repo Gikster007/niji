@@ -38,6 +38,7 @@ class Swapchain
   private:
     friend class Renderer;
     friend class ForwardPass;
+    friend class ImGuiPass;
 
     VkImage m_depthImage = {};
     VkImageView m_depthImageView = {};

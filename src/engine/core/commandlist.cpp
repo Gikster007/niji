@@ -36,36 +36,29 @@ void CommandList::begin_list(const char* debugName) const
     SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer,
                   debugName);
 
-    /*VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+    VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     labelInfo.pLabelName = debugName;
     labelInfo.color[0] = 0.2f;
     labelInfo.color[1] = 0.6f;
     labelInfo.color[2] = 0.9f;
     labelInfo.color[3] = 1.0f;
 
-    auto vkCmdBeginDebugUtilsLabelEXT =
-        (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetDeviceProcAddr(nijiEngine.m_context.m_device,
-                                                                "vkCmdBeginDebugUtilsLabelEXT");
-    if (vkCmdBeginDebugUtilsLabelEXT)
-        vkCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);*/
+    if (VKCmdBeginDebugUtilsLabelEXT)
+        VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
 }
 
 void CommandList::begin_rendering(const RenderInfo& info) const
 {
-    std::vector<VkRenderingAttachmentInfoKHR> colorAttachments(info.ColorAttachments.size());
-    for (size_t i = 0; i < info.ColorAttachments.size(); ++i)
-    {
-        const auto& src = info.ColorAttachments[i];
-        auto& dst = colorAttachments[i];
+    VkRenderingAttachmentInfoKHR colorAttachment = {};
+    const auto& src = info.ColorAttachment;
+    auto& dst = colorAttachment;
 
-        dst.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        dst.imageView = src.ImageView;
-        dst.imageLayout = src.ImageLayout;
-        dst.loadOp = src.LoadOp;
-        dst.storeOp = src.StoreOp;
-        dst.clearValue = src.ClearValue;
-    }
-
+    dst.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    dst.imageView = src.ImageView;
+    dst.imageLayout = src.ImageLayout;
+    dst.loadOp = src.LoadOp;
+    dst.storeOp = src.StoreOp;
+    dst.clearValue = src.ClearValue;
     VkRenderingAttachmentInfoKHR depthAttachment{};
     if (info.HasDepth)
     {
@@ -81,17 +74,14 @@ void CommandList::begin_rendering(const RenderInfo& info) const
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     renderingInfo.renderArea = info.RenderArea;
     renderingInfo.layerCount = info.LayerCount;
-    renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
-    renderingInfo.pColorAttachments = colorAttachments.data();
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &colorAttachment;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
 
-    for (int i = 0; i < colorAttachments.size(); i++)
-    {
-        auto& rt = colorAttachments[i];
-        auto& infoRT = info.ColorAttachments[i];
-        transition_image(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
-                         TransitionType::ColorAttachment);
-    }
+    auto& rt = colorAttachment;
+    auto& infoRT = info.ColorAttachment;
+    transition_image(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
+                     TransitionType::ColorAttachment);
 
     auto& depthInfoRT = info.DepthAttachment;
     transition_image(depthInfoRT.Image, depthInfoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -171,9 +161,9 @@ void CommandList::end_rendering(const RenderInfo& info) const
 {
     VKCmdEndRenderingKHR(m_commandBuffer);
 
-    for (int i = 0; i < info.ColorAttachments.size(); i++)
+    if (info.PrepareForPresent)
     {
-        auto& rt = info.ColorAttachments[i];
+        auto& rt = info.ColorAttachment;
         transition_image(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
     }

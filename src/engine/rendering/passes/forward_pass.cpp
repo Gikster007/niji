@@ -1,12 +1,12 @@
-#include "render-passes.hpp"
+#include "forward_pass.hpp"
 
 #include <stdexcept>
 
 #include <imgui.h>
 
-#include "../engine.hpp"
-#include "../core/components/transform.hpp"
-#include "../core/components/render-components.hpp"
+#include "../../core/components/render-components.hpp"
+#include "../../core/components/transform.hpp"
+#include "../../engine.hpp"
 
 using namespace niji;
 
@@ -137,22 +137,10 @@ void ForwardPass::update(Renderer& renderer)
     }
 }
 
-void ForwardPass::record(Renderer& renderer, CommandList& cmd)
+void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
-
-    RenderTarget colorAttachment = {swapchain.m_images[renderer.m_imageIndex],
-                                    swapchain.m_imageViews[renderer.m_imageIndex]};
-    colorAttachment.ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
-    VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    RenderTarget depthStencil = {swapchain.m_depthImage, swapchain.m_depthImageView, depthFormat};
-    depthStencil.ClearValue = {1.0f, 0.0f};
-
-    RenderInfo info = {swapchain.m_extent};
-    info.ColorAttachments.push_back(colorAttachment);
-    info.DepthAttachment = depthStencil;
-    info.HasDepth = true;
 
     cmd.begin_rendering(info);
 
@@ -251,16 +239,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd)
     }
 
     cmd.end_rendering(info);
-}
-
-void RenderPass::base_cleanup()
-{
-    m_pipeline.cleanup();
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        m_passBuffer[i].cleanup();
-    }
-    vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_passDescriptorSetLayout, nullptr);
 }
 
 void ForwardPass::cleanup()

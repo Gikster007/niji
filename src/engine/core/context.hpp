@@ -41,6 +41,7 @@ class Context
     friend class Pipeline;
     friend class RenderPass;
     friend class ForwardPass;
+    friend class ImGuiPass;
     friend class NijiTexture;
 
   public:

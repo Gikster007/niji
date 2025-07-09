@@ -9,7 +9,10 @@
 #include "core/context.hpp"
 #include "core/ecs.hpp"
 
-#include "render-passes.hpp"
+#include "passes/render_pass.hpp"
+#include "passes/forward_pass.hpp"
+#include "passes/imgui_pass.hpp"
+
 #include "swapchain.hpp"
 
 namespace niji
@@ -35,6 +38,7 @@ class Renderer : System
   private:
     friend class Material;
     friend class ForwardPass;
+    friend class ImGuiPass;
 
     std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_ubos = {};
     std::vector<CommandList> m_commandBuffers = {};
@@ -50,7 +54,6 @@ class Renderer : System
     VkDescriptorSetLayout m_globalSetLayout = {};
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};
     VkDescriptorPool m_descriptorPool = {};
-    VkDescriptorPool m_imguiDescriptorPool = {};
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
