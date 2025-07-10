@@ -19,6 +19,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fastgltf)
 target_link_libraries(niji PRIVATE fastgltf)
 
+# MikkTSpace
+# https://github.com/mmikk/MikkTSpace
+add_library(mikktspace STATIC
+    ${CMAKE_SOURCE_DIR}/lib/mikktspace/mikktspace.c
+)
+target_include_directories(mikktspace PUBLIC ${CMAKE_SOURCE_DIR}/lib/mikktspace)
+target_link_libraries(niji PRIVATE mikktspace)
+
 # GLFW
 # https://github.com/glfw/glfw
 #target_include_directories(niji PRIVATE ${CMAKE_SOURCE_DIR}/lib/glfw/include)

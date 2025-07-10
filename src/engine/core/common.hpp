@@ -27,29 +27,49 @@ void SetObjectName(VkDevice device, VkObjectType type, HandleType handle, const 
     }
 }
 
-
 struct Vertex
 {
     glm::vec3 Pos = {};
     glm::vec3 Color = {};
     glm::vec3 Normal = {};
+    glm::vec4 Tangent = {};
     glm::vec2 TexCoord = {};
 };
 
-struct UniformBufferObject
+struct CameraData
 {
     alignas(16) glm::mat4 View = {};
     alignas(16) glm::mat4 Proj = {};
+    glm::vec3 Pos = {};
 };
 struct ModelData
 {
     alignas(16) glm::mat4 Model = {};
+    alignas(16) glm::mat4 InvModel = {};
 };
-struct RenderFlags
+struct DebugSettings
 {
-    alignas(16) int Albedo = 1;
-    alignas(16) int Normals = 0;
+    enum class RenderFlags
+    {
+        ALBEDO,
+        UVS,
+        GEO_NORMAL,
+        SHADING_NORMAL,
+        NORMAL_MAP,
+        TANGENT,
+        BITANGENT,
+        OCCLUSION,
+        EMISSIVE,
+        METALLIC,
+        ROUGHNESS,
+        NONE,
+        COUNT
+    } RenderMode = RenderFlags::NONE;
 };
+static const char* RenderFlagNames[] = {"Albedo",         "UVs",        "Geometry Normal",
+                                        "Shading Normal", "Normal Map", "Tangent",
+                                        "Bitangent",      "Occlusion",  "Emissive",
+                                        "Metallic",       "Roughness",  "None"};
 
 struct BufferDesc
 {

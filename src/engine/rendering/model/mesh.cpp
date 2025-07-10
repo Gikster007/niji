@@ -1,12 +1,14 @@
 #include "mesh.hpp"
 
-#include "engine.hpp"
-#include "core/context.hpp"
-
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <fastgltf/util.hpp>
 #include <vk_mem_alloc.h>
+
+#include "engine.hpp"
+#include "core/context.hpp"
+
+#include "tangent_space_wrapper.hpp"
 
 using namespace niji;
 
@@ -111,6 +113,60 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
                                                           [&](glm::vec3 n, size_t index) {
                                                               vertices[index].Normal = n;
                                                           });
+        }
+    }
+
+    // Load Tangents
+    {
+        auto tangents = primitive.findAttribute("TANGENT");
+        if (tangents != primitive.attributes.end())
+        {
+            fastgltf::iterateAccessorWithIndex<glm::vec4>(model, model.accessors[(*tangents).accessorIndex],
+                                                          [&](glm::vec4 t, size_t index) {
+                                                              vertices[index].Tangent = t;
+                                                          });
+        }
+        if (tangents->name == "")
+        {
+            std::vector<uint32_t> indices = {};
+            if (m_ushortIndices)
+            {
+                indices.resize(ushortIndices.size());
+                for (size_t i = 0; i < ushortIndices.size(); ++i)
+                {
+                    indices[i] = static_cast<uint32_t>(ushortIndices[i]);
+                }
+            }
+            else
+            {
+                indices.resize(uintIndices.size());
+                for (size_t i = 0; i < uintIndices.size(); ++i)
+                {
+                    indices[i] = uintIndices[i];
+                }
+            }
+            std::vector<glm::vec3> p = {};
+            std::vector<glm::vec3> n = {};
+            std::vector<glm::vec2> t = {};
+            std::vector<glm::vec4> tan = {};
+            for (int i = 0; i < vertices.size(); i++)
+            {
+                p.push_back(vertices[i].Pos);
+                n.push_back(vertices[i].Normal);
+                t.push_back(vertices[i].TexCoord);
+            }
+            MikkTSpaceTangent::MikktSpaceMesh m = {};
+            m.m_indices = indices;
+            m.m_normals = n;
+            m.m_positions = p;
+            m.m_texcoords = t;
+            if (!MikkTSpaceTangent::GetTangents(m, tan))
+                printf("Failed to generate Tangents! \n");
+            for (int i = 0; i < vertices.size(); i++)
+            {
+                vertices[i].Tangent = tan[i];
+                vertices[i].Tangent.w *= -1;
+            }
         }
     }
 

@@ -13,15 +13,15 @@ using namespace niji;
 void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout)
 {
     // Create Pass Data Buffer
-    VkDeviceSize bufferSize = sizeof(RenderFlags);
+    VkDeviceSize bufferSize = sizeof(DebugSettings);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        RenderFlags ubo = {};
+        DebugSettings ubo = {};
         BufferDesc bufferDesc = {};
         bufferDesc.IsPersistent = true;
         bufferDesc.Name = "Forward Pass Data";
-        bufferDesc.Size = sizeof(RenderFlags);
+        bufferDesc.Size = sizeof(DebugSettings);
         bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
         m_passBuffer[i] = Buffer(bufferDesc, &ubo);
     }
@@ -77,7 +77,7 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
     pipelineDesc.VertexShader = "shaders/spirv/forward_pass.vert.spv";
     pipelineDesc.FragmentShader = "shaders/spirv/forward_pass.frag.spv";
 
-    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
+    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::BACK;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
     pipelineDesc.Rasterizer.RasterizerDiscardEnable = false;
     pipelineDesc.Rasterizer.DepthClampEnable = false;
@@ -99,7 +99,8 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
                              VertexElement(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)),
                              VertexElement(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Color)),
                              VertexElement(2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)),
-                             VertexElement(3, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
+                             VertexElement(3, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, Tangent)),
+                             VertexElement(4, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
 
     m_pipeline = Pipeline(pipelineDesc);
 }
@@ -115,8 +116,23 @@ void ForwardPass::update(Renderer& renderer)
         std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     {
-        RenderFlags flags = {};
-        memcpy(m_passBuffer[frameIndex].Data, &flags, sizeof(flags));
+        int currentIndex = static_cast<int>(m_debugSettings.RenderMode);
+
+        if (ImGui::BeginCombo("Render Mode", RenderFlagNames[currentIndex]))
+        {
+            for (int i = 0; i < static_cast<int>(DebugSettings::RenderFlags::COUNT); ++i)
+            {
+                bool isSelected = (i == currentIndex);
+                if (ImGui::Selectable(RenderFlagNames[i], isSelected))
+                {
+                    m_debugSettings.RenderMode = static_cast<DebugSettings::RenderFlags>(i);
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        memcpy(m_passBuffer[frameIndex].Data, &m_debugSettings, sizeof(m_debugSettings));
     }
 
     {
@@ -129,9 +145,10 @@ void ForwardPass::update(Renderer& renderer)
             auto& modelMesh = model->m_meshes[mesh.MeshID];
             auto& material = model->m_materials[mesh.MaterialID];
 
-            // ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
-            // 0.0f, 1.0f));
+             /*ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
+             0.0f, 1.0f));*/
             ubo.Model = trans.World();
+            ubo.InvModel = glm::transpose(glm::inverse(ubo.Model));
 
             memcpy(material.m_data[frameIndex].Data, &ubo, sizeof(ubo));
         }
@@ -153,6 +170,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     ImGui::Begin("Demo Window");
     static bool b = true;
     ImGui::ShowDemoWindow(&b);
+    ImGui::ShowMetricsWindow(&b);
     ImGui::Text("Hello, Vulkan + ImGui!");
     ImGui::End();
 
@@ -184,7 +202,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
             VkDescriptorBufferInfo bufferInfo = {};
             bufferInfo.buffer = m_passBuffer[frameIndex].Handle;
             bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(RenderFlags);
+            bufferInfo.range = sizeof(DebugSettings);
 
             // UBO - Material
             VkDescriptorBufferInfo matBufferInfo = {};

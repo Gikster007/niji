@@ -11,9 +11,8 @@ App::App()
     t.SetScale({0.01f, 0.01f, 0.01f});
     t.SetRotation(glm::quat(glm::vec3(glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f))));
 
-    // auto model = std::make_shared<niji::Model>("assets/cube/cube.gltf", entity);
-    // auto model = std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb", entity);
-    m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
+    m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb", entity));
+    //m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
 
     for (const auto& model : m_models)
     {

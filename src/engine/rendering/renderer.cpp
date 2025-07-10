@@ -62,7 +62,7 @@ void Renderer::init()
     // 1. Create global descriptor set layout (set = 0)
     std::vector<VkDescriptorSetLayoutBinding> bindings = {
         // binding 0 = matrices
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}};
+        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS, nullptr}};
 
     VkDescriptorSetLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -108,18 +108,18 @@ void Renderer::init()
         }
 
         // 4. Write to global descriptor set
-        UniformBufferObject ubo = {};
+        CameraData ubo = {};
         BufferDesc bufferDesc = {};
         bufferDesc.IsPersistent = true;
         bufferDesc.Name = "UBO";
-        bufferDesc.Size = sizeof(UniformBufferObject);
+        bufferDesc.Size = sizeof(CameraData);
         bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
         m_ubos[i] = Buffer(bufferDesc, &ubo);
 
         VkDescriptorBufferInfo cameraInfo = {};
         cameraInfo.buffer = m_ubos[i].Handle;
         cameraInfo.offset = 0;
-        cameraInfo.range = sizeof(UniformBufferObject);
+        cameraInfo.range = sizeof(CameraData);
 
         std::vector<VkWriteDescriptorSet> writes = {};
         VkWriteDescriptorSet write1 = {};
@@ -156,6 +156,10 @@ void Renderer::init()
 
 void Renderer::update(const float dt)
 {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     update_uniform_buffer(m_currentFrame);
 
     for (auto& pass : m_renderPasses)
@@ -166,10 +170,6 @@ void Renderer::update(const float dt)
 
 void Renderer::render()
 {
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
     VkFence frameFence = m_inFlightFences[m_currentFrame];
     vkWaitForFences(m_context->m_device, 1, &frameFence, VK_TRUE, UINT64_MAX);
     vkResetFences(m_context->m_device, 1, &frameFence);
@@ -197,7 +197,7 @@ void Renderer::render()
     {
         RenderTarget colorAttachment = {m_swapchain.m_images[m_imageIndex],
                                         m_swapchain.m_imageViews[m_imageIndex]};
-        colorAttachment.ClearValue = {0.0f, 0.0f, 0.0f, 1.0f};
+        colorAttachment.ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
         VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
         RenderTarget depthStencil = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView,
                                      depthFormat};
@@ -328,12 +328,11 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
     auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
     auto& camera = cameraSystem.m_camera;
 
-    UniformBufferObject ubo = {};
+    CameraData ubo = {};
 
     ubo.View = camera.GetViewMatrix();
-    ubo.Proj = camera.GetProjectionMatrix(); /*glm::perspective(glm::radians(45.0f),
-                                m_swapchain.m_extent.width / (float)m_swapchain.m_extent.height,
-                                0.1f, 10.0f);*/
+    ubo.Proj = camera.GetProjectionMatrix();
+    ubo.Pos = camera.Position;
         
     ubo.Proj[1][1] *= -1;
 

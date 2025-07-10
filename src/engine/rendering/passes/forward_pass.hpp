@@ -16,6 +16,9 @@ class ForwardPass final : public RenderPass
     void update(Renderer& renderer);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
+
+    private:
+    DebugSettings m_debugSettings = {};
 };
 
 } // namespace niji
