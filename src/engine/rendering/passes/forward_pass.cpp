@@ -38,7 +38,7 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
         bindings[1].binding = 1;
         bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         bindings[1].descriptorCount = 1;
-        bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        bindings[1].stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
         bindings[1].pImmutableSamplers = nullptr;
 
         bindings[2] = {};
@@ -149,6 +149,8 @@ void ForwardPass::update(Renderer& renderer)
              0.0f, 1.0f));*/
             ubo.Model = trans.World();
             ubo.InvModel = glm::transpose(glm::inverse(ubo.Model));
+
+            ubo.MaterialInfo = material.m_materialInfo;
 
             memcpy(material.m_data[frameIndex].Data, &ubo, sizeof(ubo));
         }

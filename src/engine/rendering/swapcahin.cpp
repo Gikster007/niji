@@ -178,7 +178,7 @@ VkPresentModeKHR Swapchain::choose_swap_present_mode(
 {
     for (const auto& availablePresentMode : availablePresentModes)
     {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
             return availablePresentMode;
     }
     return VK_PRESENT_MODE_FIFO_KHR;

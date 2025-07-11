@@ -8,6 +8,16 @@
 
 using namespace niji;
 
+inline static glm::vec3 ToGLM(const fastgltf::math::nvec3& v)
+{
+    return glm::vec3(v[0], v[1], v[2]);
+}
+
+inline static glm::vec4 ToGLM(const fastgltf::math::nvec4& v)
+{
+    return glm::vec4(v[0], v[1], v[2], v[3]);
+}
+
 Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
                    std::filesystem::path gltfPath)
 {
@@ -175,6 +185,16 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             texture.ImageInfo.sampler = VK_NULL_HANDLE;
         }
     }
+
+    m_materialInfo.HasEmissiveMap = m_materialData.Emissive.has_value();
+    m_materialInfo.HasMetallicMap = m_materialData.RoughMetallic.has_value();
+    m_materialInfo.HasRoughnessMap = m_materialData.RoughMetallic.has_value();
+    m_materialInfo.HasNormalMap = m_materialData.NormalTexture.has_value();
+
+    m_materialInfo.AlbedoFactor = ToGLM(material.pbrData.baseColorFactor);
+    m_materialInfo.EmissiveFactor = glm::vec4(ToGLM(material.emissiveFactor), 0.0f);
+    m_materialInfo.RoughnessFactor = material.pbrData.roughnessFactor;
+    m_materialInfo.MetallicFactor = material.pbrData.metallicFactor;
 }
 
 void Material::cleanup()

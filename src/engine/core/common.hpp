@@ -36,16 +36,32 @@ struct Vertex
     glm::vec2 TexCoord = {};
 };
 
+struct MaterialInfo
+{
+    alignas(16) glm::vec4 AlbedoFactor = glm::vec4(1.0f);
+    alignas(16) glm::vec4 EmissiveFactor = glm::vec4(0.0f);
+    alignas(4) float MetallicFactor = 1.0f;
+    alignas(4) float RoughnessFactor = 1.0f;
+    alignas(4) int HasNormalMap = 0;
+    alignas(4) int HasEmissiveMap = 0;
+    alignas(4) int HasMetallicMap = 0;
+    alignas(4) int HasRoughnessMap = 0;
+
+    alignas(16) int _padding[4] = {};
+};
+
 struct CameraData
 {
     alignas(16) glm::mat4 View = {};
     alignas(16) glm::mat4 Proj = {};
-    glm::vec3 Pos = {};
+    alignas(16) glm::vec3 Pos = {};
 };
 struct ModelData
 {
     alignas(16) glm::mat4 Model = {};
     alignas(16) glm::mat4 InvModel = {};
+
+    alignas(16) MaterialInfo MaterialInfo = {};
 };
 struct DebugSettings
 {

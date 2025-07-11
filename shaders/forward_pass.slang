@@ -7,12 +7,28 @@ cbuffer Camera
     float3 Pos;
 }
 
+struct MaterialInfo
+{
+    float4 AlbedoFactor;
+    float4 EmissiveFactor;
+    float MetallicFactor;
+    float RoughnessFactor;
+    int HasNormalMap;
+    int HasEmissiveMap;
+    int HasMetallicMap;
+    int HasRoughnessMap;
+
+    int _padding[4];
+}
+
 // Set = 1, Binding = 1
 [[vk::binding(1, 1)]]
 cbuffer ModelData
 {
     float4x4 Model;
     float4x4 InvModel;
+
+    MaterialInfo MatInfo;
 }
 
 enum class RenderFlags
@@ -140,22 +156,36 @@ float GeometrySmith(float NoV, float NoL, float k)
 float4 fragment_main(VertexOutput input) : SV_Target
 {
     float4 albedo = pow(baseColor.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
-    float3 normalTs = pow(normalMap.Sample(linearSampler, input.TexCoord).xyz, 1.0f / 2.2f);
+    albedo *= MatInfo.AlbedoFactor;
     float4 occlusion = pow(occlusionMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
     float4 roughMetallic = pow(roughMetalMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
-    float4 emissive = pow(emissiveMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
 
     float3 normal = normalize(input.Normal);
 
-    float3 light = normalize(float3(-0.2f, -1.0f, 0.0f));
+    float3 light = normalize(float3(-0.4f, -1.0f, -1.0f));
 
-    float3 T = normalize(input.Tangent);
-    float3 B = normalize(input.BiTangent);
-    const float3x3 tbn = float3x3(T, B, normal);
-    normal = ApplyNormalMap(tbn, UnpackNormal(normalTs), input.TexCoord);
+    if (MatInfo.HasNormalMap == 1)
+    {
+        float3 normalTs = pow(normalMap.Sample(linearSampler, input.TexCoord).rgb, 1.0f / 2.2f);
+        float3 T = normalize(input.Tangent);
+        float3 B = normalize(input.BiTangent);
+        const float3x3 tbn = float3x3(T, B, normal);
+        normal = ApplyNormalMap(tbn, UnpackNormal(normalTs), input.TexCoord);
+    }
 
-    float roughness = roughMetallic.g;
-    float metallic = roughMetallic.b;
+    float roughness = MatInfo.RoughnessFactor;
+    float metallic = MatInfo.MetallicFactor;
+    if (MatInfo.HasRoughnessMap == 1)
+        roughness *= roughMetallic.g;
+    if (MatInfo.HasMetallicMap == 1)
+        metallic *= roughMetallic.b;
+
+    float3 emissive = float3(0.0f);
+    if (MatInfo.HasEmissiveMap == 1)
+    {
+        emissive = pow(emissiveMap.Sample(linearSampler, input.TexCoord).rgb, 1.0f / 2.2f);
+        emissive *= MatInfo.EmissiveFactor.xyz;
+    }
 
     float4 final = float4(1.0f);
 
@@ -166,7 +196,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo.rgb, metallic);
 
         float3 lightColor = float3(1.0f);
-        float lightIntensity = 1.0f;
+        float lightIntensity = 2.0f;
 
         float3 H = normalize(V + (-light));
 
@@ -180,8 +210,8 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 F = F_schlick(F0, ndotv);
 
         float3 numerator = NDF * G * F;
-        float denominator = 4.0f * ndotv * ndotl + 0.001f;
-        float3 specular = numerator / denominator;
+        float denominator = 4.0f * ndotv * ndotl;
+        float3 specular = max(numerator / denominator, 0.01f);
 
         float3 kS = F;
         float3 kD = 1.0f - kS;
@@ -190,7 +220,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 lightOut =
             (kD * albedo.rgb * INVPI + specular) * lightColor * lightIntensity * ndotl;
 
-        lightOut += 0.2f * albedo.rgb;
+        lightOut += 0.4f * albedo.rgb;
         final = float4(lightOut + emissive.rgb, albedo.a);
         break;
     case RenderFlags::ALBEDO:
@@ -200,22 +230,23 @@ float4 fragment_main(VertexOutput input) : SV_Target
         final = float4(input.TexCoord, 0.0f, 1.0f);
         break;
     case RenderFlags::EMISSIVE:
-        final = emissive;
+        final = float4(emissive, 1.0f);
         break;
     case RenderFlags::GEO_NORMAL:
         final = float4(normalize(input.Normal) * 0.5f + 0.5f, 1.0f);
         break;
     case RenderFlags::NORMAL_MAP:
+        float3 normalTs = pow(normalMap.Sample(linearSampler, input.TexCoord).xyz, 1.0f / 2.2f);
         final = float4(normalTs, 1.0f);
         break;
     case RenderFlags::SHADING_NORMAL:
         final = float4(normal * 0.5f + 0.5f, 1.0f);
         break;
     case RenderFlags::TANGENT:
-        final = float4(T * 0.5f + 0.5f, 1.0f);
+        final = float4(normalize(input.Tangent) * 0.5f + 0.5f, 1.0f);
         break;
     case RenderFlags::BITANGENT:
-        final = float4(B * 0.5f + 0.5f, 1.0f);
+        final = float4(normalize(input.BiTangent) * 0.5f + 0.5f, 1.0f);
         break;
     case RenderFlags::METALLIC:
         final = float4(metallic);

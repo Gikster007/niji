@@ -30,6 +30,7 @@ class Material
     friend class ForwardPass;
 
     MaterialData m_materialData = {};
+    MaterialInfo m_materialInfo = {};
     std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_data = {};
 
     VkSampler m_sampler = {};
