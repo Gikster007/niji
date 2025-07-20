@@ -6,7 +6,7 @@
 
 using namespace niji;
 
-Descriptor::Descriptor(DescriptorInfo& info)
+Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
 {
     // 1. Create descriptor set layout
     {

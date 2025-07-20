@@ -120,7 +120,7 @@ void Buffer::cleanup()
     }
 }
 
-std::vector<char> read_file(const std::string& filename)
+static std::vector<char> read_file(const std::string& filename)
 {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -141,7 +141,7 @@ std::vector<char> read_file(const std::string& filename)
     return buffer;
 }
 
-VkShaderModule create_shader_module(VkDevice& device, const std::vector<char>& code)
+static VkShaderModule create_shader_module(VkDevice& device, const std::vector<char>& code)
 {
     VkShaderModuleCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;

@@ -33,6 +33,7 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         bindings[0].descriptorCount = 1;
         bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        bindings[1].pImmutableSamplers = nullptr;
 
         bindings[1] = {};
         bindings[1].binding = 1;
@@ -49,7 +50,7 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         bindings[2].pImmutableSamplers = nullptr;
 
         // bindings 3–7 = individual sampled images
-        for (int i = 0; i < 5; ++i)
+        for (size_t i = 0; i < 5; ++i)
         {
             bindings[3 + i] = {};
             bindings[3 + i].binding = 3 + i;

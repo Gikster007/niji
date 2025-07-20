@@ -8,7 +8,8 @@
 namespace niji
 {
 
-using DescriptorResource = std::variant<std::monostate, std::array<Buffer, MAX_FRAMES_IN_FLIGHT>*, NijiTexture*>;
+using DescriptorResource =
+    std::variant<std::monostate, std::array<Buffer, MAX_FRAMES_IN_FLIGHT>*, NijiTexture*>;
 struct DescriptorBinding
 {
     enum class BindType
@@ -19,7 +20,7 @@ struct DescriptorBinding
         TEXTURE
 
     } Type = BindType::NONE;
-    
+
     enum class BindStage
     {
         NONE,
@@ -27,7 +28,7 @@ struct DescriptorBinding
         FRAGMENT_SHADER,
         ALL_GRAPHICS
     } Stage = BindStage::NONE;
-    
+
     uint32_t Count = {};
     const VkSampler* Sampler = nullptr;
 
@@ -50,5 +51,8 @@ class Descriptor
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_set = {};
     VkDescriptorSetLayout m_setLayout = {};
     VkDescriptorPool m_pool = {};
+
+  private:
+    DescriptorInfo m_info = {};
 };
 } // namespace niji

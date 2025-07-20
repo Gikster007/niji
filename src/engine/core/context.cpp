@@ -590,7 +590,7 @@ void Context::create_texture_image_view(NijiTexture& texture)
 
 void Context::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                            VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
-                           VmaAllocation& allocation)
+                           VmaAllocation& allocation) const
 {
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -617,7 +617,7 @@ void Context::create_image(uint32_t width, uint32_t height, VkFormat format, VkI
 }
 
 VkImageView Context::create_image_view(VkImage image, VkFormat format,
-                                       VkImageAspectFlags aspectFlags)
+                                       VkImageAspectFlags aspectFlags) const
 {
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

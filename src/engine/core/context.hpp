@@ -99,8 +99,8 @@ class Context
     void create_texture_image_view(NijiTexture& texture);
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
-                      VmaAllocation& allocation);
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+                      VmaAllocation& allocation) const;
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const;
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                  VkImageLayout newLayout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
