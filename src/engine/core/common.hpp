@@ -257,6 +257,7 @@ enum class TransitionType
     TransferSrc  // for copy
 };
 
+// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in the constructor of RenderTarget)
 struct RenderTarget
 {
     RenderTarget() = default;
