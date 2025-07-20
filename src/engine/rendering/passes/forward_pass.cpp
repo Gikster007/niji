@@ -99,7 +99,8 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
                              VertexElement(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Pos)),
                              VertexElement(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Color)),
                              VertexElement(2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, Normal)),
-                             VertexElement(3, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex, Tangent)),
+                             VertexElement(3, VK_FORMAT_R32G32B32A32_SFLOAT,
+                                           offsetof(Vertex, Tangent)),
                              VertexElement(4, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
 
     m_pipeline = Pipeline(pipelineDesc);
@@ -145,8 +146,8 @@ void ForwardPass::update(Renderer& renderer)
             auto& modelMesh = model->m_meshes[mesh.MeshID];
             auto& material = model->m_materials[mesh.MaterialID];
 
-             /*ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
-             0.0f, 1.0f));*/
+            /*ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
+            0.0f, 1.0f));*/
             ubo.Model = trans.World();
             ubo.InvModel = glm::transpose(glm::inverse(ubo.Model));
 
