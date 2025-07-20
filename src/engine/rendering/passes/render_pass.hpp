@@ -3,6 +3,7 @@
 #include <array>
 
 #include "../../core/commandlist.hpp"
+#include "../../core/descriptor.hpp"
 #include "../../core/common.hpp"
 
 #include "../swapchain.hpp"
@@ -13,7 +14,7 @@ namespace niji
 class RenderPass
 {
   public:
-    virtual void init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout) = 0;
+    virtual void init(Swapchain& swapchain, Descriptor& globalDescriptor) = 0;
     virtual void update(Renderer& renderer) = 0;
     virtual void record(Renderer& renderer, CommandList& cmd, RenderInfo& info) = 0;
     virtual void cleanup() = 0;

@@ -9,7 +9,7 @@
 
 using namespace niji;
 
-void ImGuiPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout)
+void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 {
     // 1. Create ImGui context
     IMGUI_CHECKVERSION();

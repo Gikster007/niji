@@ -46,6 +46,7 @@ class Context
     friend class ImGuiPass;
     friend class NijiTexture;
     friend class CameraSystem;
+    friend class Descriptor;
 
   public:
     Context();

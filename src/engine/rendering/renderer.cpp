@@ -23,7 +23,6 @@ using namespace niji;
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
 #include "core/vulkan-functions.hpp"
-#include "core/descriptor.hpp"
 
 #include "swapchain.hpp"
 #include "engine.hpp"
@@ -59,90 +58,107 @@ void Renderer::init()
         m_fallbackTexture.ImageInfo.imageView = m_fallbackTexture.TextureImageView;
         m_fallbackTexture.ImageInfo.sampler = VK_NULL_HANDLE;
     }
-
-    DescriptorInfo info = {};
-    //DescriptorBinding binding = {}
-    // binding.Type = DescriptorBinding::BindType::Buffer;
-    // binding.Count = 1;
-    // binding.Stage = DescriptorBinding::BindStage::All;
-    //info.Bindings.push_back(binding);
-
-    // 1. Create global descriptor set layout (set = 0)
-    std::vector<VkDescriptorSetLayoutBinding> bindings = {
-        // binding 0 = matrices
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS, nullptr}};
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    layoutInfo.pBindings = bindings.data();
-
-    if (vkCreateDescriptorSetLayout(m_context->m_device, &layoutInfo, nullptr,
-                                    &m_globalSetLayout) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create global descriptor set layout.");
-    }
-
-    // 2. Create Descriptor Pool
-    VkDescriptorPoolSize poolSize = {};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
-
-    VkDescriptorPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
-
-    if (vkCreateDescriptorPool(m_context->m_device, &poolInfo, nullptr, &m_descriptorPool) !=
-        VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create global descriptor pool.");
-    }
-
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        // 3. Allocate global descriptor set
-        VkDescriptorSetAllocateInfo allocInfo = {};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_descriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &m_globalSetLayout;
-
-        if (vkAllocateDescriptorSets(m_context->m_device, &allocInfo, &m_globalDescriptorSet[i]) !=
-            VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to allocate global descriptor set.");
-        }
-
-        // 4. Write to global descriptor set
         CameraData ubo = {};
         BufferDesc bufferDesc = {};
         bufferDesc.IsPersistent = true;
-        bufferDesc.Name = "UBO";
+        bufferDesc.Name = "Camera UBO";
         bufferDesc.Size = sizeof(CameraData);
         bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
         m_ubos[i] = Buffer(bufferDesc, &ubo);
-
-        VkDescriptorBufferInfo cameraInfo = {};
-        cameraInfo.buffer = m_ubos[i].Handle;
-        cameraInfo.offset = 0;
-        cameraInfo.range = sizeof(CameraData);
-
-        std::vector<VkWriteDescriptorSet> writes = {};
-        VkWriteDescriptorSet write1 = {};
-        write1.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write1.dstSet = m_globalDescriptorSet[i];
-        write1.dstBinding = 0;
-        write1.dstArrayElement = 0;
-        write1.descriptorCount = 1;
-        write1.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write1.pBufferInfo = &cameraInfo;
-        writes.push_back(write1);
-
-        vkUpdateDescriptorSets(m_context->m_device, static_cast<uint32_t>(writes.size()),
-                               writes.data(), 0, nullptr);
     }
+
+    DescriptorInfo info = {};
+    DescriptorBinding binding = {};
+    binding.Type = DescriptorBinding::BindType::UBO;
+    binding.Count = 1;
+    binding.Stage = DescriptorBinding::BindStage::ALL_GRAPHICS;
+    binding.Sampler = nullptr;
+    binding.Resource = &m_ubos;
+    info.Bindings.push_back(binding);
+
+    m_globalDescriptor = Descriptor(info);
+
+    //// 1. Create global descriptor set layout (set = 0)
+    // std::vector<VkDescriptorSetLayoutBinding> bindings = {
+    //     // binding 0 = matrices
+    //     {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_ALL_GRAPHICS, nullptr}};
+
+    // VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    // layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    // layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    // layoutInfo.pBindings = bindings.data();
+
+    // if (vkCreateDescriptorSetLayout(m_context->m_device, &layoutInfo, nullptr,
+    //                                 &m_globalSetLayout) != VK_SUCCESS)
+    //{
+    //     throw std::runtime_error("Failed to create global descriptor set layout.");
+    // }
+
+    // info.IsPushDescriptor = false;
+    // info.
+
+    //// 2. Create Descriptor Pool
+    //VkDescriptorPoolSize poolSize = {};
+    //poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //poolSize.descriptorCount = MAX_FRAMES_IN_FLIGHT;
+
+    //VkDescriptorPoolCreateInfo poolInfo = {};
+    //poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    //poolInfo.poolSizeCount = 1;
+    //poolInfo.pPoolSizes = &poolSize;
+    //poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
+
+    //if (vkCreateDescriptorPool(m_context->m_device, &poolInfo, nullptr, &m_descriptorPool) !=
+    //    VK_SUCCESS)
+    //{
+    //    throw std::runtime_error("Failed to create global descriptor pool.");
+    //}
+
+    //for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    //{
+    //    // 3. Allocate global descriptor set
+    //    VkDescriptorSetAllocateInfo allocInfo = {};
+    //    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    //    allocInfo.descriptorPool = m_descriptorPool;
+    //    allocInfo.descriptorSetCount = 1;
+    //    allocInfo.pSetLayouts = &m_globalSetLayout;
+
+    //    if (vkAllocateDescriptorSets(m_context->m_device, &allocInfo, &m_globalDescriptorSet[i]) !=
+    //        VK_SUCCESS)
+    //    {
+    //        throw std::runtime_error("Failed to allocate global descriptor set.");
+    //    }
+
+    //    // 4. Write to global descriptor set
+    //    CameraData ubo = {};
+    //    BufferDesc bufferDesc = {};
+    //    bufferDesc.IsPersistent = true;
+    //    bufferDesc.Name = "UBO";
+    //    bufferDesc.Size = sizeof(CameraData);
+    //    bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
+    //    m_ubos[i] = Buffer(bufferDesc, &ubo);
+
+    //    VkDescriptorBufferInfo cameraInfo = {};
+    //    cameraInfo.buffer = m_ubos[i].Handle;
+    //    cameraInfo.offset = 0;
+    //    cameraInfo.range = sizeof(CameraData);
+
+    //    std::vector<VkWriteDescriptorSet> writes = {};
+    //    VkWriteDescriptorSet write1 = {};
+    //    write1.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //    write1.dstSet = m_globalDescriptorSet[i];
+    //    write1.dstBinding = 0;
+    //    write1.dstArrayElement = 0;
+    //    write1.descriptorCount = 1;
+    //    write1.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //    write1.pBufferInfo = &cameraInfo;
+    //    writes.push_back(write1);
+
+    //    vkUpdateDescriptorSets(m_context->m_device, static_cast<uint32_t>(writes.size()),
+    //                           writes.data(), 0, nullptr);
+    //}
 
     // Render Passes
     {
@@ -152,7 +168,7 @@ void Renderer::init()
     {
         for (auto& pass : m_renderPasses)
         {
-            pass->init(m_swapchain, m_globalSetLayout);
+            pass->init(m_swapchain, m_globalDescriptor);
         }
     }
 
@@ -285,10 +301,10 @@ void Renderer::cleanup()
     }
     m_renderPasses.clear();
 
-    {
+    /*{
         vkDestroyDescriptorSetLayout(m_context->m_device, m_globalSetLayout, nullptr);
         vkDestroyDescriptorPool(m_context->m_device, m_descriptorPool, nullptr);
-    }
+    }*/
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -341,7 +357,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
     ubo.View = camera.GetViewMatrix();
     ubo.Proj = camera.GetProjectionMatrix();
     ubo.Pos = camera.Position;
-        
+
     ubo.Proj[1][1] *= -1;
 
     memcpy(m_ubos[currentImage].Data, &ubo, sizeof(ubo));

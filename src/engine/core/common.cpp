@@ -11,6 +11,7 @@ using namespace niji;
 
 Buffer::Buffer(BufferDesc& desc, void* data)
 {
+    Desc = desc;
     Data = data;
     VkBuffer stagingBuffer = {};
     VmaAllocation stagingBufferAllocation = {};

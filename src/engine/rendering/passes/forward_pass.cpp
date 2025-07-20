@@ -10,7 +10,7 @@
 
 using namespace niji;
 
-void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout)
+void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 {
     // Create Pass Data Buffer
     VkDeviceSize bufferSize = sizeof(DebugSettings);
@@ -71,7 +71,7 @@ void ForwardPass::init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout
         }
     }
 
-    PipelineDesc pipelineDesc = {globalLayout, m_passDescriptorSetLayout};
+    PipelineDesc pipelineDesc = {globalDescriptor.m_setLayout, m_passDescriptorSetLayout};
 
     pipelineDesc.Name = "Forward Pass";
     pipelineDesc.VertexShader = "shaders/spirv/forward_pass.vert.spv";
@@ -194,7 +194,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
         // Globals - 0
         {
             cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 0,
-                                     1, &renderer.m_globalDescriptorSet[renderer.m_currentFrame]);
+                                     1, &renderer.m_globalDescriptor.m_set[renderer.m_currentFrame]);
         }
 
         // Per-Pass - 1

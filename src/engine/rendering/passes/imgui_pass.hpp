@@ -12,7 +12,7 @@ class ImGuiPass final : public RenderPass
     {
     }
 
-    void init(Swapchain& swapchain, VkDescriptorSetLayout& globalLayout);
+    void init(Swapchain& swapchain, Descriptor& globalDescriptor);
     void update(Renderer& renderer);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
