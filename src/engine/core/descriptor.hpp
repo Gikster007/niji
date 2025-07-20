@@ -47,6 +47,8 @@ class Descriptor
     Descriptor() = default;
     Descriptor(DescriptorInfo& info);
 
+    void cleanup() const;
+
   public:
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_set = {};
     VkDescriptorSetLayout m_setLayout = {};

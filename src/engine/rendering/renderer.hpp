@@ -55,9 +55,6 @@ class Renderer : System
     uint32_t m_imageIndex = UINT64_MAX;
 
     Descriptor m_globalDescriptor = {};
-    /*VkDescriptorSetLayout m_globalSetLayout = {};
-    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_globalDescriptorSet = {};
-    VkDescriptorPool m_descriptorPool = {};*/
 
     std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
     std::vector<VkSemaphore> m_renderFinishedSemaphores = {};

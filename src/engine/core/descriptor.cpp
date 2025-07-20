@@ -173,8 +173,14 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                 }
             }
 
-            vkUpdateDescriptorSets(nijiEngine.m_context.m_device, static_cast<uint32_t>(writes.size()),
-                                   writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(nijiEngine.m_context.m_device,
+                                   static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
         }
     }
+}
+
+void Descriptor::cleanup() const
+{
+    vkDestroyDescriptorSetLayout(nijiEngine.m_context.m_device, m_setLayout, nullptr);
+    vkDestroyDescriptorPool(nijiEngine.m_context.m_device, m_pool, nullptr);
 }

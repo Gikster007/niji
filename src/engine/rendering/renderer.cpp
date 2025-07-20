@@ -226,10 +226,7 @@ void Renderer::cleanup()
     }
     m_renderPasses.clear();
 
-    /*{
-        vkDestroyDescriptorSetLayout(m_context->m_device, m_globalSetLayout, nullptr);
-        vkDestroyDescriptorPool(m_context->m_device, m_descriptorPool, nullptr);
-    }*/
+    m_globalDescriptor.cleanup();
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
