@@ -23,6 +23,7 @@ using namespace niji;
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
 #include "core/vulkan-functions.hpp"
+#include "core/descriptor.hpp"
 
 #include "swapchain.hpp"
 #include "engine.hpp"
@@ -58,6 +59,13 @@ void Renderer::init()
         m_fallbackTexture.ImageInfo.imageView = m_fallbackTexture.TextureImageView;
         m_fallbackTexture.ImageInfo.sampler = VK_NULL_HANDLE;
     }
+
+    DescriptorInfo info = {};
+    //DescriptorBinding binding = {}
+    // binding.Type = DescriptorBinding::BindType::Buffer;
+    // binding.Count = 1;
+    // binding.Stage = DescriptorBinding::BindStage::All;
+    //info.Bindings.push_back(binding);
 
     // 1. Create global descriptor set layout (set = 0)
     std::vector<VkDescriptorSetLayoutBinding> bindings = {

@@ -247,6 +247,7 @@ struct Pipeline
     char* Name = nullptr;
 };
 
+// TODO: Switch naming style to convention (All caps with "_" between words)
 enum class TransitionType
 {
     ColorAttachment,
