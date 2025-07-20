@@ -301,7 +301,8 @@ void Context::pick_physical_device()
 
     if (m_physicalDevice == VK_NULL_HANDLE && backup != VK_NULL_HANDLE)
         m_physicalDevice = backup;
-    else if (backup == VK_NULL_HANDLE)
+    
+    if (m_physicalDevice == VK_NULL_HANDLE)
         throw std::runtime_error("Failed To Find a Suitable GPU!");
 
     printf("Picked %s For Rendering \n", props.deviceName);
