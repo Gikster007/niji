@@ -25,7 +25,7 @@ class CommandList
                             const uint32_t* pDynamicOffsets = nullptr) const;
     void push_descriptor_set(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
                              uint32_t set, uint32_t descriptorWriteCount,
-                             const VkWriteDescriptorSet* pDescriptorWrites);
+                             const VkWriteDescriptorSet* pDescriptorWrites) const;
 
     void draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
                      int32_t vertexOffset,

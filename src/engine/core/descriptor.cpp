@@ -59,6 +59,8 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
 
         VkDescriptorSetLayoutCreateInfo layoutInfo = {};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        if (info.IsPushDescriptor)
+            layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
         layoutInfo.bindingCount = static_cast<uint32_t>(info.Bindings.size());
         layoutInfo.pBindings = bindings.data();
 
@@ -118,30 +120,58 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                     std::visit(
                         [&](auto&& res) {
                             using T = std::decay_t<decltype(res)>;
-                            if constexpr (std::is_same_v<T,
-                                                         std::array<Buffer, MAX_FRAMES_IN_FLIGHT>*>)
+                            if constexpr (std::is_same_v<T, std::vector<Buffer>*>)
                             {
-                                std::array<Buffer, MAX_FRAMES_IN_FLIGHT>& arr = *res;
+                                std::vector<Buffer>& arr = *res;
+                                for (const auto& buffer : arr)
+                                {
+                                    uboInfo.buffer = buffer.Handle;
+                                    uboInfo.offset = 0;
+                                    uboInfo.range = buffer.Desc.Size;
 
-                                uboInfo.buffer = arr[i].Handle;
-                                uboInfo.offset = 0;
-                                uboInfo.range = arr[i].Desc.Size;
-
-                                VkWriteDescriptorSet write = {};
-                                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                                write.dstSet = m_set[i];
-                                write.dstBinding = j;
-                                write.dstArrayElement = 0;
-                                write.descriptorCount = binding.Count;
-                                write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                                write.pBufferInfo = &uboInfo;
-                                writes.push_back(write);
+                                    VkWriteDescriptorSet write = {};
+                                    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                                    write.dstSet = m_set[i];
+                                    write.dstBinding = j;
+                                    write.dstArrayElement = 0;
+                                    write.descriptorCount = binding.Count;
+                                    write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                                    write.pBufferInfo = &uboInfo;
+                                    writes.push_back(write);
+                                }
                             }
                         },
                         binding.Resource);
                     break;
                 case DescriptorBinding::BindType::SAMPLER:
-                    // ...
+                    std::visit(
+                        [&](auto&& res) {
+                            using T = std::decay_t<decltype(res)>;
+                            if constexpr (std::is_same_v<T, VkSampler*>)
+                            {
+                                VkSampler& sampler = *res;
+
+                                VkDescriptorImageInfo samplerInfo = {};
+                                samplerInfo.sampler = sampler;
+                                samplerInfo.imageView = VK_NULL_HANDLE;
+                                samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+                                VkWriteDescriptorSet write = {};
+                                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                                write.pNext = nullptr;
+                                write.dstSet = m_set[i];
+                                write.dstBinding = j;
+                                write.dstArrayElement = 0;
+                                write.descriptorCount = binding.Count;
+                                write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                                write.pImageInfo = &samplerInfo;
+                                write.pBufferInfo = nullptr;
+                                write.pTexelBufferView = nullptr;
+                                writes.push_back(write);
+                            }
+                        },
+                        binding.Resource);
+
                     break;
                 case DescriptorBinding::BindType::TEXTURE:
                     std::visit(
@@ -154,7 +184,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 VkWriteDescriptorSet write = {};
                                 write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                                 write.pNext = nullptr;
-                                write.dstSet = VK_NULL_HANDLE;
+                                write.dstSet = m_set[i];
                                 write.dstBinding = j;
                                 write.dstArrayElement = 0;
                                 write.descriptorCount = binding.Count;
@@ -177,6 +207,77 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                    static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
         }
     }
+}
+
+void Descriptor::push_descriptor_writes(CommandList& cmd, VkPipelineLayout& layout, uint32_t set)
+{
+    std::vector<VkWriteDescriptorSet> writes;
+    std::vector<VkDescriptorBufferInfo> bufferInfos;
+    std::vector<VkDescriptorImageInfo> imageInfos;
+
+    writes.reserve(m_info.Bindings.size());
+    bufferInfos.reserve(m_info.Bindings.size());
+    imageInfos.reserve(m_info.Bindings.size());
+
+    for (int i = 0; i < m_info.Bindings.size(); ++i)
+    {
+        const auto& binding = m_info.Bindings[i];
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstBinding = i;
+        write.dstArrayElement = 0;
+        write.descriptorCount = binding.Count;
+        write.dstSet = VK_NULL_HANDLE;
+
+        switch (binding.Type)
+        {
+        case DescriptorBinding::BindType::UBO: {
+            auto* buffer = std::get<Buffer*>(binding.Resource);
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = buffer ? buffer->Handle : VK_NULL_HANDLE;
+            bufferInfo.offset = 0;
+            bufferInfo.range = buffer ? buffer->Desc.Size : 0;
+
+            bufferInfos.push_back(bufferInfo);
+            write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            write.pBufferInfo = &bufferInfos.back();
+            break;
+        }
+        case DescriptorBinding::BindType::SAMPLER: {
+            auto* sampler = std::get<VkSampler*>(binding.Resource);
+            VkDescriptorImageInfo samplerInfo{};
+            samplerInfo.sampler = sampler ? *sampler : VK_NULL_HANDLE;
+            samplerInfo.imageView = VK_NULL_HANDLE;
+            samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            imageInfos.push_back(samplerInfo);
+            write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+            write.pImageInfo = &imageInfos.back();
+            break;
+        }
+        case DescriptorBinding::BindType::TEXTURE: {
+            auto* texture = std::get<NijiTexture*>(binding.Resource);
+            VkDescriptorImageInfo textureInfo{};
+            textureInfo.sampler = VK_NULL_HANDLE;
+            textureInfo.imageView = texture ? texture->ImageInfo.imageView : VK_NULL_HANDLE;
+            textureInfo.imageLayout =
+                texture ? texture->ImageInfo.imageLayout : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+            imageInfos.push_back(textureInfo);
+            write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            write.pImageInfo = &imageInfos.back();
+            break;
+        }
+        default:
+            assert(false && "Unknown descriptor bind type!");
+            break;
+        }
+
+        writes.push_back(write);
+    }
+
+    cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, set,
+                            static_cast<uint32_t>(writes.size()), writes.data());
 }
 
 void Descriptor::cleanup() const

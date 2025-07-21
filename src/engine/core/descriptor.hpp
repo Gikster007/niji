@@ -3,13 +3,14 @@
 #include <variant>
 #include <array>
 
+#include "commandlist.hpp"
 #include "common.hpp"
 
 namespace niji
 {
 
 using DescriptorResource =
-    std::variant<std::monostate, std::array<Buffer, MAX_FRAMES_IN_FLIGHT>*, NijiTexture*>;
+    std::variant<std::monostate, std::vector<Buffer>*, Buffer*, VkSampler*, NijiTexture*>;
 struct DescriptorBinding
 {
     enum class BindType
@@ -47,6 +48,8 @@ class Descriptor
     Descriptor() = default;
     Descriptor(DescriptorInfo& info);
 
+    void push_descriptor_writes(CommandList& cmd, VkPipelineLayout& layout, uint32_t set);
+
     void cleanup() const;
 
   public:
@@ -55,6 +58,8 @@ class Descriptor
     VkDescriptorPool m_pool = {};
 
   private:
+    friend class ForwardPass;
+
     DescriptorInfo m_info = {};
 };
 } // namespace niji

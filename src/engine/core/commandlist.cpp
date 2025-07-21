@@ -144,7 +144,7 @@ void CommandList::bind_descriptor_sets(VkPipelineBindPoint pipelineBindPoint,
 void CommandList::push_descriptor_set(VkPipelineBindPoint pipelineBindPoint,
                                       VkPipelineLayout layout, uint32_t set,
                                       uint32_t descriptorWriteCount,
-                                      const VkWriteDescriptorSet* pDescriptorWrites)
+                                      const VkWriteDescriptorSet* pDescriptorWrites) const
 {
     VKCmdPushDescriptorSetKHR(m_commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount,
                               pDescriptorWrites);

@@ -24,8 +24,9 @@ class RenderPass
 
   protected:
     Pipeline m_pipeline = {};
-    std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_passBuffer = {};
+    std::vector<Buffer> m_passBuffer = {};
 
-    VkDescriptorSetLayout m_passDescriptorSetLayout = {};
+    //VkDescriptorSetLayout m_passDescriptorSetLayout = {};
+    Descriptor m_passDescriptor = {};
 };
 } // namespace niji

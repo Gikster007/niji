@@ -41,7 +41,7 @@ class Renderer : System
     friend class ForwardPass;
     friend class ImGuiPass;
 
-    std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_ubos = {};
+    std::vector<Buffer> m_ubos = {};
     std::vector<CommandList> m_commandBuffers = {};
     std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 
