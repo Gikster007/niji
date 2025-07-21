@@ -125,7 +125,7 @@ struct Buffer
     bool Mapped = false;
 };
 
-struct NijiTexture
+struct Texture
 {
     void cleanup() const;
 

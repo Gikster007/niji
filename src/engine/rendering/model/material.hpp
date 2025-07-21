@@ -10,11 +10,11 @@ namespace niji
 
 struct MaterialData
 {
-    std::optional<NijiTexture> NormalTexture = {};
-    std::optional<NijiTexture> OcclusionTexture = {};
-    std::optional<NijiTexture> RoughMetallic = {};
-    std::optional<NijiTexture> Emissive = {};
-    std::optional<NijiTexture> BaseColor = {};
+    std::optional<Texture> NormalTexture = {};
+    std::optional<Texture> OcclusionTexture = {};
+    std::optional<Texture> RoughMetallic = {};
+    std::optional<Texture> Emissive = {};
+    std::optional<Texture> BaseColor = {};
 };
 
 class Material

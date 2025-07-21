@@ -42,7 +42,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
     }
     auto& material = model.materials[primitive.materialIndex.value()];
 
-    auto loadTexture = [&](const auto& textureInfo) -> std::optional<NijiTexture> {
+    auto loadTexture = [&](const auto& textureInfo) -> std::optional<Texture> {
         size_t textureIndex = {};
 
         // Base Color, RM, Emissive Textures
@@ -118,7 +118,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             return std::nullopt;
         }
 
-        NijiTexture finalTexture =
+        Texture finalTexture =
             nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
         nijiEngine.m_context.create_texture_image_view(finalTexture);
         return finalTexture;
@@ -169,7 +169,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             throw std::runtime_error("[Material]: Failed to Create Texture Sampler!");
     }
 
-    std::array<std::optional<NijiTexture>*, 5> textures = {&m_materialData.BaseColor,
+    std::array<std::optional<Texture>*, 5> textures = {&m_materialData.BaseColor,
                                                            &m_materialData.NormalTexture,
                                                            &m_materialData.OcclusionTexture,
                                                            &m_materialData.RoughMetallic,

@@ -44,7 +44,7 @@ class Context
     friend class RenderPass;
     friend class ForwardPass;
     friend class ImGuiPass;
-    friend class NijiTexture;
+    friend class Texture;
     friend class CameraSystem;
     friend class Descriptor;
 
@@ -95,8 +95,8 @@ class Context
 
     void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
-    NijiTexture create_texture_image(unsigned char* pixels, int width, int height, int channels);
-    void create_texture_image_view(NijiTexture& texture);
+    Texture create_texture_image(unsigned char* pixels, int width, int height, int channels);
+    void create_texture_image_view(Texture& texture);
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
                       VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
                       VmaAllocation& allocation) const;

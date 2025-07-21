@@ -177,9 +177,9 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                     std::visit(
                         [&](auto&& res) {
                             using T = std::decay_t<decltype(res)>;
-                            if constexpr (std::is_same_v<T, NijiTexture*>)
+                            if constexpr (std::is_same_v<T, Texture*>)
                             {
-                                NijiTexture& texture = *res;
+                                Texture& texture = *res;
 
                                 VkWriteDescriptorSet write = {};
                                 write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -209,20 +209,15 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
     }
 }
 
-void Descriptor::push_descriptor_writes(CommandList& cmd, VkPipelineLayout& layout, uint32_t set)
+void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& writes,
+                                        std::vector<VkDescriptorBufferInfo>& bufferInfos,
+                                        std::vector<VkDescriptorImageInfo>& imageInfos)
 {
-    std::vector<VkWriteDescriptorSet> writes;
-    std::vector<VkDescriptorBufferInfo> bufferInfos;
-    std::vector<VkDescriptorImageInfo> imageInfos;
-
-    writes.reserve(m_info.Bindings.size());
-    bufferInfos.reserve(m_info.Bindings.size());
-    imageInfos.reserve(m_info.Bindings.size());
 
     for (int i = 0; i < m_info.Bindings.size(); ++i)
     {
         const auto& binding = m_info.Bindings[i];
-        VkWriteDescriptorSet write{};
+        VkWriteDescriptorSet write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.dstBinding = i;
         write.dstArrayElement = 0;
@@ -233,51 +228,54 @@ void Descriptor::push_descriptor_writes(CommandList& cmd, VkPipelineLayout& layo
         {
         case DescriptorBinding::BindType::UBO: {
             auto* buffer = std::get<Buffer*>(binding.Resource);
-            VkDescriptorBufferInfo bufferInfo{};
+
+            VkDescriptorBufferInfo bufferInfo = {};
             bufferInfo.buffer = buffer ? buffer->Handle : VK_NULL_HANDLE;
             bufferInfo.offset = 0;
             bufferInfo.range = buffer ? buffer->Desc.Size : 0;
 
             bufferInfos.push_back(bufferInfo);
+
             write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             write.pBufferInfo = &bufferInfos.back();
             break;
         }
         case DescriptorBinding::BindType::SAMPLER: {
             auto* sampler = std::get<VkSampler*>(binding.Resource);
-            VkDescriptorImageInfo samplerInfo{};
+
+            VkDescriptorImageInfo samplerInfo = {};
             samplerInfo.sampler = sampler ? *sampler : VK_NULL_HANDLE;
             samplerInfo.imageView = VK_NULL_HANDLE;
             samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
             imageInfos.push_back(samplerInfo);
+
             write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
             write.pImageInfo = &imageInfos.back();
             break;
         }
         case DescriptorBinding::BindType::TEXTURE: {
-            auto* texture = std::get<NijiTexture*>(binding.Resource);
-            VkDescriptorImageInfo textureInfo{};
+            auto* texture = std::get<Texture*>(binding.Resource);
+
+            VkDescriptorImageInfo textureInfo = {};
             textureInfo.sampler = VK_NULL_HANDLE;
             textureInfo.imageView = texture ? texture->ImageInfo.imageView : VK_NULL_HANDLE;
             textureInfo.imageLayout =
                 texture ? texture->ImageInfo.imageLayout : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             imageInfos.push_back(textureInfo);
+
             write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             write.pImageInfo = &imageInfos.back();
             break;
         }
         default:
-            assert(false && "Unknown descriptor bind type!");
+            throw std::runtime_error("Invalid Descriptor Binding Type!");
             break;
         }
 
         writes.push_back(write);
     }
-
-    cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, layout, set,
-                            static_cast<uint32_t>(writes.size()), writes.data());
 }
 
 void Descriptor::cleanup() const

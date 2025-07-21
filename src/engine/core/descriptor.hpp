@@ -10,7 +10,7 @@ namespace niji
 {
 
 using DescriptorResource =
-    std::variant<std::monostate, std::vector<Buffer>*, Buffer*, VkSampler*, NijiTexture*>;
+    std::variant<std::monostate, std::vector<Buffer>*, Buffer*, VkSampler*, Texture*>;
 struct DescriptorBinding
 {
     enum class BindType
@@ -48,7 +48,9 @@ class Descriptor
     Descriptor() = default;
     Descriptor(DescriptorInfo& info);
 
-    void push_descriptor_writes(CommandList& cmd, VkPipelineLayout& layout, uint32_t set);
+    void push_descriptor_writes(std::vector<VkWriteDescriptorSet>& writes,
+                                std::vector<VkDescriptorBufferInfo>& bufferInfos,
+                                std::vector<VkDescriptorImageInfo>& imageInfos);
 
     void cleanup() const;
 

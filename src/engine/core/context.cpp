@@ -540,10 +540,10 @@ void Context::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
     end_single_time_commands(commandBuffer);
 }
 
-NijiTexture Context::create_texture_image(unsigned char* pixels, int width, int height,
+Texture Context::create_texture_image(unsigned char* pixels, int width, int height,
                                           int channels)
 {
-    NijiTexture texture = {};
+    Texture texture = {};
 
     VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
     if (!pixels)
@@ -582,7 +582,7 @@ NijiTexture Context::create_texture_image(unsigned char* pixels, int width, int 
     return texture;
 }
 
-void Context::create_texture_image_view(NijiTexture& texture)
+void Context::create_texture_image_view(Texture& texture)
 {
     texture.TextureImageView =
         create_image_view(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);

@@ -49,7 +49,7 @@ class Renderer : System
 
     Context* m_context = nullptr;
 
-    NijiTexture m_fallbackTexture = {};
+    Texture m_fallbackTexture = {};
 
     uint32_t m_currentFrame = 0;
     uint32_t m_imageIndex = UINT64_MAX;

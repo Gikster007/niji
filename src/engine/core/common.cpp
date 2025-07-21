@@ -400,7 +400,7 @@ void Pipeline::cleanup()
     Name = nullptr;
 }
 
-void NijiTexture::cleanup() const
+void Texture::cleanup() const
 {
     vkDestroyImageView(nijiEngine.m_context.m_device, TextureImageView, nullptr);
     vmaDestroyImage(nijiEngine.m_context.m_allocator, TextureImage, TextureImageAllocation);
