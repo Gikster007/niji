@@ -30,6 +30,7 @@ class Model : public std::enable_shared_from_this<Model>
   private:
     friend class Renderer;
     friend class ForwardPass;
+    friend class SkyboxPass;
 
     std::filesystem::path m_gltfPath = {};
     Entity m_parent = {};

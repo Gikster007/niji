@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include <vk_mem_alloc.h>
+#include <stb_image.h>
 
 #include "engine.hpp"
 
@@ -400,8 +401,339 @@ void Pipeline::cleanup()
     Name = nullptr;
 }
 
+Texture::Texture(const TextureDesc& desc) : Desc(desc)
+{
+    if (desc.Format == VK_FORMAT_UNDEFINED)
+        throw std::runtime_error("Texture creation failed, invalid format!");
+    if (desc.Mips < 1)
+        throw std::runtime_error("Texture creation failed, invalid amount of mips!");
+    if (desc.Layers < 1 || desc.Layers > 6)
+        throw std::runtime_error("Texture creation failed, invalid number of layers!");
+    if (desc.Type == TextureDesc::TextureType::CUBEMAP && desc.Layers != 6)
+        throw std::runtime_error("Cubemaps must have exactly 6 layers!");
+
+    const VkImageCreateFlags flags =
+        desc.Type == TextureDesc::TextureType::CUBEMAP ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+
+    nijiEngine.m_context.create_image(desc.Width, desc.Height, desc.Mips, desc.Layers, desc.Format,
+                                      VK_IMAGE_TILING_OPTIMAL, desc.Usage, desc.MemoryUsage, flags,
+                                      TextureImage, TextureImageAllocation);
+
+    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
+                                                 VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, desc.Mips,
+                                                 desc.Layers);
+    if (!desc.Data)
+        throw std::runtime_error("2D texture creation failed, no pixel data provided!");
+
+    const VkDeviceSize imageSize =
+        static_cast<VkDeviceSize>(desc.Width) * desc.Height * desc.Channels;
+
+    VkBuffer stagingBuffer = {};
+    VmaAllocation stagingAlloc = {};
+    nijiEngine.m_context.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                       VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingAlloc);
+
+    void* data = nullptr;
+    vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &data);
+    memcpy(data, desc.Data, static_cast<size_t>(imageSize));
+    vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
+    stbi_image_free((void*)desc.Data);
+
+    nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, desc.Width, desc.Height,
+                                              desc.Layers, 0, 0);
+
+    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
+
+    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
+                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                 desc.Mips, desc.Layers);
+
+    TextureImageView =
+        nijiEngine.m_context.create_image_view(TextureImage, desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
+                                               desc.Mips, desc.Layers);
+
+    ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ImageInfo.imageView = TextureImageView;
+    ImageInfo.sampler = VK_NULL_HANDLE;
+}
+
+Texture::Texture(const TextureDesc& desc, const std::string& path)
+{
+    if (desc.Type != TextureDesc::TextureType::CUBEMAP)
+        throw std::runtime_error("You used the wrong constructor :/");
+    if (desc.Format == VK_FORMAT_UNDEFINED)
+        throw std::runtime_error("Texture creation failed, invalid format!");
+    if (desc.Mips < 1)
+        throw std::runtime_error("Texture creation failed, invalid amount of mips!");
+    if (desc.Layers != 6)
+        throw std::runtime_error("Cubemaps must have exactly 6 layers!");
+
+    const VkImageCreateFlags flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+    nijiEngine.m_context.create_image(desc.Width, desc.Height, desc.Mips, desc.Layers, desc.Format,
+                                      VK_IMAGE_TILING_OPTIMAL, desc.Usage, desc.MemoryUsage, flags,
+                                      TextureImage, TextureImageAllocation);
+
+    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
+                                                 VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, desc.Mips,
+                                                 desc.Layers);
+
+    if (desc.Mips > 1)
+    {
+        // Load all faces and mips
+        int w, h, n;
+        std::vector<std::vector<void*>> cubemapData(desc.Mips, std::vector<void*>(6));
+        for (int mip = 0; mip < desc.Mips; ++mip)
+        {
+            const std::string mipPath = path + "/mip" + std::to_string(mip) + "/";
+            const std::string faces[6] = {"px", "nx", "py", "ny", "pz", "nz"};
+
+            for (int face = 0; face < 6; ++face)
+            {
+                const std::vector<char> file = read_binary_file(mipPath + faces[face] + ".hdr");
+                if (file.empty())
+                    throw std::runtime_error("Failed to load face for mip " + std::to_string(mip));
+
+                float* pixels = stbi_loadf_from_memory((const stbi_uc*)file.data(),
+                                                       (int)file.size(), &w, &h, &n, 4);
+                if (!pixels)
+                    throw std::runtime_error("Failed to decode HDR mip " + std::to_string(mip));
+
+                cubemapData[mip][face] = pixels;
+            }
+        }
+
+        if (cubemapData.empty() || cubemapData.size() != desc.Mips)
+            throw std::runtime_error("CubemapMipData must contain data for all mips!");
+
+        for (uint32_t mip = 0; mip < desc.Mips; ++mip)
+        {
+            if (cubemapData[mip].size() != 6)
+                throw std::runtime_error("Each mip must contain 6 face images!");
+
+            const uint32_t mipWidth = std::max(1, desc.Width >> mip);
+            const uint32_t mipHeight = std::max(1, desc.Height >> mip);
+            const VkDeviceSize mipSize =
+                static_cast<uint64_t>(mipWidth) * mipHeight * desc.Channels * sizeof(float);
+
+            for (uint32_t face = 0; face < 6; ++face)
+            {
+                VkBuffer stagingBuffer = {};
+                VmaAllocation stagingAlloc = {};
+                nijiEngine.m_context.create_buffer(mipSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                   VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer,
+                                                   stagingAlloc);
+
+                void* mapped = nullptr;
+                vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &mapped);
+                memcpy(mapped, cubemapData[mip][face], mipSize);
+                vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
+                stbi_image_free(cubemapData[mip][face]);
+
+                nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, mipWidth,
+                                                          mipHeight, 1, face, mip);
+
+                vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
+            }
+        }
+    }
+    else if (desc.Mips == 1) // Diffuse Cubemap
+    {
+        int w, h, n;
+        const std::string faces[6] = {"px", "nx", "py", "ny", "pz", "nz"};
+
+        for (uint32_t face = 0; face < 6; ++face)
+        {
+            const std::vector<char> file = read_binary_file(path + "/" + faces[face] + ".hdr");
+            if (file.empty())
+                throw std::runtime_error("Failed to load face: " + faces[face]);
+
+            float* pixels = stbi_loadf_from_memory((const stbi_uc*)file.data(), (int)file.size(),
+                                                   &w, &h, &n, 4);
+            if (!pixels)
+                throw std::runtime_error("Failed to decode HDR face: " + faces[face]);
+
+            const uint32_t mipWidth = desc.Width;
+            const uint32_t mipHeight = desc.Height;
+            const VkDeviceSize mipSize =
+                static_cast<VkDeviceSize>(mipWidth) * mipHeight * desc.Channels * sizeof(float);
+
+
+            VkBuffer stagingBuffer = {};
+            VmaAllocation stagingAlloc = {};
+            nijiEngine.m_context.create_buffer(mipSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                               VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer,
+                                               stagingAlloc);
+
+            void* mapped = nullptr;
+            vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &mapped);
+            memcpy(mapped, pixels, mipSize);
+            vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
+            stbi_image_free(pixels);
+
+            nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, mipWidth,
+                                                      mipHeight, 1, face, 0);
+
+            vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
+        }
+    }
+
+    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
+                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                 desc.Mips, desc.Layers);
+
+    TextureImageView =
+        nijiEngine.m_context.create_image_view(TextureImage, desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
+                                               desc.Mips, desc.Layers);
+
+    ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ImageInfo.imageView = TextureImageView;
+    ImageInfo.sampler = VK_NULL_HANDLE;
+}
+
 void Texture::cleanup() const
 {
     vkDestroyImageView(nijiEngine.m_context.m_device, TextureImageView, nullptr);
     vmaDestroyImage(nijiEngine.m_context.m_allocator, TextureImage, TextureImageAllocation);
+}
+
+uint32_t niji::GetBytesPerTexel(VkFormat format)
+{
+    switch (format)
+    {
+    case VK_FORMAT_R32G32B32A32_SFLOAT:
+        return 16;
+    case VK_FORMAT_R32G32B32_SFLOAT:
+        return 12;
+    case VK_FORMAT_R32G32_SFLOAT:
+        return 8;
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return 4;
+    case VK_FORMAT_R8G8B8A8_SRGB:
+        return 4;
+    default:
+        throw std::runtime_error("Unknown format!");
+    }
+}
+
+std::vector<char> niji::read_binary_file(const std::string& path)
+{
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open())
+    {
+        printf("File %s  was not found!", path.c_str());
+        return std::vector<char>();
+    }
+    const std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::vector<char> buffer(size);
+    if (file.read(buffer.data(), size))
+        return buffer;
+    assert(false);
+    return std::vector<char>();
+}
+
+inline static VkFilter to_vk(SamplerDesc::Filter filterMode)
+{
+    switch (filterMode)
+    {
+    case niji::SamplerDesc::Filter::NONE:
+        throw std::runtime_error("Invalid Sampler Filter Mode!");
+        break;
+    case niji::SamplerDesc::Filter::NEAREST:
+        return VK_FILTER_NEAREST;
+        break;
+    case niji::SamplerDesc::Filter::LINEAR:
+        return VK_FILTER_LINEAR;
+        break;
+    default:
+        throw std::runtime_error("Invalid Sampler Filter Mode!");
+        break;
+    }
+}
+
+inline static VkSamplerAddressMode to_vk(SamplerDesc::AddressMode addressMode)
+{
+    switch (addressMode)
+    {
+    case niji::SamplerDesc::AddressMode::NONE:
+        throw std::runtime_error("Invalid Sampler Address Mode!");
+        break;
+    case niji::SamplerDesc::AddressMode::REPEAT:
+        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        break;
+    case niji::SamplerDesc::AddressMode::MIRRORED_REPEAT:
+        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        break;
+    case niji::SamplerDesc::AddressMode::EDGE_CLAMP:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        break;
+    case niji::SamplerDesc::AddressMode::BORDER_CLAMP:
+        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        break;
+    case niji::SamplerDesc::AddressMode::MIRRORED_EDGE_CLAMP:
+        return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        break;
+    default:
+        throw std::runtime_error("Invalid Sampler Address Mode!");
+        break;
+    }
+}
+
+inline static VkSamplerMipmapMode to_vk(SamplerDesc::MipMapMode mipmapMode)
+{
+    switch (mipmapMode)
+    {
+    case niji::SamplerDesc::MipMapMode::NONE:
+        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
+        break;
+    case niji::SamplerDesc::MipMapMode::NEAREST:
+        return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        break;
+    case niji::SamplerDesc::MipMapMode::LINEAR:
+        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        break;
+    default:
+        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
+        break;
+    }
+}
+
+Sampler::Sampler(const SamplerDesc& desc)
+{
+    VkPhysicalDeviceProperties properties = {};
+    vkGetPhysicalDeviceProperties(nijiEngine.m_context.m_physicalDevice, &properties);
+
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = to_vk(desc.MagFilter);
+    samplerInfo.minFilter = to_vk(desc.MinFilter);
+    samplerInfo.addressModeU = to_vk(desc.AddressModeU);
+    samplerInfo.addressModeV = to_vk(desc.AddressModeV);
+    samplerInfo.addressModeW = to_vk(desc.AddressModeW);
+    samplerInfo.anisotropyEnable = desc.EnableAnisotropy;
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    // Default to these values for now
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = to_vk(desc.MipmapMode);
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    if (vkCreateSampler(nijiEngine.m_context.m_device, &samplerInfo, nullptr, &Handle) !=
+        VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Sampler!");
+}
+
+void Sampler::cleanup() const
+{
+    if (Handle != VK_NULL_HANDLE)
+        vkDestroySampler(nijiEngine.m_context.m_device, Handle, nullptr);
 }

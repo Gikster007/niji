@@ -47,6 +47,8 @@ class Context
     friend class Texture;
     friend class CameraSystem;
     friend class Descriptor;
+    friend class Texture;
+    friend class Sampler;
 
   public:
     Context();
@@ -97,13 +99,16 @@ class Context
 
     Texture create_texture_image(unsigned char* pixels, int width, int height, int channels);
     void create_texture_image_view(Texture& texture);
-    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-                      VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
+    void create_image(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers,
+                      VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                      VmaMemoryUsage memoryUsage, VkImageCreateFlags flags, VkImage& image,
                       VmaAllocation& allocation) const;
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) const;
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+                                  uint32_t mipLevels, uint32_t layerCount) const;
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                 VkImageLayout newLayout);
-    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+                                 VkImageLayout newLayout, uint32_t mipLevels, uint32_t layerCount);
+    void copy_buffer_to_image(VkBuffer srcBuffer, VkImage dstImage, uint32_t width, uint32_t height,
+                              uint32_t layerCount, uint32_t baseArrayLayer, uint32_t mipLevel);
 
   private:
     GLFWwindow* m_window = nullptr;

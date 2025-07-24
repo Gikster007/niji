@@ -14,7 +14,6 @@ int main()
 
     auto& app = nijiEngine.ecs.register_system<App>();
     auto& cameraSystem = nijiEngine.ecs.register_system<CameraSystem>();
-    auto& renderer = nijiEngine.ecs.register_system<niji::Renderer>();
 
     nijiEngine.run();
 

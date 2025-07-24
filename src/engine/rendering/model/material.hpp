@@ -33,7 +33,7 @@ class Material
     MaterialInfo m_materialInfo = {};
     std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_data = {};
 
-    VkSampler m_sampler = {};
+    Sampler m_sampler = {};
 };
 
 } // namespace niji

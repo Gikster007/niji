@@ -147,12 +147,12 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                     std::visit(
                         [&](auto&& res) {
                             using T = std::decay_t<decltype(res)>;
-                            if constexpr (std::is_same_v<T, VkSampler*>)
+                            if constexpr (std::is_same_v<T, Sampler*>)
                             {
-                                VkSampler& sampler = *res;
+                                Sampler& sampler = *res;
 
                                 VkDescriptorImageInfo samplerInfo = {};
-                                samplerInfo.sampler = sampler;
+                                samplerInfo.sampler = sampler.Handle;
                                 samplerInfo.imageView = VK_NULL_HANDLE;
                                 samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -241,10 +241,10 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
             break;
         }
         case DescriptorBinding::BindType::SAMPLER: {
-            auto* sampler = std::get<VkSampler*>(binding.Resource);
+            auto* sampler = std::get<Sampler*>(binding.Resource);
 
             VkDescriptorImageInfo samplerInfo = {};
-            samplerInfo.sampler = sampler ? *sampler : VK_NULL_HANDLE;
+            samplerInfo.sampler = sampler ? sampler->Handle : VK_NULL_HANDLE;
             samplerInfo.imageView = VK_NULL_HANDLE;
             samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 

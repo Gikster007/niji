@@ -4,6 +4,7 @@
 
 #include <glm/glm.hpp>
 
+enum VmaMemoryUsage;
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
@@ -27,6 +28,11 @@ void SetObjectName(VkDevice device, VkObjectType type, HandleType handle, const 
     }
 }
 
+uint32_t GetBytesPerTexel(VkFormat format);
+
+// Source BEE engine
+std::vector<char> read_binary_file(const std::string& path);
+
 struct Vertex
 {
     glm::vec3 Pos = {};
@@ -34,6 +40,11 @@ struct Vertex
     glm::vec3 Normal = {};
     glm::vec4 Tangent = {};
     glm::vec2 TexCoord = {};
+};
+
+struct SkyboxVertex
+{
+    glm::vec3 Pos = {};
 };
 
 struct MaterialInfo
@@ -125,15 +136,88 @@ struct Buffer
     bool Mapped = false;
 };
 
+struct TextureDesc
+{
+    int Width = 0;
+    int Height = 0;
+    int Channels = 4;
+    unsigned char* Data = nullptr;
+
+    enum class TextureType
+    {
+        NONE,
+        TEXTURE_2D,
+        CUBEMAP
+    } Type = TextureType::NONE;
+
+    uint32_t Mips = 1;
+    uint32_t Layers = 1;
+
+    VkFormat Format = {};
+    VkImageUsageFlags Usage = {};
+    VmaMemoryUsage MemoryUsage = {};
+};
+
 struct Texture
 {
+    Texture() = default;
+    Texture(const TextureDesc& desc);
+    // Used only for Envmap Loading
+    Texture(const TextureDesc& desc, const std::string& path);
+
     void cleanup() const;
+
+    TextureDesc Desc = {};
 
     VkImage TextureImage = {};
     VkImageView TextureImageView = {};
     VmaAllocation TextureImageAllocation = {};
 
     VkDescriptorImageInfo ImageInfo = {};
+};
+
+struct SamplerDesc
+{
+    enum class Filter
+    {
+        NONE,
+        NEAREST,
+        LINEAR
+    } MagFilter = Filter::NONE;
+    Filter MinFilter = Filter::NONE;
+
+    enum class AddressMode
+    {
+        NONE,
+        REPEAT,
+        MIRRORED_REPEAT,
+        EDGE_CLAMP,
+        BORDER_CLAMP,
+        MIRRORED_EDGE_CLAMP
+    } AddressModeU = AddressMode::NONE;
+    AddressMode AddressModeV = AddressMode::NONE;
+    AddressMode AddressModeW = AddressMode::NONE;
+
+    enum class MipMapMode
+    {
+        NONE,
+        NEAREST,
+        LINEAR
+    } MipmapMode = MipMapMode::NONE;
+
+    bool EnableAnisotropy = false;
+};
+
+struct Sampler
+{
+    Sampler() = default;
+    Sampler(const SamplerDesc& desc);
+
+    void cleanup() const;
+
+    SamplerDesc Desc = {};
+
+    VkSampler Handle = {};
 };
 
 struct VertexLayout
@@ -258,12 +342,13 @@ enum class TransitionType
     TransferSrc  // for copy
 };
 
-// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in the constructor of RenderTarget)
+// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in
+// the constructor of RenderTarget)
 struct RenderTarget
 {
     RenderTarget() = default;
     RenderTarget(VkImage image, VkImageView view, VkFormat Format = VK_FORMAT_UNDEFINED,
-                 VkImageLayout layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+                 VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                  VkAttachmentLoadOp load = VK_ATTACHMENT_LOAD_OP_CLEAR,
                  VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE, VkClearValue clear = {})
         : Image(image), ImageView(view), Format(Format), ImageLayout(layout), LoadOp(load),

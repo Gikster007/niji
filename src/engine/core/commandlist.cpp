@@ -51,20 +51,19 @@ void CommandList::begin_rendering(const RenderInfo& info) const
 {
     VkRenderingAttachmentInfoKHR colorAttachment = {};
     const auto& src = info.ColorAttachment;
-    auto& dst = colorAttachment;
 
-    dst.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    dst.imageView = src.ImageView;
-    dst.imageLayout = src.ImageLayout;
-    dst.loadOp = src.LoadOp;
-    dst.storeOp = src.StoreOp;
-    dst.clearValue = src.ClearValue;
+    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+    colorAttachment.imageView = src.ImageView;
+    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.loadOp = src.LoadOp;
+    colorAttachment.storeOp = src.StoreOp;
+    colorAttachment.clearValue = src.ClearValue;
     VkRenderingAttachmentInfoKHR depthAttachment{};
     if (info.HasDepth)
     {
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
         depthAttachment.imageView = info.DepthAttachment.ImageView;
-        depthAttachment.imageLayout = info.DepthAttachment.ImageLayout;
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
         depthAttachment.loadOp = info.DepthAttachment.LoadOp;
         depthAttachment.storeOp = info.DepthAttachment.StoreOp;
         depthAttachment.clearValue = info.DepthAttachment.ClearValue;
@@ -78,13 +77,13 @@ void CommandList::begin_rendering(const RenderInfo& info) const
     renderingInfo.pColorAttachments = &colorAttachment;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
 
-    auto& rt = colorAttachment;
     auto& infoRT = info.ColorAttachment;
-    transition_image(infoRT.Image, infoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED, rt.imageLayout,
+    transition_image(infoRT.Image, infoRT.Format, infoRT.ImageLayout,
+                     colorAttachment.imageLayout,
                      TransitionType::ColorAttachment);
 
     auto& depthInfoRT = info.DepthAttachment;
-    transition_image(depthInfoRT.Image, depthInfoRT.Format, VK_IMAGE_LAYOUT_UNDEFINED,
+    transition_image(depthInfoRT.Image, depthInfoRT.Format, depthInfoRT.ImageLayout,
                      depthAttachment.imageLayout, TransitionType::DepthStencilAttachment);
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);

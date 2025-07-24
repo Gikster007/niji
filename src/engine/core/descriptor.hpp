@@ -10,7 +10,7 @@ namespace niji
 {
 
 using DescriptorResource =
-    std::variant<std::monostate, std::vector<Buffer>*, Buffer*, VkSampler*, Texture*>;
+    std::variant<std::monostate, std::vector<Buffer>*, Buffer*, Sampler*, Texture*>;
 struct DescriptorBinding
 {
     enum class BindType
@@ -61,6 +61,7 @@ class Descriptor
 
   private:
     friend class ForwardPass;
+    friend class SkyboxPass;
 
     DescriptorInfo m_info = {};
 };

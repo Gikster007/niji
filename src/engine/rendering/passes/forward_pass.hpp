@@ -19,6 +19,7 @@ class ForwardPass final : public RenderPass
 
     private:
     DebugSettings m_debugSettings = {};
+      Sampler m_sampler = {};
 };
 
 } // namespace niji

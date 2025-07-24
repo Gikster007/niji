@@ -11,6 +11,8 @@ using namespace niji;
 
 void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 {
+    m_name = "ImGui Pass";
+
     // 1. Create ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

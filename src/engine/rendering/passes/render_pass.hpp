@@ -23,8 +23,11 @@ class RenderPass
     void base_cleanup();
 
   protected:
+    friend class Renderer;
+
     Pipeline m_pipeline = {};
     std::vector<Buffer> m_passBuffer = {};
+    std::string m_name = "Unnamed Pass";
 
     //VkDescriptorSetLayout m_passDescriptorSetLayout = {};
     Descriptor m_passDescriptor = {};

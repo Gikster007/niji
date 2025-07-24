@@ -80,7 +80,7 @@ void Context::cleanup()
 {
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
-#if DEBUG_ALLOCATIONS 
+#if DEBUG_ALLOCATIONS
     char* statsString = nullptr;
     vmaBuildStatsString(m_allocator, &statsString, VK_TRUE);
     printf("%s\n", statsString);
@@ -301,7 +301,7 @@ void Context::pick_physical_device()
 
     if (m_physicalDevice == VK_NULL_HANDLE && backup != VK_NULL_HANDLE)
         m_physicalDevice = backup;
-    
+
     if (m_physicalDevice == VK_NULL_HANDLE)
         throw std::runtime_error("Failed To Find a Suitable GPU!");
 
@@ -540,107 +540,65 @@ void Context::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
     end_single_time_commands(commandBuffer);
 }
 
-Texture Context::create_texture_image(unsigned char* pixels, int width, int height,
-                                          int channels)
-{
-    Texture texture = {};
-
-    VkDeviceSize imageSize = static_cast<VkDeviceSize>(width) * height * 4;
-    if (!pixels)
-    {
-        printf("Failed to load Image!");
-        throw std::runtime_error("Failed to Load Texture Image!");
-    }
-
-    VkBuffer stagingBuffer = {};
-    VmaAllocation stagingBufferAllocation = {};
-
-    create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY,
-                  stagingBuffer, stagingBufferAllocation);
-
-    void* data = nullptr;
-    vmaMapMemory(m_allocator, stagingBufferAllocation, &data);
-    memcpy(data, pixels, (size_t)imageSize);
-    vmaUnmapMemory(m_allocator, stagingBufferAllocation);
-
-    stbi_image_free(pixels);
-
-    create_image(width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                 VMA_MEMORY_USAGE_GPU_ONLY, texture.TextureImage, texture.TextureImageAllocation);
-
-    transition_image_layout(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    copy_buffer_to_image(stagingBuffer, texture.TextureImage, static_cast<uint32_t>(width),
-                         static_cast<uint32_t>(height));
-    transition_image_layout(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    vmaDestroyBuffer(m_allocator, stagingBuffer, stagingBufferAllocation);
-
-    return texture;
-}
-
 void Context::create_texture_image_view(Texture& texture)
 {
     texture.TextureImageView =
-        create_image_view(texture.TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+        create_image_view(texture.TextureImage, texture.Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT, texture.Desc.Mips, texture.Desc.Layers);
 }
 
-void Context::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling,
-                           VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImage& image,
+void Context::create_image(uint32_t width, uint32_t height, uint32_t mipLevels,
+                           uint32_t arrayLayers, VkFormat format, VkImageTiling tiling,
+                           VkImageUsageFlags usage, VmaMemoryUsage memoryUsage,
+                           VkImageCreateFlags flags, VkImage& image,
                            VmaAllocation& allocation) const
 {
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
+    imageInfo.extent = {width, height, 1};
+    imageInfo.mipLevels = mipLevels;
+    imageInfo.arrayLayers = arrayLayers;
     imageInfo.format = format;
     imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = usage;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.flags = 0;
+    imageInfo.flags = flags;
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = memoryUsage;
 
     if (vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr) !=
         VK_SUCCESS)
-        throw std::runtime_error("Failed to Create Image with VMA!");
+        throw std::runtime_error("Failed to create image with VMA!");
 }
 
 VkImageView Context::create_image_view(VkImage image, VkFormat format,
-                                       VkImageAspectFlags aspectFlags) const
+                                       VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                       uint32_t layerCount) const
 {
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.viewType = layerCount > 1 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = format;
     viewInfo.subresourceRange.aspectMask = aspectFlags;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.levelCount = mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
+    viewInfo.subresourceRange.layerCount = layerCount;
 
     VkImageView imageView = {};
     if (vkCreateImageView(m_device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create texture image view!");
-    }
+        throw std::runtime_error("Failed to create image view!");
 
     return imageView;
 }
 
 void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                      VkImageLayout newLayout)
+                                            VkImageLayout newLayout, uint32_t mipLevels,
+                                            uint32_t layerCount)
 {
     VkCommandBuffer commandBuffer = begin_single_time_commands();
 
@@ -655,9 +613,10 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = layerCount;
+
     if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
     {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -704,9 +663,11 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
     end_single_time_commands(commandBuffer);
 }
 
-void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+void Context::copy_buffer_to_image(VkBuffer srcBuffer, VkImage dstImage, uint32_t width,
+                                   uint32_t height, uint32_t layerCount, uint32_t baseArrayLayer,
+                                   uint32_t mipLevel)
 {
-    VkCommandBuffer commandBuffer = begin_single_time_commands();
+    VkCommandBuffer cmd = begin_single_time_commands();
 
     VkBufferImageCopy region = {};
     region.bufferOffset = 0;
@@ -714,17 +675,17 @@ void Context::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t widt
     region.bufferImageHeight = 0;
 
     region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
+    region.imageSubresource.mipLevel = mipLevel;
+    region.imageSubresource.baseArrayLayer = baseArrayLayer;
+    region.imageSubresource.layerCount = layerCount;
 
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
 
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+    vkCmdCopyBufferToImage(cmd, srcBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                            &region);
 
-    end_single_time_commands(commandBuffer);
+    end_single_time_commands(cmd);
 }
 
 QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice device,

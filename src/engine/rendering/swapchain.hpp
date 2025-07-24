@@ -39,6 +39,7 @@ class Swapchain
     friend class Renderer;
     friend class ForwardPass;
     friend class ImGuiPass;
+    friend class SkyboxPass;
 
     VkImage m_depthImage = {};
     VkImageView m_depthImageView = {};

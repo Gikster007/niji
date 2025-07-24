@@ -131,21 +131,21 @@ void Swapchain::create_image_views()
     for (size_t i = 0; i < m_images.size(); i++)
     {
         m_imageViews[i] = nijiEngine.m_context.create_image_view(m_images[i], m_format,
-                                                                 VK_IMAGE_ASPECT_COLOR_BIT);
+                                                                 VK_IMAGE_ASPECT_COLOR_BIT, 1, 1);
     }
 }
 
 void Swapchain::create_depth_resources()
 {
     VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    nijiEngine.m_context.create_image(m_extent.width, m_extent.height, depthFormat,
+    nijiEngine.m_context.create_image(m_extent.width, m_extent.height, 1, 1, depthFormat,
                             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                            VMA_MEMORY_USAGE_GPU_ONLY, m_depthImage, m_depthImageAllocation);
+                            VMA_MEMORY_USAGE_GPU_ONLY, 0, m_depthImage, m_depthImageAllocation);
     m_depthImageView =
-        nijiEngine.m_context.create_image_view(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        nijiEngine.m_context.create_image_view(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1);
 
     nijiEngine.m_context.transition_image_layout(m_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
-                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1, 1);
 }
 
 void Swapchain::cleanup()
@@ -178,7 +178,7 @@ VkPresentModeKHR Swapchain::choose_swap_present_mode(
 {
     for (const auto& availablePresentMode : availablePresentModes)
     {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        if (availablePresentMode == VK_PRESENT_MODE_FIFO_KHR)
             return availablePresentMode;
     }
     return VK_PRESENT_MODE_FIFO_KHR;

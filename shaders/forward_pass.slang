@@ -57,19 +57,30 @@ cbuffer RenderFlags
 
 // Set = 1, Binding = 2
 [[vk::binding(2, 1)]]
-SamplerState linearSampler;
+SamplerState linearSampler; 
+// Set = 1, Binding = 3
+[[vk::binding(3, 1)]]
+SamplerState iblSampler;
 
 // Set = 1, Binding = 3..7
-[[vk::binding(3, 1)]]
-Texture2D baseColor;
 [[vk::binding(4, 1)]]
-Texture2D normalMap;
+Texture2D baseColor;
 [[vk::binding(5, 1)]]
-Texture2D occlusionMap;
+Texture2D normalMap;
 [[vk::binding(6, 1)]]
-Texture2D roughMetalMap;
+Texture2D occlusionMap;
 [[vk::binding(7, 1)]]
+Texture2D roughMetalMap;
+[[vk::binding(8, 1)]]
 Texture2D emissiveMap;
+
+// Set = 1, Binding = 8..10
+[[vk::binding(9, 1)]]
+TextureCube<float4> specularCubemap;
+[[vk::binding(10, 1)]]
+TextureCube<float4> diffuseCubemap;
+[[vk::binding(11, 1)]]
+Texture2D<float4> brdfLUT;
 
 struct VertexInput
 {
@@ -152,6 +163,11 @@ float GeometrySmith(float NoV, float NoL, float k)
     return ggx1 * ggx2;
 }
 
+float3 CalculateFRough(float3 F0, float ndotv, float roughness)
+{
+    return F0 + (max(float3(1.0f - roughness), F0) - F0) * pow(clamp(1.0f - ndotv, 0.0f, 1.0f), 5.0f);
+}
+
 [shader("fragment")]
 float4 fragment_main(VertexOutput input) : SV_Target
 {
@@ -220,8 +236,22 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 lightOut =
             (kD * albedo.rgb * INVPI + specular) * lightColor * lightIntensity * ndotl;
 
-        lightOut += 0.4f * albedo.rgb;
-        final = float4(lightOut + emissive.rgb, albedo.a);
+        //float3 ambient = 0.4f * albedo.rgb;
+
+        // Environment Lighting
+        float3 R = reflect(-V, normal);
+        float3 Ks = CalculateFRough(F0, ndotv, roughness);
+        float3 Kd = 1.0f - Ks;
+        Kd *= 1.0f - metallic;
+
+        float3 prefilteredColor = pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
+        float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1 / 2.2f);
+        float2 brdf = brdfLUT.Sample(iblSampler, float2(ndotv, roughness)).rg;
+        float3 specularIBL = prefilteredColor * Ks; //* (F * brdf.x + brdf.y);
+        float3 diffuse = albedo.rgb * irradiance.rgb;
+        float3 ambient = (Kd * diffuse + specularIBL);
+        
+        final = float4(lightOut + ambient + emissive.rgb, albedo.a);
         break;
     case RenderFlags::ALBEDO:
         final = albedo;

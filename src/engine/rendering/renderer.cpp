@@ -24,8 +24,13 @@ using namespace niji;
 #include "core/components/transform.hpp"
 #include "core/vulkan-functions.hpp"
 
+#include "passes/skybox_pass.hpp"
+
+#include "model/model.hpp"
+
 #include "swapchain.hpp"
 #include "engine.hpp"
+
 
 Renderer::Renderer()
 {
@@ -35,6 +40,29 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
+}
+
+inline static void CreateCube(std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices)
+{
+    vertices = {
+        {-1.0f, 1.0f, -1.0f},  // 0
+        {-1.0f, -1.0f, -1.0f}, // 1
+        {1.0f, -1.0f, -1.0f},  // 2
+        {1.0f, 1.0f, -1.0f},   // 3
+        {-1.0f, 1.0f, 1.0f},   // 4
+        {-1.0f, -1.0f, 1.0f},  // 5
+        {1.0f, -1.0f, 1.0f},   // 6
+        {1.0f, 1.0f, 1.0f}     // 7
+    };
+
+    indices = {
+        0, 1, 2, 2, 3, 0, // Front face
+        4, 5, 1, 1, 0, 4, // Left face
+        7, 6, 5, 5, 4, 7, // Back face
+        3, 2, 6, 6, 7, 3, // Right face
+        4, 0, 3, 3, 7, 4, // Top face
+        1, 5, 6, 6, 2, 1  // Bottom face
+    };
 }
 
 void Renderer::init()
@@ -51,13 +79,25 @@ void Renderer::init()
             printf("[Renderer] Failed to load Fallback Texture");
         }
 
-        m_fallbackTexture =
-            nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
-        nijiEngine.m_context.create_texture_image_view(m_fallbackTexture);
+        TextureDesc desc = {};
+        desc.Width = width;
+        desc.Height = height;
+        desc.Channels = 4;
+        desc.Data = imageData;
+        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
+        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        m_fallbackTexture.ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        m_fallbackTexture.ImageInfo.imageView = m_fallbackTexture.TextureImageView;
-        m_fallbackTexture.ImageInfo.sampler = VK_NULL_HANDLE;
+        m_fallbackTexture = Texture(desc);
+    }
+
+    // Create Cube
+    {
+        std::vector<glm::vec3> vertices = {};
+        std::vector<uint32_t> indices = {};
+        CreateCube(vertices, indices);
+
+        m_cube = Mesh(vertices, indices);
     }
 
     // Global Descriptor
@@ -88,6 +128,7 @@ void Renderer::init()
 
     // Render Passes
     {
+        m_renderPasses.push_back(std::make_unique<SkyboxPass>());
         m_renderPasses.push_back(std::make_unique<ForwardPass>());
         m_renderPasses.push_back(std::make_unique<ImGuiPass>());
     }
@@ -142,17 +183,17 @@ void Renderer::render()
     auto& cmd = m_commandBuffers[m_currentFrame];
     cmd.begin_list("Frame Commmand Buffer");
 
+    RenderTarget colorAttachment = {m_swapchain.m_images[m_imageIndex],
+                                    m_swapchain.m_imageViews[m_imageIndex]};
+    colorAttachment.ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+    VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
+    RenderTarget depthStencil = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView,
+                                 depthFormat};
+    depthStencil.ClearValue = {1.0f, 0.0f};
+
     int i = 0;
     for (auto& pass : m_renderPasses)
     {
-        RenderTarget colorAttachment = {m_swapchain.m_images[m_imageIndex],
-                                        m_swapchain.m_imageViews[m_imageIndex]};
-        colorAttachment.ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-        VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-        RenderTarget depthStencil = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView,
-                                     depthFormat};
-        depthStencil.ClearValue = {1.0f, 0.0f};
-
         RenderInfo info = {m_swapchain.m_extent};
         info.ColorAttachment = colorAttachment;
         info.DepthAttachment = depthStencil;
@@ -226,6 +267,8 @@ void Renderer::cleanup()
         pass.release();
     }
     m_renderPasses.clear();
+
+    m_cube.cleanup();
 
     m_globalDescriptor.cleanup();
 

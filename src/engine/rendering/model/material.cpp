@@ -1,5 +1,6 @@
 #include "material.hpp"
 
+#include <vk_mem_alloc.h>
 #include <stb_image.h>
 
 #include "core/context.hpp"
@@ -118,9 +119,16 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             return std::nullopt;
         }
 
-        Texture finalTexture =
-            nijiEngine.m_context.create_texture_image(imageData, width, height, channels);
-        nijiEngine.m_context.create_texture_image_view(finalTexture);
+        TextureDesc desc = {};
+        desc.Width = width;
+        desc.Height = height;
+        desc.Channels = 4;
+        desc.Data = imageData;
+        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
+        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        Texture finalTexture = Texture(desc);
         return finalTexture;
     };
 
@@ -143,48 +151,23 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
     // Create Sampler
     {
-        VkPhysicalDeviceProperties properties = {};
-        vkGetPhysicalDeviceProperties(nijiEngine.m_context.m_physicalDevice, &properties);
-
-        VkSamplerCreateInfo samplerInfo = {};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.anisotropyEnable = VK_TRUE;
-        samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = 0.0f;
-
-        if (vkCreateSampler(nijiEngine.m_context.m_device, &samplerInfo, nullptr, &m_sampler) !=
-            VK_SUCCESS)
-            throw std::runtime_error("[Material]: Failed to Create Texture Sampler!");
+        SamplerDesc desc = {};
+        desc.MagFilter = SamplerDesc::Filter::LINEAR;
+        desc.MinFilter = SamplerDesc::Filter::LINEAR;
+        desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
+        desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
+        desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
+        desc.EnableAnisotropy = true;
+        desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+        
+        m_sampler = Sampler(desc);
     }
 
     std::array<std::optional<Texture>*, 5> textures = {&m_materialData.BaseColor,
-                                                           &m_materialData.NormalTexture,
-                                                           &m_materialData.OcclusionTexture,
-                                                           &m_materialData.RoughMetallic,
-                                                           &m_materialData.Emissive};
-
-    for (auto* textureOpt : textures)
-    {
-        if (textureOpt->has_value())
-        {
-            auto& texture = textureOpt->value();
-            texture.ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            texture.ImageInfo.imageView = texture.TextureImageView;
-            texture.ImageInfo.sampler = VK_NULL_HANDLE;
-        }
-    }
+                                                       &m_materialData.NormalTexture,
+                                                       &m_materialData.OcclusionTexture,
+                                                       &m_materialData.RoughMetallic,
+                                                       &m_materialData.Emissive};
 
     m_materialInfo.HasEmissiveMap = m_materialData.Emissive.has_value();
     m_materialInfo.HasMetallicMap = m_materialData.RoughMetallic.has_value();
@@ -199,8 +182,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
 void Material::cleanup()
 {
-    if (m_sampler != VK_NULL_HANDLE)
-        vkDestroySampler(nijiEngine.m_context.m_device, m_sampler, nullptr);
+    m_sampler.cleanup();
 
     if (m_materialData.BaseColor.has_value())
         m_materialData.BaseColor->cleanup();

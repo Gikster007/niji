@@ -12,6 +12,8 @@ using namespace niji;
 
 void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 {
+    m_name = "Forward Pass";
+
     // Create Pass Data Buffer
     VkDeviceSize bufferSize = sizeof(DebugSettings);
 
@@ -53,8 +55,39 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         samplerBinding.Sampler = nullptr;
         descriptorInfo.Bindings.push_back(samplerBinding);
 
+        {
+            DescriptorBinding samplerBinding = {};
+            samplerBinding.Type = DescriptorBinding::BindType::SAMPLER;
+            samplerBinding.Count = 1;
+            samplerBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+            samplerBinding.Sampler = nullptr;
+            descriptorInfo.Bindings.push_back(samplerBinding);
+
+            SamplerDesc desc = {};
+            desc.MagFilter = SamplerDesc::Filter::LINEAR;
+            desc.MinFilter = SamplerDesc::Filter::LINEAR;
+            desc.AddressModeU = SamplerDesc::AddressMode::EDGE_CLAMP;
+            desc.AddressModeV = SamplerDesc::AddressMode::EDGE_CLAMP;
+            desc.AddressModeW = SamplerDesc::AddressMode::EDGE_CLAMP;
+            desc.EnableAnisotropy = true;
+            desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+
+            m_sampler = Sampler(desc);
+        }
+
+
         // bindings 3–7 = individual sampled images
         for (size_t i = 0; i < 5; ++i)
+        {
+            DescriptorBinding textureBinding = {};
+            textureBinding.Type = DescriptorBinding::BindType::TEXTURE;
+            textureBinding.Count = 1;
+            textureBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+            textureBinding.Sampler = nullptr;
+            descriptorInfo.Bindings.push_back(textureBinding);
+        }
+        // bindings 8-10 = IBL Images (specular, diffuse, brdf LUT)
+        for (size_t i = 0; i < 3; ++i)
         {
             DescriptorBinding textureBinding = {};
             textureBinding.Type = DescriptorBinding::BindType::TEXTURE;
@@ -106,11 +139,12 @@ void ForwardPass::update(Renderer& renderer)
 {
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
-    static auto startTime = std::chrono::high_resolution_clock::now();
+    /*static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time =
-        std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        std::chrono::duration<float, std::chrono::seconds::period>(currentTime -
+    startTime).count();*/
 
     {
         int currentIndex = static_cast<int>(m_debugSettings.RenderMode);
@@ -159,6 +193,9 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
+    info.ColorAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+
     cmd.begin_rendering(info);
 
     cmd.bind_pipeline(m_pipeline.PipelineObject);
@@ -202,17 +239,39 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
             m_passDescriptor.m_info.Bindings[2].Resource = &material.m_sampler;
 
+            m_passDescriptor.m_info.Bindings[3].Resource = &m_sampler;
+
             std::array<std::optional<Texture>*, 5> textures = {
                 &material.m_materialData.BaseColor, &material.m_materialData.NormalTexture,
                 &material.m_materialData.OcclusionTexture, &material.m_materialData.RoughMetallic,
                 &material.m_materialData.Emissive};
 
-            // -- Textures (binding 3..7)
+            // Model Textures (binding 3..7)
             for (size_t i = 0; i < 5; ++i)
             {
                 bool hasValue = textures[i]->has_value();
-                m_passDescriptor.m_info.Bindings[3 + i].Resource =
+                m_passDescriptor.m_info.Bindings[4 + i].Resource =
                     hasValue ? &(textures[i]->value()) : &renderer.m_fallbackTexture;
+            }
+            // IBL Textures (binding 8..10)
+            if (renderer.m_envmap)
+            {
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 0].Resource =
+                    &renderer.m_envmap->m_specularCubemap;
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 1].Resource =
+                    &renderer.m_envmap->m_diffuseCubemap;
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 2].Resource =
+                    &renderer.m_envmap->m_brdfTexture;
+            }
+            else
+            {
+                printf("\nWARNING: Envmap is Null! \n");
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 0].Resource =
+                    &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 1].Resource =
+                    &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[(size_t)9 + 2].Resource =
+                    &renderer.m_fallbackTexture;
             }
 
             std::vector<VkWriteDescriptorSet> writes = {};
@@ -238,4 +297,5 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 void ForwardPass::cleanup()
 {
     base_cleanup();
+    m_sampler.cleanup();
 }
