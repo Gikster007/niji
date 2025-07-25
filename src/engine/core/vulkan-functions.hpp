@@ -6,6 +6,7 @@ extern PFN_vkSetDebugUtilsObjectNameEXT VKSetDebugUtilsObjectNameEXT;
 extern PFN_vkCmdPipelineBarrier2KHR VKCmdPipelineBarrier2KHR;
 extern PFN_vkCmdPushDescriptorSetKHR VKCmdPushDescriptorSetKHR;
 extern PFN_vkCmdBeginDebugUtilsLabelEXT VKCmdBeginDebugUtilsLabelEXT;
+extern PFN_vkCmdEndDebugUtilsLabelEXT VKCmdEndDebugUtilsLabelEXT;
 
 namespace niji
 {

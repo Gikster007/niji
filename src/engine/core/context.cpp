@@ -214,9 +214,7 @@ std::vector<const char*> Context::get_required_extensions()
     glfwExt = glfwGetRequiredInstanceExtensions(&glfwExtCount);
 
     std::vector<const char*> extensions(glfwExt, glfwExt + glfwExtCount);
-
-    if (ENABLE_VALIDATION_LAYERS)
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     return extensions;
 }
@@ -234,9 +232,6 @@ Context::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 
 void Context::setup_debug_messenger()
 {
-    if (!ENABLE_VALIDATION_LAYERS)
-        return;
-
     VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
     populate_debug_messenger_create_info(createInfo);
 
@@ -249,7 +244,6 @@ void Context::setup_debug_messenger()
 
 void Context::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
-    createInfo = {};
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
@@ -543,7 +537,8 @@ void Context::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
 void Context::create_texture_image_view(Texture& texture)
 {
     texture.TextureImageView =
-        create_image_view(texture.TextureImage, texture.Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT, texture.Desc.Mips, texture.Desc.Layers);
+        create_image_view(texture.TextureImage, texture.Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
+                          texture.Desc.Mips, texture.Desc.Layers);
 }
 
 void Context::create_image(uint32_t width, uint32_t height, uint32_t mipLevels,
@@ -597,8 +592,8 @@ VkImageView Context::create_image_view(VkImage image, VkFormat format,
 }
 
 void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                            VkImageLayout newLayout, uint32_t mipLevels,
-                                            uint32_t layerCount)
+                                      VkImageLayout newLayout, uint32_t mipLevels,
+                                      uint32_t layerCount)
 {
     VkCommandBuffer commandBuffer = begin_single_time_commands();
 
@@ -689,7 +684,7 @@ void Context::copy_buffer_to_image(VkBuffer srcBuffer, VkImage dstImage, uint32_
 }
 
 void Context::generateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height,
-                                    uint32_t mipLevels)
+                              uint32_t mipLevels)
 {
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;

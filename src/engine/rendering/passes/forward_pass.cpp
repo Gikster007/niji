@@ -182,7 +182,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     info.ColorAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
-    cmd.begin_rendering(info);
+    cmd.begin_rendering(info, m_name);
 
     cmd.bind_pipeline(m_pipeline.PipelineObject);
 

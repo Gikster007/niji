@@ -90,7 +90,7 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     // Render on top of what's already there
     info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
-    cmd.begin_rendering(info);
+    cmd.begin_rendering(info, m_name);
 
     ImGui::Render();
 

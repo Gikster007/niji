@@ -33,7 +33,7 @@ void CommandList::begin_list(const char* debugName) const
     if (vkBeginCommandBuffer(m_commandBuffer, &beginInfo) != VK_SUCCESS)
         throw std::runtime_error("Failed to begin recording command buffer!");
 
-    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer,
+    /*SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer,
                   debugName);
 
     VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
@@ -44,11 +44,23 @@ void CommandList::begin_list(const char* debugName) const
     labelInfo.color[3] = 1.0f;
 
     if (VKCmdBeginDebugUtilsLabelEXT)
-        VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
+        VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);*/
 }
 
-void CommandList::begin_rendering(const RenderInfo& info) const
+void CommandList::begin_rendering(const RenderInfo& info, const std::string& passName) const
 {
+    /*SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_RENDER_PASS, m_commandBuffer,
+                  debugName);*/
+
+    VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
+    labelInfo.pLabelName = passName.c_str();
+    labelInfo.color[0] = 0.2f;
+    labelInfo.color[1] = 0.6f;
+    labelInfo.color[2] = 0.9f;
+    labelInfo.color[3] = 1.0f;
+
+    VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
+
     VkRenderingAttachmentInfoKHR colorAttachment = {};
     const auto& src = info.ColorAttachment;
 
@@ -166,6 +178,8 @@ void CommandList::end_rendering(const RenderInfo& info) const
         transition_image(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
     }
+
+    VKCmdEndDebugUtilsLabelEXT(m_commandBuffer);
 }
 
 void CommandList::end_list() const
