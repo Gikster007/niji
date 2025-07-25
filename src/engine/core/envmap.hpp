@@ -25,5 +25,6 @@ class Envmap
     Texture m_specularCubemap = {};
     Texture m_diffuseCubemap = {};
     Texture m_brdfTexture = {};
+    Sampler m_sampler = {};
 };
 } // namespace niji

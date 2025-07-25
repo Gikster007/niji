@@ -150,6 +150,7 @@ struct TextureDesc
         CUBEMAP
     } Type = TextureType::NONE;
 
+    bool IsMipMapped = false;
     uint32_t Mips = 1;
     uint32_t Layers = 1;
 
@@ -206,6 +207,7 @@ struct SamplerDesc
     } MipmapMode = MipMapMode::NONE;
 
     bool EnableAnisotropy = false;
+    uint32_t MaxMips = 0;
 };
 
 struct Sampler

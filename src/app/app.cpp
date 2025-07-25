@@ -14,8 +14,8 @@ App::App()
     t.SetScale({0.01f, 0.01f, 0.01f});
     t.SetRotation(glm::quat(glm::vec3(glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f))));
 
-    m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb", entity));
-    //m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
+    //m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb", entity));
+    m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
 
     m_envmap = niji::Envmap("assets/environments/footprint_court");
     renderer.set_envmap(m_envmap);

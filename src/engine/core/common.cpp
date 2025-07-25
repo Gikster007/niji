@@ -415,19 +415,26 @@ Texture::Texture(const TextureDesc& desc) : Desc(desc)
     const VkImageCreateFlags flags =
         desc.Type == TextureDesc::TextureType::CUBEMAP ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 
-    nijiEngine.m_context.create_image(desc.Width, desc.Height, desc.Mips, desc.Layers, desc.Format,
-                                      VK_IMAGE_TILING_OPTIMAL, desc.Usage, desc.MemoryUsage, flags,
+    if (Desc.IsMipMapped)
+    {
+        Desc.Mips =
+            static_cast<uint32_t>(std::floor(std::log2(std::max(Desc.Width, desc.Height)))) + 1;
+        Desc.Usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    }
+
+    nijiEngine.m_context.create_image(Desc.Width, Desc.Height, Desc.Mips, Desc.Layers, Desc.Format,
+                                      VK_IMAGE_TILING_OPTIMAL, Desc.Usage, Desc.MemoryUsage, flags,
                                       TextureImage, TextureImageAllocation);
 
-    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
+    nijiEngine.m_context.transition_image_layout(TextureImage, Desc.Format,
                                                  VK_IMAGE_LAYOUT_UNDEFINED,
-                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, desc.Mips,
-                                                 desc.Layers);
-    if (!desc.Data)
+                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Desc.Mips,
+                                                 Desc.Layers);
+    if (!Desc.Data)
         throw std::runtime_error("2D texture creation failed, no pixel data provided!");
 
     const VkDeviceSize imageSize =
-        static_cast<VkDeviceSize>(desc.Width) * desc.Height * desc.Channels;
+        static_cast<VkDeviceSize>(Desc.Width) * Desc.Height * Desc.Channels;
 
     VkBuffer stagingBuffer = {};
     VmaAllocation stagingAlloc = {};
@@ -436,23 +443,27 @@ Texture::Texture(const TextureDesc& desc) : Desc(desc)
 
     void* data = nullptr;
     vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &data);
-    memcpy(data, desc.Data, static_cast<size_t>(imageSize));
+    memcpy(data, Desc.Data, static_cast<size_t>(imageSize));
     vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
-    stbi_image_free((void*)desc.Data);
+    stbi_image_free((void*)Desc.Data);
 
-    nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, desc.Width, desc.Height,
-                                              desc.Layers, 0, 0);
+    nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, Desc.Width, Desc.Height,
+                                              Desc.Layers, 0, 0);
 
     vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
 
-    nijiEngine.m_context.transition_image_layout(TextureImage, desc.Format,
-                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                 desc.Mips, desc.Layers);
+    if (!Desc.IsMipMapped)
+        nijiEngine.m_context.transition_image_layout(TextureImage, Desc.Format,
+                                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                     Desc.Mips, Desc.Layers);
+    else if (Desc.IsMipMapped)
+        nijiEngine.m_context.generateMipmaps(TextureImage, Desc.Format, Desc.Width, Desc.Height,
+                                             Desc.Mips);
 
     TextureImageView =
-        nijiEngine.m_context.create_image_view(TextureImage, desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
-                                               desc.Mips, desc.Layers);
+        nijiEngine.m_context.create_image_view(TextureImage, Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
+                                               Desc.Mips, Desc.Layers);
 
     ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     ImageInfo.imageView = TextureImageView;
@@ -560,7 +571,6 @@ Texture::Texture(const TextureDesc& desc, const std::string& path)
             const uint32_t mipHeight = desc.Height;
             const VkDeviceSize mipSize =
                 static_cast<VkDeviceSize>(mipWidth) * mipHeight * desc.Channels * sizeof(float);
-
 
             VkBuffer stagingBuffer = {};
             VmaAllocation stagingAlloc = {};
@@ -725,7 +735,7 @@ Sampler::Sampler(const SamplerDesc& desc)
     samplerInfo.mipmapMode = to_vk(desc.MipmapMode);
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    samplerInfo.maxLod = static_cast<float>(desc.MaxMips);
 
     if (vkCreateSampler(nijiEngine.m_context.m_device, &samplerInfo, nullptr, &Handle) !=
         VK_SUCCESS)

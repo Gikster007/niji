@@ -84,6 +84,7 @@ void Renderer::init()
         desc.Height = height;
         desc.Channels = 4;
         desc.Data = imageData;
+        desc.IsMipMapped = true;
         desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
         desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
         desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;

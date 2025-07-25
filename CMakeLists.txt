@@ -46,7 +46,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         OUTPUT ${VERT_OUT}
         COMMAND ${CMAKE_COMMAND} -E echo "Compiling vertex shader: ${FILE_NAME}"
         COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMAND slangc ${SLANG_FILE} -g -entry vertex_main -profile vs_6_0 -target spirv -o ${VERT_OUT}
+        COMMAND slangc ${SLANG_FILE} -entry vertex_main -profile vs_6_0 -target spirv -o ${VERT_OUT} -g 
         DEPENDS ${SLANG_FILE}
         VERBATIM
     )
@@ -58,7 +58,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         OUTPUT ${FRAG_OUT}
         COMMAND ${CMAKE_COMMAND} -E echo "Compiling fragment shader: ${FILE_NAME}"
         COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMAND slangc ${SLANG_FILE} -g -entry fragment_main -profile ps_6_0 -target spirv -o ${FRAG_OUT}
+        COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile ps_6_0 -target spirv -o ${FRAG_OUT} -g
         DEPENDS ${SLANG_FILE}
         VERBATIM
     )

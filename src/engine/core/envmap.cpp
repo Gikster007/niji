@@ -47,6 +47,18 @@ void Envmap::LoadSpecular(const std::string& path, const int mips)
 
     m_specularCubemap = Texture(desc, path);
 
+    SamplerDesc samplerDesc = {};
+    samplerDesc.MagFilter = SamplerDesc::Filter::LINEAR;
+    samplerDesc.MinFilter = SamplerDesc::Filter::LINEAR;
+    samplerDesc.AddressModeU = SamplerDesc::AddressMode::EDGE_CLAMP;
+    samplerDesc.AddressModeV = SamplerDesc::AddressMode::EDGE_CLAMP;
+    samplerDesc.AddressModeW = SamplerDesc::AddressMode::EDGE_CLAMP;
+    samplerDesc.EnableAnisotropy = true;
+    samplerDesc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+    samplerDesc.MaxMips = mips;
+
+    m_sampler = Sampler(samplerDesc);
+
     printf("\n[Envmap] Specular Map has loaded Successfully! \n");
 }
 
@@ -110,4 +122,5 @@ void Envmap::cleanup()
     m_specularCubemap.cleanup();
     m_diffuseCubemap.cleanup();
     m_brdfTexture.cleanup();
+    m_sampler.cleanup();
 }

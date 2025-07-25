@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include "render_pass.hpp"
 
@@ -17,9 +17,8 @@ class ForwardPass final : public RenderPass
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
 
-    private:
+  private:
     DebugSettings m_debugSettings = {};
-      Sampler m_sampler = {};
 };
 
 } // namespace niji

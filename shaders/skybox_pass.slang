@@ -35,7 +35,6 @@ VertexOutput vertex_main(SkyboxInput input)
 
     float4x4 pvm = mul(Proj, view4);
     output.Position = mul(pvm, float4(input.Position, 1.0f));
-    //output.Position = output.Position.xyww;
     output.TexCoord = input.Position;
     return output;
 }

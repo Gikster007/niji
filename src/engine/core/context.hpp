@@ -97,7 +97,6 @@ class Context
 
     void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
-    Texture create_texture_image(unsigned char* pixels, int width, int height, int channels);
     void create_texture_image_view(Texture& texture);
     void create_image(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers,
                       VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -109,6 +108,8 @@ class Context
                                  VkImageLayout newLayout, uint32_t mipLevels, uint32_t layerCount);
     void copy_buffer_to_image(VkBuffer srcBuffer, VkImage dstImage, uint32_t width, uint32_t height,
                               uint32_t layerCount, uint32_t baseArrayLayer, uint32_t mipLevel);
+    void generateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height,
+                         uint32_t mipLevels);
 
   private:
     GLFWwindow* m_window = nullptr;

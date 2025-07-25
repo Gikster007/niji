@@ -55,26 +55,12 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         samplerBinding.Sampler = nullptr;
         descriptorInfo.Bindings.push_back(samplerBinding);
 
-        {
-            DescriptorBinding samplerBinding = {};
-            samplerBinding.Type = DescriptorBinding::BindType::SAMPLER;
-            samplerBinding.Count = 1;
-            samplerBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
-            samplerBinding.Sampler = nullptr;
-            descriptorInfo.Bindings.push_back(samplerBinding);
-
-            SamplerDesc desc = {};
-            desc.MagFilter = SamplerDesc::Filter::LINEAR;
-            desc.MinFilter = SamplerDesc::Filter::LINEAR;
-            desc.AddressModeU = SamplerDesc::AddressMode::EDGE_CLAMP;
-            desc.AddressModeV = SamplerDesc::AddressMode::EDGE_CLAMP;
-            desc.AddressModeW = SamplerDesc::AddressMode::EDGE_CLAMP;
-            desc.EnableAnisotropy = true;
-            desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
-
-            m_sampler = Sampler(desc);
-        }
-
+        DescriptorBinding samplerBinding2 = {};
+        samplerBinding2.Type = DescriptorBinding::BindType::SAMPLER;
+        samplerBinding2.Count = 1;
+        samplerBinding2.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        samplerBinding2.Sampler = nullptr;
+        descriptorInfo.Bindings.push_back(samplerBinding2);
 
         // bindings 3–7 = individual sampled images
         for (size_t i = 0; i < 5; ++i)
@@ -239,7 +225,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
             m_passDescriptor.m_info.Bindings[2].Resource = &material.m_sampler;
 
-            m_passDescriptor.m_info.Bindings[3].Resource = &m_sampler;
+            m_passDescriptor.m_info.Bindings[3].Resource = &renderer.m_envmap->m_sampler;
 
             std::array<std::optional<Texture>*, 5> textures = {
                 &material.m_materialData.BaseColor, &material.m_materialData.NormalTexture,
@@ -297,5 +283,4 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 void ForwardPass::cleanup()
 {
     base_cleanup();
-    m_sampler.cleanup();
 }

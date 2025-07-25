@@ -43,6 +43,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
     }
     auto& material = model.materials[primitive.materialIndex.value()];
 
+    int largestWidth = 1, largestHeight = 1;
+
     auto loadTexture = [&](const auto& textureInfo) -> std::optional<Texture> {
         size_t textureIndex = {};
 
@@ -119,10 +121,14 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             return std::nullopt;
         }
 
+        largestWidth = width > largestWidth ? width : largestWidth;
+        largestHeight = height > largestHeight ? height : largestHeight;
+
         TextureDesc desc = {};
         desc.Width = width;
         desc.Height = height;
         desc.Channels = 4;
+        desc.IsMipMapped = true;
         desc.Data = imageData;
         desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
         desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -158,6 +164,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
         desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
         desc.EnableAnisotropy = true;
+        desc.MaxMips =
+            static_cast<uint32_t>(std::floor(std::log2(std::max(largestWidth, largestHeight)))) + 1;
         desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
         
         m_sampler = Sampler(desc);
