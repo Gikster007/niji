@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <nlohmann/json.hpp>
 
 #include "rendering/model/model.hpp"
 
@@ -21,6 +22,23 @@ struct DirectionalLight
     glm::vec3 Color = {1.0f, 1.0f, 1.0f};
     float Intensity = 1.0f;
 };
+
+using json = nlohmann::json;
+inline void to_json(json& j, const DirectionalLight& light)
+{
+    j = json{{"Direction", {light.Direction.x, light.Direction.y, light.Direction.z}},
+             {"Color", {light.Color.x, light.Color.y, light.Color.z}},
+             {"Intensity", light.Intensity}};
+}
+
+inline void from_json(const json& j, DirectionalLight& light)
+{
+    auto& dir = j.at("Direction");
+    auto& col = j.at("Color");
+    light.Direction = glm::vec3(dir[0], dir[1], dir[2]);
+    light.Color = glm::vec3(col[0], col[1], col[2]);
+    light.Intensity = j.at("Intensity");
+}
 
 // Each "Scene" Has Exactly 1 Directional Light, and it Stores Other Relevant Data (such as amount
 // of point lights, etc.)
@@ -46,6 +64,23 @@ struct PointLight
     float _pad0 = -1.0f;
     float _pad1 = -1.0f;
 };
+
+inline void to_json(nlohmann::json& j, const PointLight& light)
+{
+    j = json{{"Position", {light.Position.x, light.Position.y, light.Position.z}},
+             {"Color", {light.Color.x, light.Color.y, light.Color.z}},
+             {"Intensity", light.Intensity},
+             {"Range", light.Range}};
+}
+inline void from_json(const nlohmann::json& j, PointLight& light)
+{
+    auto& pos = j.at("Position");
+    auto& col = j.at("Color");
+    light.Position = glm::vec3(pos[0], pos[1], pos[2]);
+    light.Color = glm::vec3(col[0], col[1], col[2]);
+    light.Intensity = j.at("Intensity");
+    light.Range = j.at("Range");
+}
 
 struct MeshComponent
 {

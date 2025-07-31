@@ -1,11 +1,14 @@
 #include "app.hpp"
 
+#include <nlohmann/json.hpp>
 #include <imgui.h>
 
 #include "../engine/core/components/render-components.hpp"
 #include "../engine/core/components/transform.hpp"
 #include "../engine/core/envmap.hpp"
 #include "../engine/engine.hpp"
+
+using json = nlohmann::json;
 
 App::App()
 {
@@ -17,7 +20,7 @@ App::App()
     t.SetScale({0.01f, 0.01f, 0.01f});
     t.SetRotation(glm::quat(glm::vec3(glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f))));
 
-    auto dirLightEntity = nijiEngine.ecs.create_entity();
+    /*auto dirLightEntity = nijiEngine.ecs.create_entity();
     auto& dirLight =
         nijiEngine.ecs.add_component<niji::DirectionalLight>(dirLightEntity,
                                                              glm::vec3(-0.4f, -1.0f, -1.0f),
@@ -39,7 +42,31 @@ App::App()
     auto& pointLight3 =
         nijiEngine.ecs.add_component<niji::PointLight>(pointLightEntity3,
                                                        glm::vec3(10.8f, 1.6f, -0.3f),
-                                                       glm::vec3(0.6f, 0.1f, 0.1f), 20.0f, 2.0f);
+                                                       glm::vec3(0.6f, 0.1f, 0.1f), 20.0f, 2.0f);*/
+
+    // Load Lights from Fike
+    {
+        std::ifstream file("assets/lights.json");
+        if (!file.is_open())
+            return;
+
+        json root;
+        file >> root;
+
+        for (auto& j : root["PointLights"])
+        {
+            niji::PointLight light = j.get<niji::PointLight>();
+            auto ent = nijiEngine.ecs.create_entity();
+            nijiEngine.ecs.add_component<niji::PointLight>(ent, light);
+        }
+
+        for (auto& j : root["DirectionalLights"])
+        {
+            niji::DirectionalLight light = j.get<niji::DirectionalLight>();
+            auto ent = nijiEngine.ecs.create_entity();
+            nijiEngine.ecs.add_component<niji::DirectionalLight>(ent, light);
+        }
+    }
 
     // m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb",
     // entity));
@@ -110,6 +137,23 @@ void App::render()
 
 void App::cleanup()
 {
+    // Save Lights to File
+    {
+        json root;
+
+        auto pointView = nijiEngine.ecs.m_registry.view<niji::PointLight>();
+        for (const auto& [ent, light] : pointView.each())
+            root["PointLights"].push_back(light);
+
+        auto dirView = nijiEngine.ecs.m_registry.view<niji::DirectionalLight>();
+        for (const auto& [ent, light] : dirView.each())
+            root["DirectionalLights"].push_back(light);
+
+        std::ofstream file("assets/lights.json");
+        if (file.is_open())
+            file << root.dump(4); // pretty print
+    }
+
     for (auto& model : m_models)
     {
         // Hacky af but if it works, it works

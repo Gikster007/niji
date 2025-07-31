@@ -38,6 +38,11 @@ set_target_properties(glfw PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/lib/glfw/include
 )
 
+# nlohmann::json
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+target_link_libraries(niji PRIVATE nlohmann_json::nlohmann_json)
 
 # STB_Image
 # https://github.com/nothings/stb/blob/master/stb_image.h
