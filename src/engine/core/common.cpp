@@ -20,7 +20,8 @@ Buffer::Buffer(BufferDesc& desc, void* data)
     VkBufferUsageFlags usageFlags = {};
     VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    if (desc.Usage != BufferDesc::BufferUsage::Uniform)
+    if (desc.Usage != BufferDesc::BufferUsage::Uniform &&
+        desc.Usage != BufferDesc::BufferUsage::Storage)
     {
         usageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         nijiEngine.m_context.create_buffer(desc.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -60,12 +61,14 @@ Buffer::Buffer(BufferDesc& desc, void* data)
                                        desc.IsPersistent);
     vmaSetAllocationName(nijiEngine.m_context.m_allocator, BufferAllocation, desc.Name);
 
-    if (desc.Usage != BufferDesc::BufferUsage::Uniform)
+    if (desc.Usage != BufferDesc::BufferUsage::Uniform &&
+        desc.Usage != BufferDesc::BufferUsage::Storage)
     {
         nijiEngine.m_context.copy_buffer(stagingBuffer, Handle, desc.Size);
         vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
     }
-    else if (desc.Usage == BufferDesc::BufferUsage::Uniform || desc.Usage == BufferDesc::BufferUsage::Storage)
+    else if (desc.Usage == BufferDesc::BufferUsage::Uniform ||
+             desc.Usage == BufferDesc::BufferUsage::Storage)
     {
         vmaMapMemory(nijiEngine.m_context.m_allocator, BufferAllocation, &Data);
         Mapped = true;

@@ -73,7 +73,9 @@ struct PointLight
     float _pad1;
 
     float Intensity;
-    float Range; // 40 bytes
+    float Range; 
+    float _pad2;
+    float _pad3;
 }
 
 // Set = 1, Binding = 1

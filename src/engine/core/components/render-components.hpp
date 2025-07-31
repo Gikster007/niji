@@ -42,6 +42,9 @@ struct PointLight
     glm::vec3 Color = {1.0f, 0.0f, 0.0f};
     float Intensity = 1.0f;
     float Range = 1.0f;
+
+    float _pad0 = -1.0f;
+    float _pad1 = -1.0f;
 };
 
 struct MeshComponent

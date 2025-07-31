@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include <vk_mem_alloc.h>
 #include <imgui.h>
 
 #include "../../core/components/render-components.hpp"
@@ -52,13 +53,13 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         m_pointLightBuffer.resize(MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            PointLight buffer = {};
+            std::array<PointLight, MAX_POINT_LIGHTS> buffer = {};
             BufferDesc bufferDesc = {};
             bufferDesc.IsPersistent = true;
             bufferDesc.Name = "Directional Lights Data";
             bufferDesc.Size = sizeof(PointLight) * MAX_POINT_LIGHTS;
             bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
-            m_pointLightBuffer[i] = Buffer(bufferDesc, &buffer);
+            m_pointLightBuffer[i] = Buffer(bufferDesc, nullptr);
         }
     }
 

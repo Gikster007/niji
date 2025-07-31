@@ -12,6 +12,8 @@ typedef VmaAllocator_T* VmaAllocator;
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
+typedef VkFlags VmaAllocationCreateFlags;
+
 enum VmaMemoryUsage;
 
 class CameraSystem;
