@@ -30,6 +30,9 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
             case DescriptorBinding::BindType::TEXTURE:
                 b.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
                 break;
+            case DescriptorBinding::BindType::STORAGE_BUFFER:
+                b.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                break;
             default:
                 throw std::runtime_error("Invalid Descriptor Binding Type!");
                 break;
@@ -107,7 +110,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
 
             // 4. Write to descriptor set
             std::vector<VkWriteDescriptorSet> writes = {};
-            VkDescriptorBufferInfo uboInfo = {};
+            VkDescriptorBufferInfo bufferInfo = {};
             for (int j = 0; j < info.Bindings.size(); j++)
             {
                 const auto& binding = info.Bindings[j];
@@ -125,9 +128,9 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 std::vector<Buffer>& arr = *res;
                                 for (const auto& buffer : arr)
                                 {
-                                    uboInfo.buffer = buffer.Handle;
-                                    uboInfo.offset = 0;
-                                    uboInfo.range = buffer.Desc.Size;
+                                    bufferInfo.buffer = buffer.Handle;
+                                    bufferInfo.offset = 0;
+                                    bufferInfo.range = buffer.Desc.Size;
 
                                     VkWriteDescriptorSet write = {};
                                     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -136,7 +139,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                     write.dstArrayElement = 0;
                                     write.descriptorCount = binding.Count;
                                     write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                                    write.pBufferInfo = &uboInfo;
+                                    write.pBufferInfo = &bufferInfo;
                                     writes.push_back(write);
                                 }
                             }
@@ -193,6 +196,33 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 write.pBufferInfo = nullptr;
                                 write.pTexelBufferView = nullptr;
                                 writes.push_back(write);
+                            }
+                        },
+                        binding.Resource);
+                    break;
+                case DescriptorBinding::BindType::STORAGE_BUFFER:
+                    std::visit(
+                        [&](auto&& res) {
+                            using T = std::decay_t<decltype(res)>;
+                            if constexpr (std::is_same_v<T, std::vector<Buffer>*>)
+                            {
+                                std::vector<Buffer>& arr = *res;
+                                for (const auto& buffer : arr)
+                                {
+                                    bufferInfo.buffer = buffer.Handle;
+                                    bufferInfo.offset = 0;
+                                    bufferInfo.range = buffer.Desc.Size;
+
+                                    VkWriteDescriptorSet write = {};
+                                    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                                    write.dstSet = m_set[i];
+                                    write.dstBinding = j;
+                                    write.dstArrayElement = 0;
+                                    write.descriptorCount = binding.Count;
+                                    write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                                    write.pBufferInfo = &bufferInfo;
+                                    writes.push_back(write);
+                                }
                             }
                         },
                         binding.Resource);
@@ -267,6 +297,20 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
 
             write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             write.pImageInfo = &imageInfos.back();
+            break;
+        }
+        case DescriptorBinding::BindType::STORAGE_BUFFER: {
+            auto* buffer = std::get<Buffer*>(binding.Resource);
+
+            VkDescriptorBufferInfo bufferInfo = {};
+            bufferInfo.buffer = buffer ? buffer->Handle : VK_NULL_HANDLE;
+            bufferInfo.offset = 0;
+            bufferInfo.range = buffer ? buffer->Desc.Size : 0;
+
+            bufferInfos.push_back(bufferInfo);
+
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            write.pBufferInfo = &bufferInfos.back();
             break;
         }
         default:

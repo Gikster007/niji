@@ -19,6 +19,8 @@ class ForwardPass final : public RenderPass
 
   private:
     DebugSettings m_debugSettings = {};
+    std::vector<Buffer> m_sceneInfoBuffer = {};
+    std::vector<Buffer> m_pointLightBuffer = {};
 };
 
 } // namespace niji

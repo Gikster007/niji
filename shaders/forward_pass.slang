@@ -21,8 +21,8 @@ struct MaterialInfo
     int _padding[4];
 }
 
-// Set = 1, Binding = 1
-[[vk::binding(1, 1)]]
+// Set = 1, Binding = 3
+[[vk::binding(3, 1)]]
 cbuffer ModelData
 {
     float4x4 Model;
@@ -55,31 +55,65 @@ cbuffer RenderFlags
     RenderFlags renderMode;
 }
 
+struct DirectionalLight
+{
+    float3 Direction;
+    float _pad0;
+    float3 Color;
+    float _pad1;
+
+    float Intensity; // 36 bytes
+}
+
+struct PointLight
+{
+    float3 Position;
+    float _pad0;
+    float3 Color;
+    float _pad1;
+
+    float Intensity;
+    float Range; // 40 bytes
+}
+
+// Set = 1, Binding = 1
+[[vk::binding(1, 1)]]
+cbuffer SceneInfo
+{
+    DirectionalLight dirLight;
+    int PointLightCount;
+    int2 _pad2; // 64 bytes
+}
+
 // Set = 1, Binding = 2
 [[vk::binding(2, 1)]]
-SamplerState linearSampler; 
-// Set = 1, Binding = 3
-[[vk::binding(3, 1)]]
+StructuredBuffer<PointLight> pointLights;
+
+// Set = 1, Binding = 4
+[[vk::binding(4, 1)]]
+SamplerState linearSampler;
+// Set = 1, Binding = 5
+[[vk::binding(5, 1)]]
 SamplerState iblSampler;
 
-// Set = 1, Binding = 3..7
-[[vk::binding(4, 1)]]
-Texture2D baseColor;
-[[vk::binding(5, 1)]]
-Texture2D normalMap;
+// Set = 1, Binding = 6..10
 [[vk::binding(6, 1)]]
-Texture2D occlusionMap;
+Texture2D baseColor;
 [[vk::binding(7, 1)]]
-Texture2D roughMetalMap;
+Texture2D normalMap;
 [[vk::binding(8, 1)]]
+Texture2D occlusionMap;
+[[vk::binding(9, 1)]]
+Texture2D roughMetalMap;
+[[vk::binding(10, 1)]]
 Texture2D emissiveMap;
 
-// Set = 1, Binding = 8..10
-[[vk::binding(9, 1)]]
-TextureCube<float4> specularCubemap;
-[[vk::binding(10, 1)]]
-TextureCube<float4> diffuseCubemap;
+// Set = 1, Binding = 11..13
 [[vk::binding(11, 1)]]
+TextureCube<float4> specularCubemap;
+[[vk::binding(12, 1)]]
+TextureCube<float4> diffuseCubemap;
+[[vk::binding(13, 1)]]
 Texture2D<float4> brdfLUT;
 
 struct VertexInput
@@ -165,7 +199,8 @@ float GeometrySmith(float NoV, float NoL, float k)
 
 float3 CalculateFRough(float3 F0, float ndotv, float roughness)
 {
-    return F0 + (max(float3(1.0f - roughness), F0) - F0) * pow(clamp(1.0f - ndotv, 0.0f, 1.0f), 5.0f);
+    return F0 +
+           (max(float3(1.0f - roughness), F0) - F0) * pow(clamp(1.0f - ndotv, 0.0f, 1.0f), 5.0f);
 }
 
 [shader("fragment")]
@@ -178,7 +213,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
     float3 normal = normalize(input.Normal);
 
-    float3 light = normalize(float3(-0.4f, -1.0f, -1.0f));
+    float3 light = normalize(dirLight.Direction);
 
     if (MatInfo.HasNormalMap == 1)
     {
@@ -211,9 +246,6 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 V = normalize(Pos - input.FragPosition.xyz);
         float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), albedo.rgb, metallic);
 
-        float3 lightColor = float3(1.0f);
-        float lightIntensity = 2.0f;
-
         float3 H = normalize(V + (-light));
 
         float ndotl = max(dot(normal, -light), 0.001f);
@@ -234,9 +266,43 @@ float4 fragment_main(VertexOutput input) : SV_Target
         kD *= 1.0f - metallic;
 
         float3 lightOut =
-            (kD * albedo.rgb * INVPI + specular) * lightColor * lightIntensity * ndotl;
+            (kD * albedo.rgb * INVPI + specular) * dirLight.Color * dirLight.Intensity * ndotl;
 
-        //float3 ambient = 0.4f * albedo.rgb;
+        // Point Light Contribution
+        for (int i = 0; i < PointLightCount; i++)
+        {
+            PointLight pointLight = pointLights[i];
+
+            float3 toLight = pointLight.Position - input.FragPosition.xyz;
+            float dist = length(toLight);
+            light = normalize(toLight);
+
+            float attenuation = saturate(1.0f - dist / pointLight.Range);
+            attenuation *= attenuation;
+
+            if (attenuation <= 0.01f)
+                continue;
+
+            ndotl = max(dot(normal, -light), 0.001f);
+
+            NDF = DistributionGGX(ndoth, roughness);
+            G = GeometrySmith(ndotv, ndotl, roughness);
+            F = F_schlick(F0, ndotv);
+
+            numerator = NDF * G * F;
+            denominator = 4.0f * ndotv * ndotl;
+            specular = max(numerator / denominator, 0.01f);
+
+            kS = F;
+            kD = 1.0f - kS;
+            kD *= 1.0f - metallic;
+
+            float3 pointLightRadiance = pointLight.Color * pointLight.Intensity * attenuation;
+
+            lightOut += (kD * albedo.rgb * INVPI + specular) * pointLightRadiance * ndotl;
+        }
+
+        // float3 ambient = 0.4f * albedo.rgb;
 
         // Environment Lighting
         float3 R = reflect(-V, normal);
@@ -244,13 +310,14 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 Kd = 1.0f - Ks;
         Kd *= 1.0f - metallic;
 
-        float3 prefilteredColor = pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
+        float3 prefilteredColor =
+            pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
         float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1 / 2.2f);
         float2 brdf = brdfLUT.Sample(iblSampler, float2(ndotv, roughness)).rg;
         float3 specularIBL = prefilteredColor * Ks; //* (F * brdf.x + brdf.y);
         float3 diffuse = albedo.rgb * irradiance.rgb;
         float3 ambient = (Kd * diffuse + specularIBL);
-        
+
         final = float4(lightOut + ambient + emissive.rgb, albedo.a);
         break;
     case RenderFlags::ALBEDO:

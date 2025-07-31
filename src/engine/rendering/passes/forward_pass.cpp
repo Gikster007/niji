@@ -15,18 +15,51 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     m_name = "Forward Pass";
 
     // Create Pass Data Buffer
-    VkDeviceSize bufferSize = sizeof(DebugSettings);
-
-    m_passBuffer.resize(MAX_FRAMES_IN_FLIGHT);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        DebugSettings ubo = {};
-        BufferDesc bufferDesc = {};
-        bufferDesc.IsPersistent = true;
-        bufferDesc.Name = "Forward Pass Data";
-        bufferDesc.Size = sizeof(DebugSettings);
-        bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
-        m_passBuffer[i] = Buffer(bufferDesc, &ubo);
+        VkDeviceSize bufferSize = sizeof(DebugSettings);
+        m_passBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            DebugSettings ubo = {};
+            BufferDesc bufferDesc = {};
+            bufferDesc.IsPersistent = true;
+            bufferDesc.Name = "Forward Pass Data";
+            bufferDesc.Size = sizeof(DebugSettings);
+            bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
+            m_passBuffer[i] = Buffer(bufferDesc, &ubo);
+        }
+    }
+
+    // Create Scene Info Buffer
+    {
+        VkDeviceSize bufferSize = sizeof(SceneInfo);
+        m_sceneInfoBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            SceneInfo ubo = {};
+            BufferDesc bufferDesc = {};
+            bufferDesc.IsPersistent = true;
+            bufferDesc.Name = "Scene Info Data";
+            bufferDesc.Size = sizeof(SceneInfo);
+            bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
+            m_sceneInfoBuffer[i] = Buffer(bufferDesc, &ubo);
+        }
+    }
+
+    // Create Point Light Buffer
+    {
+        VkDeviceSize bufferSize = sizeof(PointLight);
+        m_pointLightBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            PointLight buffer = {};
+            BufferDesc bufferDesc = {};
+            bufferDesc.IsPersistent = true;
+            bufferDesc.Name = "Directional Lights Data";
+            bufferDesc.Size = sizeof(PointLight) * MAX_POINT_LIGHTS;
+            bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
+            m_pointLightBuffer[i] = Buffer(bufferDesc, &buffer);
+        }
     }
 
     {
@@ -40,6 +73,22 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         passDataBinding.Sampler = nullptr;
         passDataBinding.Resource = &m_passBuffer;
         descriptorInfo.Bindings.push_back(passDataBinding);
+
+        DescriptorBinding dirLightBinding = {};
+        dirLightBinding.Type = DescriptorBinding::BindType::UBO;
+        dirLightBinding.Count = 1;
+        dirLightBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        dirLightBinding.Sampler = nullptr;
+        dirLightBinding.Resource = &m_sceneInfoBuffer;
+        descriptorInfo.Bindings.push_back(dirLightBinding);
+
+        DescriptorBinding pointLightBinding = {};
+        pointLightBinding.Type = DescriptorBinding::BindType::STORAGE_BUFFER;
+        pointLightBinding.Count = 1;
+        pointLightBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        pointLightBinding.Sampler = nullptr;
+        pointLightBinding.Resource = &m_pointLightBuffer;
+        descriptorInfo.Bindings.push_back(pointLightBinding);
 
         DescriptorBinding materialBinding = {};
         materialBinding.Type = DescriptorBinding::BindType::UBO;
@@ -153,6 +202,31 @@ void ForwardPass::update(Renderer& renderer)
     }
 
     {
+        std::vector<PointLight> pointLightsArray = {};
+
+        auto pointLightView = nijiEngine.ecs.m_registry.view<PointLight>();
+        for (const auto& [ent, pointLight] : pointLightView.each())
+        {
+            if (pointLightsArray.size() < MAX_POINT_LIGHTS)
+                pointLightsArray.push_back(pointLight);
+            else
+                printf("\nWARNING: Max Amount of Point Lights Reached!\n");
+        }
+        memcpy(m_pointLightBuffer[frameIndex].Data, pointLightsArray.data(),
+               sizeof(PointLight) * pointLightsArray.size());
+
+        auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
+        for (const auto& [ent, dirLight] : dirLightView.each())
+        {
+            SceneInfo sceneInfo = {};
+            sceneInfo.DirLight = dirLight;
+            sceneInfo.PointLightCount = pointLightsArray.size();
+
+            memcpy(m_sceneInfoBuffer[frameIndex].Data, &sceneInfo, sizeof(sceneInfo));
+        }
+    }
+
+    {
         ModelData ubo = {};
 
         auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
@@ -221,11 +295,15 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
         {
             m_passDescriptor.m_info.Bindings[0].Resource = &m_passBuffer[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[1].Resource = &material.m_data[frameIndex];
+            m_passDescriptor.m_info.Bindings[1].Resource = &m_sceneInfoBuffer[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[2].Resource = &material.m_sampler;
+            m_passDescriptor.m_info.Bindings[2].Resource = &m_pointLightBuffer[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[3].Resource = &renderer.m_envmap->m_sampler;
+            m_passDescriptor.m_info.Bindings[3].Resource = &material.m_data[frameIndex];
+
+            m_passDescriptor.m_info.Bindings[4].Resource = &material.m_sampler;
+
+            m_passDescriptor.m_info.Bindings[5].Resource = &renderer.m_envmap->m_sampler;
 
             std::array<std::optional<Texture>*, 5> textures = {
                 &material.m_materialData.BaseColor, &material.m_materialData.NormalTexture,
@@ -236,28 +314,25 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
             for (size_t i = 0; i < 5; ++i)
             {
                 bool hasValue = textures[i]->has_value();
-                m_passDescriptor.m_info.Bindings[4 + i].Resource =
+                m_passDescriptor.m_info.Bindings[6 + i].Resource =
                     hasValue ? &(textures[i]->value()) : &renderer.m_fallbackTexture;
             }
             // IBL Textures (binding 8..10)
             if (renderer.m_envmap)
             {
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 0].Resource =
+                m_passDescriptor.m_info.Bindings[11 + 0].Resource =
                     &renderer.m_envmap->m_specularCubemap;
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 1].Resource =
+                m_passDescriptor.m_info.Bindings[11 + 1].Resource =
                     &renderer.m_envmap->m_diffuseCubemap;
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 2].Resource =
+                m_passDescriptor.m_info.Bindings[11 + 2].Resource =
                     &renderer.m_envmap->m_brdfTexture;
             }
             else
             {
                 printf("\nWARNING: Envmap is Null! \n");
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 0].Resource =
-                    &renderer.m_fallbackTexture;
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 1].Resource =
-                    &renderer.m_fallbackTexture;
-                m_passDescriptor.m_info.Bindings[(size_t)9 + 2].Resource =
-                    &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[11 + 0].Resource = &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[11 + 1].Resource = &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[11 + 2].Resource = &renderer.m_fallbackTexture;
             }
 
             std::vector<VkWriteDescriptorSet> writes = {};
@@ -283,4 +358,14 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 void ForwardPass::cleanup()
 {
     base_cleanup();
+
+    for (int i = 0; i < m_sceneInfoBuffer.size(); i++)
+    {
+        m_sceneInfoBuffer[i].cleanup();
+    }
+
+    for (int i = 0; i < m_pointLightBuffer.size(); i++)
+    {
+        m_pointLightBuffer[i].cleanup();
+    }
 }

@@ -48,6 +48,10 @@ Buffer::Buffer(BufferDesc& desc, void* data)
         usageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         break;
+    case BufferDesc::BufferUsage::Storage:
+        usageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        break;
     default:
         break;
     }
@@ -61,7 +65,7 @@ Buffer::Buffer(BufferDesc& desc, void* data)
         nijiEngine.m_context.copy_buffer(stagingBuffer, Handle, desc.Size);
         vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
     }
-    else if (desc.Usage == BufferDesc::BufferUsage::Uniform)
+    else if (desc.Usage == BufferDesc::BufferUsage::Uniform || desc.Usage == BufferDesc::BufferUsage::Storage)
     {
         vmaMapMemory(nijiEngine.m_context.m_allocator, BufferAllocation, &Data);
         Mapped = true;

@@ -18,7 +18,8 @@ struct DescriptorBinding
         NONE,
         UBO,
         SAMPLER,
-        TEXTURE
+        TEXTURE,
+        STORAGE_BUFFER
 
     } Type = BindType::NONE;
 

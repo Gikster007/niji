@@ -84,8 +84,6 @@ add_custom_command(TARGET niji POST_BUILD
             ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:niji>/assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:niji>/shaders
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/textures $<TARGET_FILE_DIR:niji>/textures
     COMMENT "Copying assets and shaders folders to output directory"
 )
 

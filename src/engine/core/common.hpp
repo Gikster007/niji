@@ -108,6 +108,7 @@ struct BufferDesc
         Vertex,
         Index,
         Uniform,
+        Storage
     } Usage = {};
 
     bool IsPersistent = false;

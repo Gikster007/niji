@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include "../engine/core/components/render-components.hpp"
 #include "../engine/core/components/transform.hpp"
 #include "../engine/core/envmap.hpp"
 #include "../engine/engine.hpp"
@@ -13,6 +14,17 @@ App::App()
     // t.SetScale({1.0f, 1.0f, 1.0f});
     t.SetScale({0.01f, 0.01f, 0.01f});
     t.SetRotation(glm::quat(glm::vec3(glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f))));
+
+    auto dirLightEntity = nijiEngine.ecs.create_entity();
+    auto& dirLight =
+        nijiEngine.ecs.add_component<niji::DirectionalLight>(dirLightEntity, glm::vec3(-0.4f, -1.0f, -1.0f),
+                                                             glm::vec3(1.0f, 1.0f, 1.0f), 2.0f);
+
+    auto pointLightEntity = nijiEngine.ecs.create_entity();
+    auto& pointLight =
+        nijiEngine.ecs.add_component<niji::PointLight>(pointLightEntity,
+                                                             glm::vec3(-2.0f, 1.0f, 0.0f),
+                                                             glm::vec3(1.0f, 1.0f, 1.0f), 2.0f, 1.0f);
 
     //m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb", entity));
     m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
