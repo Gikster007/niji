@@ -15,6 +15,5 @@ class App : public niji::System
 
   private:
     std::vector<std::shared_ptr<niji::Model>> m_models = {};
-    niji::Entity m_camera = {};
     niji::Envmap m_envmap = {};
 };

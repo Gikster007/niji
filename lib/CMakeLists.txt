@@ -57,7 +57,7 @@ find_package(Vulkan REQUIRED)
 target_link_libraries(niji PRIVATE Vulkan::Vulkan)
 
 # Add ImGui
-# https://github.com/ocornut/imgui/tree/docking
+# https://github.com/ocornut/imgui/tree/docking & https://github.com/CedricGuillemet/ImGuizmo
 add_library(imgui
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_demo.cpp
@@ -66,6 +66,7 @@ add_library(imgui
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_widgets.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/backends/imgui_impl_vulkan.cpp
+    ${CMAKE_SOURCE_DIR}/lib/imgui/ImGuizmo.cpp
 )
 target_include_directories(imgui PUBLIC
     ${CMAKE_SOURCE_DIR}/lib/imgui

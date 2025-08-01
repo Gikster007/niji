@@ -1,12 +1,16 @@
 #include "app.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
 #include <nlohmann/json.hpp>
 #include <imgui.h>
+#include <ImGuizmo.h>
 
 #include "../engine/core/components/render-components.hpp"
 #include "../engine/core/components/transform.hpp"
 #include "../engine/core/envmap.hpp"
 #include "../engine/engine.hpp"
+
+#include "camera_system.hpp"
 
 using json = nlohmann::json;
 
@@ -65,6 +69,7 @@ App::~App()
 }
 
 // Partly from ChatGPT
+static int selectedPointLightIndex = -1;
 static void DrawLightEditor()
 {
     ImGui::Begin("Light Editor");
@@ -87,6 +92,15 @@ static void DrawLightEditor()
         for (auto [ent, light] : pointLightView.each())
         {
             std::string label = "PointLight " + std::to_string(i);
+            bool selected = (selectedPointLightIndex == i);
+
+            ImGui::PushID(static_cast<int>(i)); // Prevent ID collisions
+
+            /*if (ImGui::Selectable(label.c_str(), selected,
+                                   ImGuiSelectableFlags_::ImGuiSelectableFlags_Highlight))
+            {
+                selectedPointLightIndex = selected ? -1 : i;
+            }
 
             if (ImGui::TreeNode(label.c_str()))
             {
@@ -104,6 +118,71 @@ static void DrawLightEditor()
                 }
 
                 ImGui::TreePop();
+            }*/
+
+            // Combined foldout + selectable
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
+                                       /*ImGuiTreeNodeFlags_OpenOnDoubleClick |*/
+                                       (selected ? ImGuiTreeNodeFlags_Selected : 0);
+
+            bool open = ImGui::TreeNodeEx(label.c_str(), flags);
+
+            // Handle selection (on single click)
+            if (ImGui::IsItemClicked() && open)
+            {
+                selectedPointLightIndex = selected ? -1 : static_cast<int>(i);
+            }
+
+            if (open)
+            {
+                ImGui::DragFloat3("Position", &light.Position[0], 0.1f);
+                ImGui::ColorEdit3("Color", &light.Color[0]);
+                ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 100.0f);
+                ImGui::DragFloat("Range", &light.Range, 0.1f, 0.0f, 100.0f);
+
+                if (ImGui::Button("Delete"))
+                {
+                    toRemove.push_back(ent);
+                }
+
+                ImGui::TreePop();
+            }
+
+            ImGui::PopID();
+
+            // === ImGuizmo manipulation ===
+            if (selectedPointLightIndex == i)
+            {
+                auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+                auto& camera = cameraSystem.m_camera;
+
+                ImGuizmo::SetOrthographic(false);
+                ImGuizmo::BeginFrame();
+
+                ImDrawList* myDrawList = ImGui::GetForegroundDrawList();
+                ImGuizmo::SetDrawlist(myDrawList);
+
+                ImGuizmo::SetRect(ImGui::GetMainViewport()->WorkPos.x,
+                                  ImGui::GetMainViewport()->WorkPos.y,
+                                  ImGui::GetMainViewport()->WorkSize.x,
+                                  ImGui::GetMainViewport()->WorkSize.y);
+
+                glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light.Position);
+                glm::mat4 deltaMatrix = glm::mat4(1.0f);
+
+                ImGuizmo::Manipulate(glm::value_ptr(camera.GetViewMatrix()),
+                                     glm::value_ptr(camera.GetProjectionMatrix()),
+                                     ImGuizmo::TRANSLATE, ImGuizmo::LOCAL,
+                                     glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
+
+                if (ImGuizmo::IsUsing())
+                {
+                    // Extract translation from manipulated matrix
+                    glm::vec3 translation, rotation, scale;
+                    ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(modelMatrix),
+                                                          &translation.x, &rotation.x, &scale.x);
+                    light.Position = translation;
+                }
             }
 
             i++;
