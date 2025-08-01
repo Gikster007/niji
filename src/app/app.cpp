@@ -10,6 +10,30 @@
 
 using json = nlohmann::json;
 
+static void LoadLights()
+{
+    std::ifstream file("assets/lights.json");
+    if (!file.is_open())
+        return;
+
+    json root;
+    file >> root;
+
+    for (auto& j : root["PointLights"])
+    {
+        niji::PointLight light = j.get<niji::PointLight>();
+        auto ent = nijiEngine.ecs.create_entity();
+        nijiEngine.ecs.add_component<niji::PointLight>(ent, light);
+    }
+
+    for (auto& j : root["DirectionalLights"])
+    {
+        niji::DirectionalLight light = j.get<niji::DirectionalLight>();
+        auto ent = nijiEngine.ecs.create_entity();
+        nijiEngine.ecs.add_component<niji::DirectionalLight>(ent, light);
+    }
+}
+
 App::App()
 {
     auto& renderer = nijiEngine.ecs.register_system<niji::Renderer>();
@@ -20,53 +44,8 @@ App::App()
     t.SetScale({0.01f, 0.01f, 0.01f});
     t.SetRotation(glm::quat(glm::vec3(glm::radians(0.0f), glm::radians(0.0f), glm::radians(0.0f))));
 
-    /*auto dirLightEntity = nijiEngine.ecs.create_entity();
-    auto& dirLight =
-        nijiEngine.ecs.add_component<niji::DirectionalLight>(dirLightEntity,
-                                                             glm::vec3(-0.4f, -1.0f, -1.0f),
-                                                             glm::vec3(1.0f, 1.0f, 1.0f), 2.0f);
-
-    auto pointLightEntity = nijiEngine.ecs.create_entity();
-    auto& pointLight =
-        nijiEngine.ecs.add_component<niji::PointLight>(pointLightEntity,
-                                                       glm::vec3(9.9f, 3.9f, 1.4f),
-                                                       glm::vec3(0.0f, 0.45f, 1.0f), 20.0f, 2.0f);
-
-    auto pointLightEntity2 = nijiEngine.ecs.create_entity();
-    auto& pointLight2 =
-        nijiEngine.ecs.add_component<niji::PointLight>(pointLightEntity2,
-                                                       glm::vec3(9.9f, 3.9f, -1.0f),
-                                                       glm::vec3(1.0f, 0.59f, 0.0f), 20.0f, 2.0f);
-
-    auto pointLightEntity3 = nijiEngine.ecs.create_entity();
-    auto& pointLight3 =
-        nijiEngine.ecs.add_component<niji::PointLight>(pointLightEntity3,
-                                                       glm::vec3(10.8f, 1.6f, -0.3f),
-                                                       glm::vec3(0.6f, 0.1f, 0.1f), 20.0f, 2.0f);*/
-
-    // Load Lights from Fike
-    {
-        std::ifstream file("assets/lights.json");
-        if (!file.is_open())
-            return;
-
-        json root;
-        file >> root;
-
-        for (auto& j : root["PointLights"])
-        {
-            niji::PointLight light = j.get<niji::PointLight>();
-            auto ent = nijiEngine.ecs.create_entity();
-            nijiEngine.ecs.add_component<niji::PointLight>(ent, light);
-        }
-
-        for (auto& j : root["DirectionalLights"])
-        {
-            niji::DirectionalLight light = j.get<niji::DirectionalLight>();
-            auto ent = nijiEngine.ecs.create_entity();
-            nijiEngine.ecs.add_component<niji::DirectionalLight>(ent, light);
-        }
-    }
+    // Load Lights from File
+    LoadLights();
 
     // m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb",
     // entity));
@@ -88,29 +67,49 @@ App::~App()
 // Partly from ChatGPT
 static void DrawLightEditor()
 {
-    // === Point Lights UI ===
+    ImGui::Begin("Light Editor");
+
+    // === Point Lights ===
     if (ImGui::CollapsingHeader("Point Lights", ImGuiTreeNodeFlags_DefaultOpen))
     {
+        // Add new point light button
+        if (ImGui::Button("Add Point Light"))
+        {
+            auto ent = nijiEngine.ecs.create_entity();
+            nijiEngine.ecs.add_component<niji::PointLight>(ent, glm::vec3(0.0f), glm::vec3(1.0f),
+                                                           10.0f, 5.0f);
+        }
+
+        std::vector<entt::entity> toRemove = {};
+
         int i = 0;
         auto pointLightView = nijiEngine.ecs.m_registry.view<niji::PointLight>();
-        for (const auto& [ent, pointLight] : pointLightView.each())
+        for (auto [ent, light] : pointLightView.each())
         {
             std::string label = "PointLight " + std::to_string(i);
 
             if (ImGui::TreeNode(label.c_str()))
             {
-                ImGui::DragFloat3(("Position##" + std::to_string(i)).c_str(),
-                                  &pointLight.Position[0], 0.1f);
-                ImGui::ColorEdit3(("Color##" + std::to_string(i)).c_str(), &pointLight.Color[0]);
-                ImGui::DragFloat(("Intensity##" + std::to_string(i)).c_str(), &pointLight.Intensity,
+                ImGui::DragFloat3(("Position##" + std::to_string(i)).c_str(), &light.Position[0],
+                                  0.1f);
+                ImGui::ColorEdit3(("Color##" + std::to_string(i)).c_str(), &light.Color[0]);
+                ImGui::DragFloat(("Intensity##" + std::to_string(i)).c_str(), &light.Intensity,
                                  0.1f, 0.0f, 100.0f);
-                ImGui::DragFloat(("Range##" + std::to_string(i)).c_str(), &pointLight.Range, 0.1f,
-                                 0.0f, 100.0f);
+                ImGui::DragFloat(("Range##" + std::to_string(i)).c_str(), &light.Range, 0.1f, 0.0f,
+                                 100.0f);
+
+                if (ImGui::Button(("Delete##" + std::to_string(i)).c_str()))
+                {
+                    toRemove.push_back(ent);
+                }
 
                 ImGui::TreePop();
             }
+
             i++;
         }
+        for (auto ent : toRemove)
+            nijiEngine.ecs.m_registry.destroy(ent);
     }
 
     auto dirLightView = nijiEngine.ecs.m_registry.view<niji::DirectionalLight>();
@@ -124,6 +123,7 @@ static void DrawLightEditor()
             ImGui::DragFloat("Intensity", &dirLight.Intensity, 0.1f, 0.0f, 100.0f);
         }
     }
+    ImGui::End();
 }
 
 void App::update(float deltaTime)
