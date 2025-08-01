@@ -96,30 +96,6 @@ static void DrawLightEditor()
 
             ImGui::PushID(static_cast<int>(i)); // Prevent ID collisions
 
-            /*if (ImGui::Selectable(label.c_str(), selected,
-                                   ImGuiSelectableFlags_::ImGuiSelectableFlags_Highlight))
-            {
-                selectedPointLightIndex = selected ? -1 : i;
-            }
-
-            if (ImGui::TreeNode(label.c_str()))
-            {
-                ImGui::DragFloat3(("Position##" + std::to_string(i)).c_str(), &light.Position[0],
-                                  0.1f);
-                ImGui::ColorEdit3(("Color##" + std::to_string(i)).c_str(), &light.Color[0]);
-                ImGui::DragFloat(("Intensity##" + std::to_string(i)).c_str(), &light.Intensity,
-                                 0.1f, 0.0f, 100.0f);
-                ImGui::DragFloat(("Range##" + std::to_string(i)).c_str(), &light.Range, 0.1f, 0.0f,
-                                 100.0f);
-
-                if (ImGui::Button(("Delete##" + std::to_string(i)).c_str()))
-                {
-                    toRemove.push_back(ent);
-                }
-
-                ImGui::TreePop();
-            }*/
-
             // Combined foldout + selectable
             ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
                                        /*ImGuiTreeNodeFlags_OpenOnDoubleClick |*/
@@ -205,9 +181,40 @@ static void DrawLightEditor()
     ImGui::End();
 }
 
+static void RotatePointLights()
+{
+    float radius = 5.0f;                // Controllable radius
+    float speed = 1.0f;                 // Rotation speed (radians per second)
+    glm::vec3 center = glm::vec3(0.0f); // Center of the circular motion
+
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time =
+        std::chrono::duration<float, std::chrono::seconds::period>(currentTime -
+    startTime).count();
+
+    int i = 0;
+    auto pointLightView = nijiEngine.ecs.m_registry.view<niji::PointLight>();
+    for (auto [ent, light] : pointLightView.each())
+    {
+        float angle =
+            time * speed + (i * glm::two_pi<float>() / MAX_POINT_LIGHTS); // even spacing
+
+        // Move the light in a circle on the XZ plane
+        light.Position.x = center.x + radius * std::cos(angle);
+        light.Position.z = center.z + radius * std::sin(angle);
+        light.Position.y = 1.0f; // Optional: keep y fixed
+        
+        i++;
+    }
+}
+
 void App::update(float deltaTime)
 {
     DrawLightEditor();
+
+    RotatePointLights();
 }
 
 void App::render()
