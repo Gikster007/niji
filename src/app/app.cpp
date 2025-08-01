@@ -70,9 +70,30 @@ App::~App()
 
 // Partly from ChatGPT
 static int selectedPointLightIndex = -1;
+static bool drawDebugSpheres = false;
+static bool animateLights = true;
+static float radius = 2.0f;
+static float speed = 1.0f;
+static float yPos = -0.6f;
 static void DrawLightEditor()
 {
     ImGui::Begin("Light Editor");
+
+    ImGui::Checkbox("Toggle Debug Spheres", &drawDebugSpheres);
+    if (drawDebugSpheres)
+    {
+        auto pointLightView = nijiEngine.ecs.m_registry.view<niji::PointLight>();
+        for (auto [ent, light] : pointLightView.each())
+        {
+            nijiEngine.add_sphere(light.Position, light.Range, light.Color, 64);
+        }
+    }
+
+    ImGui::Text("Animation Settings");
+    ImGui::DragFloat("Radius", &radius);
+    ImGui::DragFloat("Speed", &speed);
+    ImGui::DragFloat("Y Position", &yPos);
+    ImGui::Checkbox("Toggle Animation", &animateLights);
 
     // === Point Lights ===
     if (ImGui::CollapsingHeader("Point Lights", ImGuiTreeNodeFlags_DefaultOpen))
@@ -183,8 +204,9 @@ static void DrawLightEditor()
 
 static void RotatePointLights()
 {
-    float radius = 5.0f;                // Controllable radius
-    float speed = 1.0f;                 // Rotation speed (radians per second)
+    if (!animateLights)
+        return;
+
     glm::vec3 center = glm::vec3(0.0f); // Center of the circular motion
 
     static auto startTime = std::chrono::high_resolution_clock::now();
@@ -204,7 +226,7 @@ static void RotatePointLights()
         // Move the light in a circle on the XZ plane
         light.Position.x = center.x + radius * std::cos(angle);
         light.Position.z = center.z + radius * std::sin(angle);
-        light.Position.y = 1.0f; // Optional: keep y fixed
+        light.Position.y = yPos;
         
         i++;
     }

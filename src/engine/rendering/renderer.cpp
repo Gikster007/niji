@@ -25,6 +25,10 @@ using namespace niji;
 #include "core/vulkan-functions.hpp"
 
 #include "passes/skybox_pass.hpp"
+#include "passes/forward_pass.hpp"
+#include "passes/render_pass.hpp"
+#include "passes/imgui_pass.hpp"
+#include "passes/line_render_pass.hpp"
 
 #include "model/model.hpp"
 
@@ -131,6 +135,7 @@ void Renderer::init()
     {
         m_renderPasses.push_back(std::make_unique<SkyboxPass>());
         m_renderPasses.push_back(std::make_unique<ForwardPass>());
+        m_renderPasses.push_back(std::make_unique<LineRenderPass>());
         m_renderPasses.push_back(std::make_unique<ImGuiPass>());
     }
     {

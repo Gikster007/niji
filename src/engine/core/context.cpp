@@ -320,7 +320,7 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
     return indices.is_complete() && extensionsSupported && swapChainAdequate &&
-           supportedFeatures.samplerAnisotropy;
+           supportedFeatures.samplerAnisotropy && supportedFeatures.fillModeNonSolid;
 }
 
 void Context::create_logical_device()
@@ -345,6 +345,7 @@ void Context::create_logical_device()
 
     VkPhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.fillModeNonSolid = VK_TRUE;
 
     VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures = {};
     bufferDeviceAddressFeatures.sType =
@@ -363,10 +364,17 @@ void Context::create_logical_device()
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR;
     synchronization2Feature.synchronization2 = VK_TRUE;
 
+    // Add graphics pipeline library features
+    VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT graphicsPipelineLib = {};
+    graphicsPipelineLib.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_FEATURES_EXT;
+    graphicsPipelineLib.graphicsPipelineLibrary = VK_TRUE;
+
     // Chain the pNext pointers properly
     synchronization2Feature.pNext = &dynamicRenderingFeature;
     dynamicRenderingFeature.pNext = &bufferDeviceAddressFeatures;
-    bufferDeviceAddressFeatures.pNext = nullptr; // end of chain
+    bufferDeviceAddressFeatures.pNext = &graphicsPipelineLib;
+    graphicsPipelineLib.pNext = nullptr; // end of chain
 
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

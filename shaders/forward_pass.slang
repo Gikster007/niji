@@ -274,34 +274,35 @@ float4 fragment_main(VertexOutput input) : SV_Target
         for (int i = 0; i < PointLightCount; i++)
         {
             PointLight pointLight = pointLights[i];
-
+        
             float3 toLight = pointLight.Position - input.FragPosition.xyz;
             float dist = length(toLight);
-            light = normalize(toLight);
 
-            float attenuation = saturate(1.0f - dist / pointLight.Range);
-            attenuation *= attenuation;
+            float attenuation = 1.0f / max(dist * dist, 0.01f);
+            attenuation *= smoothstep(pointLight.Range, 0.0f, dist);
 
             if (attenuation <= 0.01f)
                 continue;
 
-            ndotl = max(dot(normal, -light), 0.001f);
+            light = normalize(toLight);
+            H = normalize(V + (-light));
 
+            ndotl = max(dot(normal, -light), 0.001f);
+            ndoth = max(dot(normal, H), 0.001f);
+        
             NDF = DistributionGGX(ndoth, roughness);
             G = GeometrySmith(ndotv, ndotl, roughness);
             F = F_schlick(F0, ndotv);
-
+        
             numerator = NDF * G * F;
             denominator = 4.0f * ndotv * ndotl;
             specular = max(numerator / denominator, 0.01f);
-
+        
             kS = F;
             kD = 1.0f - kS;
             kD *= 1.0f - metallic;
 
-            float3 pointLightRadiance = pointLight.Color * pointLight.Intensity * attenuation;
-
-            lightOut += (kD * albedo.rgb * INVPI + specular) * pointLightRadiance * ndotl;
+            lightOut += (kD * albedo.rgb * INVPI + specular) * pointLight.Color * pointLight.Intensity * attenuation * ndotl;
         }
 
         // float3 ambient = 0.4f * albedo.rgb;
@@ -311,7 +312,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 Ks = CalculateFRough(F0, ndotv, roughness);
         float3 Kd = 1.0f - Ks;
         Kd *= 1.0f - metallic;
-
+        
         float3 prefilteredColor =
             pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
         float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1 / 2.2f);

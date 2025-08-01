@@ -47,6 +47,12 @@ struct SkyboxVertex
     glm::vec3 Pos = {};
 };
 
+struct DebugLine
+{
+    glm::vec3 Pos = {};
+    glm::vec3 Color = {};
+};
+
 struct MaterialInfo
 {
     alignas(16) glm::vec4 AlbedoFactor = glm::vec4(1.0f);
@@ -302,6 +308,7 @@ struct PipelineDesc
     std::string VertexShader = {};
     std::string FragmentShader = {};
     VertexLayout VertexLayout = {};
+
     enum class PrimitiveTopology
     {
         POINT,
@@ -310,6 +317,20 @@ struct PipelineDesc
         TRIANGLE_LIST,
         TRIANGLE_STRIP
     } Topology = PrimitiveTopology::TRIANGLE_LIST;
+    enum class DepthCompareOp
+    {
+        NEVER,
+        LESS,
+        EQUAL,
+        LESS_OR_EQUAL,
+        GREATER,
+        NOT_EQUAL,
+        GREATER_OR_EQUAL,
+        ALWAYS
+    } DepthCompareOperation = DepthCompareOp::LESS;
+    bool DepthTestEnable = true;
+    bool DepthWriteEnable = true;
+
     Viewport Viewport = {};
     RasterizerState Rasterizer = {};
     VkFormat ColorAttachmentFormat = {};

@@ -29,7 +29,6 @@ class RenderPass
     std::vector<Buffer> m_passBuffer = {};
     std::string m_name = "Unnamed Pass";
 
-    //VkDescriptorSetLayout m_passDescriptorSetLayout = {};
     Descriptor m_passDescriptor = {};
 };
 } // namespace niji

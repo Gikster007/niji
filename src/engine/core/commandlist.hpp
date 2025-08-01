@@ -28,8 +28,10 @@ class CommandList
                              const VkWriteDescriptorSet* pDescriptorWrites) const;
 
     void draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
-                     int32_t vertexOffset,
-                     uint32_t firstInstance) const;
+                     int32_t vertexOffset, uint32_t firstInstance) const;
+
+    void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
+              uint32_t firstInstance) const;
 
     void end_rendering(const RenderInfo& info) const;
     void end_list() const;

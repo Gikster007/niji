@@ -11,10 +11,6 @@
 #include "core/envmap.hpp"
 #include "core/ecs.hpp"
 
-#include "passes/forward_pass.hpp"
-#include "passes/render_pass.hpp"
-#include "passes/imgui_pass.hpp"
-
 #include "model/mesh.hpp"
 
 #include "swapchain.hpp"
@@ -50,6 +46,7 @@ class Renderer : System
     friend class ForwardPass;
     friend class ImGuiPass;
     friend class SkyboxPass;
+    friend class LineRenderPass;
 
     std::vector<Buffer> m_ubos = {};
     std::vector<CommandList> m_commandBuffers = {};

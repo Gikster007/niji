@@ -168,6 +168,12 @@ void CommandList::draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint
                      firstInstance);
 }
 
+void CommandList::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
+                       uint32_t firstInstance) const
+{
+    vkCmdDraw(m_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
 void CommandList::end_rendering(const RenderInfo& info) const
 {
     VKCmdEndRenderingKHR(m_commandBuffer);

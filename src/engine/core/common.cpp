@@ -20,8 +20,8 @@ Buffer::Buffer(BufferDesc& desc, void* data)
     VkBufferUsageFlags usageFlags = {};
     VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
 
-    if (desc.Usage != BufferDesc::BufferUsage::Uniform &&
-        desc.Usage != BufferDesc::BufferUsage::Storage)
+    if (!desc.IsPersistent/*desc.Usage != BufferDesc::BufferUsage::Uniform &&
+        desc.Usage != BufferDesc::BufferUsage::Storage*/)
     {
         usageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         nijiEngine.m_context.create_buffer(desc.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -30,7 +30,10 @@ Buffer::Buffer(BufferDesc& desc, void* data)
 
         void* dataStaged = nullptr;
         vmaMapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation, &dataStaged);
-        memcpy(dataStaged, Data, (size_t)desc.Size);
+        if (Data)
+            memcpy(dataStaged, Data, (size_t)desc.Size);
+        else
+            memset(dataStaged, 0, (size_t)desc.Size);
         vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingBufferAllocation);
     }
 
@@ -41,6 +44,8 @@ Buffer::Buffer(BufferDesc& desc, void* data)
         break;
     case BufferDesc::BufferUsage::Vertex:
         usageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        if (desc.IsPersistent)
+            memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         break;
     case BufferDesc::BufferUsage::Index:
         usageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
@@ -61,14 +66,14 @@ Buffer::Buffer(BufferDesc& desc, void* data)
                                        desc.IsPersistent);
     vmaSetAllocationName(nijiEngine.m_context.m_allocator, BufferAllocation, desc.Name);
 
-    if (desc.Usage != BufferDesc::BufferUsage::Uniform &&
-        desc.Usage != BufferDesc::BufferUsage::Storage)
+    if (!desc.IsPersistent/*desc.Usage != BufferDesc::BufferUsage::Uniform &&
+        desc.Usage != BufferDesc::BufferUsage::Storage*/)
     {
         nijiEngine.m_context.copy_buffer(stagingBuffer, Handle, desc.Size);
         vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingBufferAllocation);
     }
-    else if (desc.Usage == BufferDesc::BufferUsage::Uniform ||
-             desc.Usage == BufferDesc::BufferUsage::Storage)
+    else if (desc.IsPersistent/*desc.Usage == BufferDesc::BufferUsage::Uniform ||
+             desc.Usage == BufferDesc::BufferUsage::Storage*/)
     {
         vmaMapMemory(nijiEngine.m_context.m_allocator, BufferAllocation, &Data);
         Mapped = true;
@@ -162,7 +167,7 @@ static VkShaderModule create_shader_module(VkDevice& device, const std::vector<c
     return shaderModule;
 }
 
-static VkPrimitiveTopology get_primitive_topology(PipelineDesc::PrimitiveTopology& primTopology)
+inline static VkPrimitiveTopology to_vk(PipelineDesc::PrimitiveTopology& primTopology)
 {
     switch (primTopology)
     {
@@ -188,7 +193,7 @@ static VkPrimitiveTopology get_primitive_topology(PipelineDesc::PrimitiveTopolog
     return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 }
 
-static VkPolygonMode get_polygon_mode(RasterizerState::PolygonMode& polyMode)
+inline static VkPolygonMode to_vk(RasterizerState::PolygonMode& polyMode)
 {
     switch (polyMode)
     {
@@ -208,7 +213,7 @@ static VkPolygonMode get_polygon_mode(RasterizerState::PolygonMode& polyMode)
     return VK_POLYGON_MODE_FILL;
 }
 
-static VkCullModeFlags get_cull_mode(RasterizerState::CullingMode& cullMode)
+inline static VkCullModeFlags to_vk(RasterizerState::CullingMode& cullMode)
 {
     switch (cullMode)
     {
@@ -229,6 +234,37 @@ static VkCullModeFlags get_cull_mode(RasterizerState::CullingMode& cullMode)
     }
 
     return VK_CULL_MODE_NONE;
+}
+
+inline static VkCompareOp to_vk(PipelineDesc::DepthCompareOp compareOp)
+{
+    switch (compareOp)
+    {
+    case niji::PipelineDesc::DepthCompareOp::NEVER:
+        return VK_COMPARE_OP_NEVER;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::LESS:
+        return VK_COMPARE_OP_LESS;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::EQUAL:
+        return VK_COMPARE_OP_EQUAL;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::LESS_OR_EQUAL:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::GREATER:
+        return VK_COMPARE_OP_GREATER;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::NOT_EQUAL:
+        return VK_COMPARE_OP_NOT_EQUAL;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::GREATER_OR_EQUAL:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        break;
+    case niji::PipelineDesc::DepthCompareOp::ALWAYS:
+        return VK_COMPARE_OP_ALWAYS;
+        break;
+    }
 }
 
 Pipeline::Pipeline(PipelineDesc& desc)
@@ -275,7 +311,7 @@ Pipeline::Pipeline(PipelineDesc& desc)
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = get_primitive_topology(desc.Topology);
+    inputAssembly.topology = to_vk(desc.Topology);
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport = {};
@@ -300,9 +336,9 @@ Pipeline::Pipeline(PipelineDesc& desc)
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = desc.Rasterizer.DepthClampEnable;
     rasterizer.rasterizerDiscardEnable = desc.Rasterizer.RasterizerDiscardEnable;
-    rasterizer.polygonMode = get_polygon_mode(desc.Rasterizer.PolyMode);
+    rasterizer.polygonMode = to_vk(desc.Rasterizer.PolyMode);
     rasterizer.lineWidth = desc.Rasterizer.LineWidth;
-    rasterizer.cullMode = get_cull_mode(desc.Rasterizer.CullMode);
+    rasterizer.cullMode = to_vk(desc.Rasterizer.CullMode);
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
@@ -362,9 +398,9 @@ Pipeline::Pipeline(PipelineDesc& desc)
 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthTestEnable = desc.DepthTestEnable;
+    depthStencil.depthWriteEnable = desc.DepthWriteEnable;
+    depthStencil.depthCompareOp = to_vk(desc.DepthCompareOperation);
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f;
     depthStencil.maxDepthBounds = 1.0f;
