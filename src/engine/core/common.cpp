@@ -264,6 +264,9 @@ inline static VkCompareOp to_vk(PipelineDesc::DepthCompareOp compareOp)
     case niji::PipelineDesc::DepthCompareOp::ALWAYS:
         return VK_COMPARE_OP_ALWAYS;
         break;
+    default:
+        return VK_COMPARE_OP_LESS;
+        break;
     }
 }
 

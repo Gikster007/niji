@@ -35,7 +35,7 @@ const std::vector<const char*> DEVICE_EXTENSIONS = {
     VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME};
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr int MAX_POINT_LIGHTS = 16;
+constexpr int MAX_POINT_LIGHTS = 128;
 constexpr int MAX_DEBUG_LINES = 10000;
 
 #ifdef NDEBUG
