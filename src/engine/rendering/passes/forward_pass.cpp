@@ -264,12 +264,8 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     cmd.bind_viewport(swapchain.m_extent);
     cmd.bind_scissor(swapchain.m_extent);
 
-    ImGui::Begin("Demo Window");
     static bool b = true;
-    ImGui::ShowDemoWindow(&b);
     ImGui::ShowMetricsWindow(&b);
-    ImGui::Text("Hello, Vulkan + ImGui!");
-    ImGui::End();
 
     auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
     for (auto&& [entity, trans, mesh] : view.each())
