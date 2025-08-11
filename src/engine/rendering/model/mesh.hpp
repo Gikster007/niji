@@ -49,6 +49,7 @@ class Mesh
     friend class Renderer;
     friend class ForwardPass;
     friend class SkyboxPass;
+    friend class DepthPass;
 
     Buffer m_vertexBuffer = {};
     Buffer m_indexBuffer = {};

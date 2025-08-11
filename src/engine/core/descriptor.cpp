@@ -8,6 +8,7 @@ using namespace niji;
 
 Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
 {
+    std::string name = info.Name;
     // 1. Create descriptor set layout
     {
         std::vector<VkDescriptorSetLayoutBinding> bindings = {};
@@ -33,6 +34,9 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
             case DescriptorBinding::BindType::STORAGE_BUFFER:
                 b.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 break;
+            case DescriptorBinding::BindType::STORAGE_TEXTURE:
+                b.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
             default:
                 throw std::runtime_error("Invalid Descriptor Binding Type!");
                 break;
@@ -50,6 +54,12 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                 break;
             case DescriptorBinding::BindStage::ALL_GRAPHICS:
                 b.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+                break;
+            case DescriptorBinding::BindStage::COMPUTE:
+                b.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+                break;
+            case DescriptorBinding::BindStage::ALL:
+                b.stageFlags = VK_SHADER_STAGE_ALL;
                 break;
             default:
                 throw std::runtime_error("Invalid Descriptor Binding Stage!");
@@ -72,6 +82,11 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
         {
             throw std::runtime_error("Failed to create descriptor set layout.");
         }
+
+        std::string setLayoutName = name + " Layout";
+
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+                      m_setLayout, setLayoutName.c_str());
     }
 
     if (!info.IsPushDescriptor)
@@ -93,6 +108,11 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
             throw std::runtime_error("Failed to create descriptor pool.");
         }
 
+        std::string poolName = name + " Pool";
+
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL,
+                      m_pool, poolName.c_str());
+
         for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             // 3. Allocate descriptor set
@@ -107,6 +127,11 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
             {
                 throw std::runtime_error("Failed to allocate descriptor set.");
             }
+
+            std::string setName = name + " Set " + std::to_string(i);
+
+            SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET, m_set[i],
+                          setName.c_str());
 
             // 4. Write to descriptor set
             std::vector<VkWriteDescriptorSet> writes = {};
@@ -191,7 +216,9 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 write.dstBinding = j;
                                 write.dstArrayElement = 0;
                                 write.descriptorCount = binding.Count;
-                                write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                                write.descriptorType = !texture.Desc.IsReadWrite
+                                                           ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+                                                           : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
                                 write.pImageInfo = &texture.ImageInfo;
                                 write.pBufferInfo = nullptr;
                                 write.pTexelBufferView = nullptr;
@@ -311,6 +338,21 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
 
             write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             write.pBufferInfo = &bufferInfos.back();
+            break;
+        }
+        case DescriptorBinding::BindType::STORAGE_TEXTURE: {
+            auto* texture = std::get<Texture*>(binding.Resource);
+
+            VkDescriptorImageInfo textureInfo = {};
+            textureInfo.sampler = VK_NULL_HANDLE;
+            textureInfo.imageView = texture ? texture->ImageInfo.imageView : VK_NULL_HANDLE;
+            textureInfo.imageLayout =
+                texture ? texture->ImageInfo.imageLayout : VK_IMAGE_LAYOUT_GENERAL;
+
+            imageInfos.push_back(textureInfo);
+
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            write.pImageInfo = &imageInfos.back();
             break;
         }
         default:

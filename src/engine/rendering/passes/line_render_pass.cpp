@@ -19,7 +19,8 @@ void LineRenderPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         m_vertexBuffer = Buffer(desc, nijiEngine.m_debugLines.data());
     }
 
-    PipelineDesc pipelineDesc = {globalDescriptor.m_setLayout, m_passDescriptor.m_setLayout};
+    GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
+                                         m_passDescriptor.m_setLayout};
 
     pipelineDesc.Name = "Line Render Pass";
     pipelineDesc.VertexShader = "shaders/spirv/line_render_pass.vert.spv";
@@ -33,9 +34,9 @@ void LineRenderPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
     pipelineDesc.DepthTestEnable = true;
     pipelineDesc.DepthWriteEnable = false;
-    pipelineDesc.DepthCompareOperation = PipelineDesc::DepthCompareOp::LESS;
+    pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::LESS;
 
-    pipelineDesc.Topology = PipelineDesc::PrimitiveTopology::LINE_LIST;
+    pipelineDesc.Topology = GraphicsPipelineDesc::PrimitiveTopology::LINE_LIST;
 
     pipelineDesc.Viewport.Width = swapchain.m_extent.width;
     pipelineDesc.Viewport.Height = swapchain.m_extent.height;
@@ -55,9 +56,16 @@ void LineRenderPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     m_pipeline = Pipeline(pipelineDesc);
 }
 
-void LineRenderPass::update(Renderer& renderer)
+void LineRenderPass::update(Renderer& renderer, CommandList& cmd)
 {
-    memcpy(m_vertexBuffer.Data, nijiEngine.m_debugLines.data(), sizeof(DebugLine) * nijiEngine.m_debugLines.size());
+    if (nijiEngine.m_debugLines.size() > 0)
+    {
+        /*vkCmdUpdateBuffer(cmd.m_commandBuffer, m_vertexBuffer.Handle, 0,
+                          sizeof(DebugLine) * nijiEngine.m_debugLines.size(),
+                          nijiEngine.m_debugLines.data());*/
+        memcpy(m_vertexBuffer.Data, nijiEngine.m_debugLines.data(),
+               sizeof(DebugLine) * nijiEngine.m_debugLines.size());
+    }
 
     nijiEngine.m_debugLines.clear();
 }
@@ -67,11 +75,11 @@ void LineRenderPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& in
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
-    info.ColorAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
-    info.DepthAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    info.DepthAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
     cmd.begin_rendering(info, m_name);
 

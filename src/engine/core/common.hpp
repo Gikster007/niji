@@ -98,6 +98,10 @@ struct DebugSettings
         NONE,
         COUNT
     } RenderMode = RenderFlags::NONE;
+
+    bool DrawLightHeatmap = false;
+    bool _pad0;
+    uint16_t _pad1;
 };
 static const char* RenderFlagNames[] = {"Albedo",         "UVs",        "Geometry Normal",
                                         "Shading Normal", "Normal Map", "Tangent",
@@ -143,12 +147,56 @@ struct Buffer
     bool Mapped = false;
 };
 
+// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in
+// the constructor of RenderTarget)
+struct RenderTarget
+{
+    RenderTarget() = default;
+    RenderTarget(VkImage image, VkImageView view, VkFormat Format = VK_FORMAT_UNDEFINED,
+                 VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
+                 VkAttachmentLoadOp load = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                 VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE, VkClearValue clear = {});
+
+    VkImage Image = VK_NULL_HANDLE;
+    VkImageView ImageView = VK_NULL_HANDLE;
+    VkFormat Format = VK_FORMAT_UNDEFINED;
+    VkImageLayout ImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    VkImageLayout CurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    VkClearValue ClearValue = {};
+
+    char* Name = nullptr;
+};
+
+struct RenderInfo
+{
+    RenderInfo() = default;
+    RenderInfo(const VkExtent2D& extent)
+    {
+        RenderArea.offset = {0, 0};
+        RenderArea.extent = extent;
+    }
+
+    VkRect2D RenderArea = {{0, 0}, {0, 0}};
+    uint32_t LayerCount = 1;
+
+    RenderTarget* ColorAttachment = nullptr;
+    RenderTarget* DepthAttachment = nullptr;
+
+    bool HasDepth = false;
+    bool PrepareForPresent = false;
+};
+
 struct TextureDesc
 {
     int Width = 0;
     int Height = 0;
     int Channels = 4;
     unsigned char* Data = nullptr;
+    char* Name = nullptr;
 
     enum class TextureType
     {
@@ -157,6 +205,7 @@ struct TextureDesc
         CUBEMAP
     } Type = TextureType::NONE;
 
+    bool IsReadWrite = false;
     bool IsMipMapped = false;
     uint32_t Mips = 1;
     uint32_t Layers = 1;
@@ -172,6 +221,19 @@ struct Texture
     Texture(const TextureDesc& desc);
     // Used only for Envmap Loading
     Texture(const TextureDesc& desc, const std::string& path);
+    // Used only for translating a Depth RT
+    Texture(RenderTarget& depthRT)
+    {
+        TextureImage = depthRT.Image;
+        TextureImageView = depthRT.ImageView;
+        Desc.Format = depthRT.Format;
+        Desc.Type = TextureDesc::TextureType::TEXTURE_2D;
+
+        // Populate descriptor info so it can be used in descriptor sets
+        ImageInfo.imageLayout = depthRT.ImageLayout;
+        ImageInfo.imageView = depthRT.ImageView;
+        ImageInfo.sampler = VK_NULL_HANDLE; // You can assign a sampler if needed
+    }
 
     void cleanup() const;
 
@@ -215,6 +277,8 @@ struct SamplerDesc
 
     bool EnableAnisotropy = false;
     uint32_t MaxMips = 0;
+
+    char* Name = {};
 };
 
 struct Sampler
@@ -298,9 +362,9 @@ struct RasterizerState
     float LineWidth = 1.0f;
 };
 
-struct PipelineDesc
+struct GraphicsPipelineDesc
 {
-    PipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
+    GraphicsPipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
         : GlobalDescriptorSetLayout(globalLayout), PassDescriptorSetLayout(passlLayout)
     {
     }
@@ -331,13 +395,31 @@ struct PipelineDesc
     bool DepthTestEnable = true;
     bool DepthWriteEnable = true;
 
+    int ColorAttachmentCount = 1;
+
     Viewport Viewport = {};
     RasterizerState Rasterizer = {};
     VkFormat ColorAttachmentFormat = {};
 
-    char* Name = "Unknown Pipeline";
+    char* Name = "Unknown Graphics Pipeline";
 
   private:
+    friend class Pipeline;
+    VkDescriptorSetLayout& GlobalDescriptorSetLayout;
+    VkDescriptorSetLayout& PassDescriptorSetLayout;
+};
+
+struct ComputePipelineDesc
+{
+    ComputePipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
+        : GlobalDescriptorSetLayout(globalLayout), PassDescriptorSetLayout(passlLayout)
+    {
+    }
+
+    std::string ComputeShader = {};
+    char* Name = "Unknown Compute Pipeline";
+
+    private:
     friend class Pipeline;
     VkDescriptorSetLayout& GlobalDescriptorSetLayout;
     VkDescriptorSetLayout& PassDescriptorSetLayout;
@@ -346,7 +428,8 @@ struct PipelineDesc
 struct Pipeline
 {
     Pipeline() = default;
-    Pipeline(PipelineDesc& desc);
+    Pipeline(GraphicsPipelineDesc& desc);
+    Pipeline(ComputePipelineDesc& desc);
 
     void cleanup();
 
@@ -358,55 +441,23 @@ struct Pipeline
 // TODO: Switch naming style to convention (All caps with "_" between words)
 enum class TransitionType
 {
+    Undefined,
     ColorAttachment,
-    DepthStencilAttachment,
+    DepthStencilAttachmentWrite,
+    DepthStencilAttachmentLate,
     Present,
     ShaderRead,  // sampled image
     TransferDst, // for upload
     TransferSrc  // for copy
 };
 
-// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in
-// the constructor of RenderTarget)
-struct RenderTarget
+struct TransitionInfo
 {
-    RenderTarget() = default;
-    RenderTarget(VkImage image, VkImageView view, VkFormat Format = VK_FORMAT_UNDEFINED,
-                 VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
-                 VkAttachmentLoadOp load = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                 VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE, VkClearValue clear = {})
-        : Image(image), ImageView(view), Format(Format), ImageLayout(layout), LoadOp(load),
-          StoreOp(store), ClearValue(clear)
-    {
-    }
-
-    VkImage Image = VK_NULL_HANDLE;
-    VkImageView ImageView = VK_NULL_HANDLE;
-    VkFormat Format = VK_FORMAT_UNDEFINED;
-    VkImageLayout ImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    VkClearValue ClearValue = {};
+    VkPipelineStageFlags Stage = {};
+    VkAccessFlags Access = {};
+    VkImageLayout Layout = {};
 };
 
-struct RenderInfo
-{
-    RenderInfo() = default;
-    RenderInfo(const VkExtent2D& extent)
-    {
-        RenderArea.offset = {0, 0};
-        RenderArea.extent = extent;
-    }
-
-    VkRect2D RenderArea = {{0, 0}, {0, 0}};
-    uint32_t LayerCount = 1;
-
-    RenderTarget ColorAttachment = {};
-    RenderTarget DepthAttachment = {};
-
-    bool HasDepth = false;
-    bool PrepareForPresent = false;
-};
+TransitionInfo usage_to_barrier(TransitionType usage, VkFormat format);
 
 } // namespace niji

@@ -18,6 +18,13 @@
 
 namespace niji
 {
+
+struct Sphere
+{
+    glm::vec3 Center = {0.0f, 0.0f, 0.0f};
+    float Radius = 0.0f;
+};
+
 class Renderer : System
 {
   public:
@@ -47,8 +54,12 @@ class Renderer : System
     friend class ImGuiPass;
     friend class SkyboxPass;
     friend class LineRenderPass;
+    friend class LightCullingPass;
+    friend class DepthPass;
 
-    std::vector<Buffer> m_ubos = {};
+    std::vector<Buffer> m_cameraData = {};
+    std::vector<Buffer> m_spheres = {};
+    std::vector<Buffer> m_sceneInfoBuffer = {};
     std::vector<CommandList> m_commandBuffers = {};
     std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 
@@ -60,6 +71,13 @@ class Renderer : System
     Envmap* m_envmap = nullptr;
 
     Texture m_fallbackTexture = {};
+
+    Texture m_lightGridTexture = {};
+    std::vector<Buffer> m_lightIndexList = {};
+
+    std::array<RenderTarget, MAX_FRAMES_IN_FLIGHT> m_colorAttachments = {};
+    RenderTarget m_depthAttachment = {};
+    RenderInfo m_renderInfo = {};
 
     uint32_t m_currentFrame = 0;
     uint32_t m_imageIndex = UINT64_MAX;

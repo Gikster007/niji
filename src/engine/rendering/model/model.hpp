@@ -31,6 +31,7 @@ class Model : public std::enable_shared_from_this<Model>
     friend class Renderer;
     friend class ForwardPass;
     friend class SkyboxPass;
+    friend class DepthPass;
 
     std::filesystem::path m_gltfPath = {};
     Entity m_parent = {};

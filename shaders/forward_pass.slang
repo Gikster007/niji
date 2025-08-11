@@ -5,6 +5,7 @@ cbuffer Camera
     float4x4 View;
     float4x4 Proj;
     float3 Pos;
+    float _pad0;
 }
 
 struct MaterialInfo
@@ -22,7 +23,7 @@ struct MaterialInfo
 }
 
 // Set = 1, Binding = 3
-[[vk::binding(3, 1)]]
+[[vk::binding(2, 1)]]
 cbuffer ModelData
 {
     float4x4 Model;
@@ -53,6 +54,7 @@ enum class RenderFlags
 cbuffer RenderFlags
 {
     RenderFlags renderMode;
+    bool drawLightHeatmap;
 }
 
 struct DirectionalLight
@@ -73,13 +75,44 @@ struct PointLight
     float _pad1;
 
     float Intensity;
-    float Range; 
+    float Range;
     float _pad2;
     float _pad3;
 }
 
-// Set = 1, Binding = 1
+// Set = 1, Binding = 2
 [[vk::binding(1, 1)]]
+StructuredBuffer<PointLight> pointLights;
+
+// Set = 1, Binding = 4
+[[vk::binding(3, 1)]]
+SamplerState linearSampler;
+// Set = 1, Binding = 5
+[[vk::binding(4, 1)]]
+SamplerState iblSampler;
+
+// Set = 1, Binding = 6..10
+[[vk::binding(5, 1)]]
+Texture2D baseColor;
+[[vk::binding(6, 1)]]
+Texture2D normalMap;
+[[vk::binding(7, 1)]]
+Texture2D occlusionMap;
+[[vk::binding(8, 1)]]
+Texture2D roughMetalMap;
+[[vk::binding(9, 1)]]
+Texture2D emissiveMap;
+
+// Set = 1, Binding = 11..13
+[[vk::binding(10, 1)]]
+TextureCube<float4> specularCubemap;
+[[vk::binding(11, 1)]]
+TextureCube<float4> diffuseCubemap;
+[[vk::binding(12, 1)]]
+Texture2D<float4> brdfLUT;
+
+// Set = 13, Binding = 1
+[[vk::binding(13, 1)]]
 cbuffer SceneInfo
 {
     DirectionalLight dirLight;
@@ -87,36 +120,11 @@ cbuffer SceneInfo
     int2 _pad2; // 64 bytes
 }
 
-// Set = 1, Binding = 2
-[[vk::binding(2, 1)]]
-StructuredBuffer<PointLight> pointLights;
+[[vk::binding(14, 1)]]
+Texture2D<uint2> lightGrid;
 
-// Set = 1, Binding = 4
-[[vk::binding(4, 1)]]
-SamplerState linearSampler;
-// Set = 1, Binding = 5
-[[vk::binding(5, 1)]]
-SamplerState iblSampler;
-
-// Set = 1, Binding = 6..10
-[[vk::binding(6, 1)]]
-Texture2D baseColor;
-[[vk::binding(7, 1)]]
-Texture2D normalMap;
-[[vk::binding(8, 1)]]
-Texture2D occlusionMap;
-[[vk::binding(9, 1)]]
-Texture2D roughMetalMap;
-[[vk::binding(10, 1)]]
-Texture2D emissiveMap;
-
-// Set = 1, Binding = 11..13
-[[vk::binding(11, 1)]]
-TextureCube<float4> specularCubemap;
-[[vk::binding(12, 1)]]
-TextureCube<float4> diffuseCubemap;
-[[vk::binding(13, 1)]]
-Texture2D<float4> brdfLUT;
+[[vk::binding(15, 1)]]
+StructuredBuffer<uint> lightIndexList;
 
 struct VertexInput
 {
@@ -143,7 +151,7 @@ VertexOutput vertex_main(VertexInput input)
 {
     VertexOutput output;
     float4 worldPosition = mul(Model, float4(input.Position, 1.0f));
-    output.Position = mul(Proj, mul(View, worldPosition));
+    output.Position = mul(Proj, mul(View, mul( Model, float4(input.Position, 1.0f))));
     output.FragPosition = worldPosition;
     output.Color = input.Color;
     output.Normal = mul((float3x3)InvModel, input.Normal);
@@ -208,6 +216,17 @@ float3 CalculateFRough(float3 F0, float ndotv, float roughness)
 [shader("fragment")]
 float4 fragment_main(VertexOutput input) : SV_Target
 {
+    // if (renderMode == RenderFlags::ALBEDO)
+    //{
+    //     float2 uv = input.Position.xy / float2(1920.0f, 1080.0f);
+    //     float rawDepth = baseColor.Sample(linearSampler, uv).r;
+    //
+    //     // Optional: linearize if needed
+    //     float linearDepth = 0.1f * 1000.0f / (1000.0f - rawDepth * (1000.0f - 0.1f));
+    //
+    //     return float4(float3(linearDepth * 0.1f), 1.0f); // or vec3(linearDepth)
+    // }
+
     float4 albedo = pow(baseColor.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
     albedo *= MatInfo.AlbedoFactor;
     float4 occlusion = pow(occlusionMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
@@ -270,11 +289,20 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 lightOut =
             (kD * albedo.rgb * INVPI + specular) * dirLight.Color * dirLight.Intensity * ndotl;
 
+        uint2 tileIndex = uint2(floor(input.Position.xy / 16));
+
+        uint2 lightInfo = lightGrid[tileIndex];
+        uint startOffset = lightInfo.x;
+        uint lightCount = lightInfo.y;
+
         // Point Light Contribution
         for (int i = 0; i < PointLightCount; i++)
         {
+            // uint lightIndex = lightIndexList[startOffset + i];
+            //
+            // PointLight pointLight = pointLights[lightIndex];
             PointLight pointLight = pointLights[i];
-        
+
             float3 toLight = pointLight.Position - input.FragPosition.xyz;
             float dist = length(toLight);
 
@@ -289,20 +317,21 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
             ndotl = max(dot(normal, -light), 0.001f);
             ndoth = max(dot(normal, H), 0.001f);
-        
+
             NDF = DistributionGGX(ndoth, roughness);
             G = GeometrySmith(ndotv, ndotl, roughness);
             F = F_schlick(F0, ndotv);
-        
+
             numerator = NDF * G * F;
             denominator = 4.0f * ndotv * ndotl;
             specular = max(numerator / denominator, 0.01f);
-        
+
             kS = F;
             kD = 1.0f - kS;
             kD *= 1.0f - metallic;
 
-            lightOut += (kD * albedo.rgb * INVPI + specular) * pointLight.Color * pointLight.Intensity * attenuation * ndotl;
+            lightOut += (kD * albedo.rgb * INVPI + specular) * pointLight.Color *
+                        pointLight.Intensity * attenuation * ndotl;
         }
 
         // float3 ambient = 0.4f * albedo.rgb;
@@ -312,7 +341,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 Ks = CalculateFRough(F0, ndotv, roughness);
         float3 Kd = 1.0f - Ks;
         Kd *= 1.0f - metallic;
-        
+
         float3 prefilteredColor =
             pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
         float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1 / 2.2f);
@@ -322,6 +351,13 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 ambient = (Kd * diffuse + specularIBL);
 
         final = float4(lightOut + ambient + emissive.rgb, albedo.a);
+
+        float heat = saturate(lightCount / 1.0f);      // Normalize to [0,1] range
+        float4 heatMap = float4(heat, 0, 1 - heat, 1); // Heatmap: blue = low, red = high
+
+        if (drawLightHeatmap)
+            final = lerp(final, heatMap, 1.0f);
+        //final = lerp(final, heatMap, 0.75f);
         break;
     case RenderFlags::ALBEDO:
         final = albedo;

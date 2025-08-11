@@ -28,6 +28,7 @@ class Material
   private:
     friend class Renderer;
     friend class ForwardPass;
+    friend class DepthPass;
 
     MaterialData m_materialData = {};
     MaterialInfo m_materialInfo = {};

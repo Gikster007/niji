@@ -80,15 +80,18 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     ImGui_ImplVulkan_Init(&init_info);
 }
 
-void ImGuiPass::update(Renderer& renderer)
+void ImGuiPass::update(Renderer& renderer, CommandList& cmd)
 {
 
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
-    // Render on top of what's already there
-    info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+
+    info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
 
     cmd.begin_rendering(info, m_name);
 

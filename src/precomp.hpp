@@ -21,7 +21,8 @@
 
 constexpr uint16_t WIN_WIDTH = 1920;
 constexpr uint16_t WIN_HEIGHT = 1080;
-const std::vector<const char*> VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
+const std::vector<const char*> VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation",
+                                                    "VK_LAYER_KHRONOS_synchronization2"};
 const std::vector<const char*> DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
@@ -32,11 +33,12 @@ const std::vector<const char*> DEVICE_EXTENSIONS = {
     VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
     VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME,
-    VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME};
+    VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
+    VK_EXT_LOAD_STORE_OP_NONE_EXTENSION_NAME};
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr int MAX_POINT_LIGHTS = 128;
-constexpr int MAX_DEBUG_LINES = 10000;
+constexpr int MAX_DEBUG_LINES = 100000;
 
 #ifdef NDEBUG
 constexpr bool ENABLE_VALIDATION_LAYERS = false;

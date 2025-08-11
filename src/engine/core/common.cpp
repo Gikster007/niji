@@ -43,7 +43,7 @@ Buffer::Buffer(BufferDesc& desc, void* data)
         throw std::runtime_error("Failed to Create Buffer. Invalid Usage Set!");
         break;
     case BufferDesc::BufferUsage::Vertex:
-        usageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        usageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (desc.IsPersistent)
             memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         break;
@@ -51,11 +51,11 @@ Buffer::Buffer(BufferDesc& desc, void* data)
         usageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         break;
     case BufferDesc::BufferUsage::Uniform:
-        usageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        usageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         break;
     case BufferDesc::BufferUsage::Storage:
-        usageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        usageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         memUsage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         break;
     default:
@@ -167,23 +167,23 @@ static VkShaderModule create_shader_module(VkDevice& device, const std::vector<c
     return shaderModule;
 }
 
-inline static VkPrimitiveTopology to_vk(PipelineDesc::PrimitiveTopology& primTopology)
+inline static VkPrimitiveTopology to_vk(GraphicsPipelineDesc::PrimitiveTopology& primTopology)
 {
     switch (primTopology)
     {
-    case PipelineDesc::PrimitiveTopology::POINT:
+    case GraphicsPipelineDesc::PrimitiveTopology::POINT:
         return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
         break;
-    case PipelineDesc::PrimitiveTopology::LINE_LIST:
+    case GraphicsPipelineDesc::PrimitiveTopology::LINE_LIST:
         return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
         break;
-    case PipelineDesc::PrimitiveTopology::LINE_STRIP:
+    case GraphicsPipelineDesc::PrimitiveTopology::LINE_STRIP:
         return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
         break;
-    case PipelineDesc::PrimitiveTopology::TRIANGLE_LIST:
+    case GraphicsPipelineDesc::PrimitiveTopology::TRIANGLE_LIST:
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         break;
-    case PipelineDesc::PrimitiveTopology::TRIANGLE_STRIP:
+    case GraphicsPipelineDesc::PrimitiveTopology::TRIANGLE_STRIP:
         return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
         break;
     default:
@@ -236,32 +236,32 @@ inline static VkCullModeFlags to_vk(RasterizerState::CullingMode& cullMode)
     return VK_CULL_MODE_NONE;
 }
 
-inline static VkCompareOp to_vk(PipelineDesc::DepthCompareOp compareOp)
+inline static VkCompareOp to_vk(GraphicsPipelineDesc::DepthCompareOp compareOp)
 {
     switch (compareOp)
     {
-    case niji::PipelineDesc::DepthCompareOp::NEVER:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::NEVER:
         return VK_COMPARE_OP_NEVER;
         break;
-    case niji::PipelineDesc::DepthCompareOp::LESS:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::LESS:
         return VK_COMPARE_OP_LESS;
         break;
-    case niji::PipelineDesc::DepthCompareOp::EQUAL:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::EQUAL:
         return VK_COMPARE_OP_EQUAL;
         break;
-    case niji::PipelineDesc::DepthCompareOp::LESS_OR_EQUAL:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::LESS_OR_EQUAL:
         return VK_COMPARE_OP_LESS_OR_EQUAL;
         break;
-    case niji::PipelineDesc::DepthCompareOp::GREATER:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::GREATER:
         return VK_COMPARE_OP_GREATER;
         break;
-    case niji::PipelineDesc::DepthCompareOp::NOT_EQUAL:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::NOT_EQUAL:
         return VK_COMPARE_OP_NOT_EQUAL;
         break;
-    case niji::PipelineDesc::DepthCompareOp::GREATER_OR_EQUAL:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::GREATER_OR_EQUAL:
         return VK_COMPARE_OP_GREATER_OR_EQUAL;
         break;
-    case niji::PipelineDesc::DepthCompareOp::ALWAYS:
+    case niji::GraphicsPipelineDesc::DepthCompareOp::ALWAYS:
         return VK_COMPARE_OP_ALWAYS;
         break;
     default:
@@ -270,7 +270,7 @@ inline static VkCompareOp to_vk(PipelineDesc::DepthCompareOp compareOp)
     }
 }
 
-Pipeline::Pipeline(PipelineDesc& desc)
+Pipeline::Pipeline(GraphicsPipelineDesc& desc)
 {
     Name = desc.Name;
 
@@ -391,11 +391,11 @@ Pipeline::Pipeline(PipelineDesc& desc)
 
     if (vkCreatePipelineLayout(nijiEngine.m_context.m_device, &pipelineLayoutInfo, nullptr,
                                &PipelineLayout) != VK_SUCCESS)
-        throw std::runtime_error("Failed to Create Pipeline Layout!");
+        throw std::runtime_error("Failed to Create Graphics Pipeline Layout!");
 
     VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {};
     pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-    pipelineRenderingInfo.colorAttachmentCount = 1;
+    pipelineRenderingInfo.colorAttachmentCount = desc.ColorAttachmentCount;
     pipelineRenderingInfo.pColorAttachmentFormats = &desc.ColorAttachmentFormat;
     pipelineRenderingInfo.depthAttachmentFormat = nijiEngine.m_context.find_depth_format();
 
@@ -430,12 +430,60 @@ Pipeline::Pipeline(PipelineDesc& desc)
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
+
     if (vkCreateGraphicsPipelines(nijiEngine.m_context.m_device, VK_NULL_HANDLE, 1, &pipelineInfo,
                                   nullptr, &PipelineObject) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Graphics Pipeline!");
 
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_PIPELINE, PipelineObject, Name);
+
     vkDestroyShaderModule(nijiEngine.m_context.m_device, fragShaderModule, nullptr);
     vkDestroyShaderModule(nijiEngine.m_context.m_device, vertShaderModule, nullptr);
+}
+
+Pipeline::Pipeline(ComputePipelineDesc& desc)
+{
+    Name = desc.Name;
+
+    auto computeShaderCode = read_file(desc.ComputeShader);
+
+    VkShaderModule computeShaderModule =
+        create_shader_module(nijiEngine.m_context.m_device, computeShaderCode);
+
+    VkPipelineShaderStageCreateInfo computeShaderStageInfo = {};
+    computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    computeShaderStageInfo.module = computeShaderModule;
+    computeShaderStageInfo.pName = "main";
+
+    std::vector<VkDescriptorSetLayout> setLayouts = {desc.GlobalDescriptorSetLayout,
+                                                     desc.PassDescriptorSetLayout};
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = setLayouts.data();
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+    if (vkCreatePipelineLayout(nijiEngine.m_context.m_device, &pipelineLayoutInfo, nullptr,
+                               &PipelineLayout) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create compute pipeline layout!");
+
+    VkComputePipelineCreateInfo computePipelineInfo = {};
+    computePipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineInfo.stage = computeShaderStageInfo;
+    computePipelineInfo.layout = PipelineLayout;
+    computePipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    computePipelineInfo.basePipelineIndex = -1;
+
+    if (vkCreateComputePipelines(nijiEngine.m_context.m_device, VK_NULL_HANDLE, 1,
+                                 &computePipelineInfo, nullptr, &PipelineObject) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create compute pipeline!");
+
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_PIPELINE, PipelineObject, Name);
+
+    vkDestroyShaderModule(nijiEngine.m_context.m_device, computeShaderModule, nullptr);
 }
 
 void Pipeline::cleanup()
@@ -474,46 +522,59 @@ Texture::Texture(const TextureDesc& desc) : Desc(desc)
 
     nijiEngine.m_context.transition_image_layout(TextureImage, Desc.Format,
                                                  VK_IMAGE_LAYOUT_UNDEFINED,
-                                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, Desc.Mips,
-                                                 Desc.Layers);
-    if (!Desc.Data)
-        throw std::runtime_error("2D texture creation failed, no pixel data provided!");
+                                                 !Desc.IsReadWrite
+                                                     ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                                                     : VK_IMAGE_LAYOUT_GENERAL,
+                                                 Desc.Mips, Desc.Layers);
+    if (!Desc.IsReadWrite)
+    {
+        if (!Desc.Data)
+        {
+            throw std::runtime_error("2D texture creation failed, no pixel data provided!");
+        }
 
-    const VkDeviceSize imageSize =
-        static_cast<VkDeviceSize>(Desc.Width) * Desc.Height * Desc.Channels;
+        const VkDeviceSize imageSize =
+            static_cast<VkDeviceSize>(Desc.Width) * Desc.Height * Desc.Channels;
 
-    VkBuffer stagingBuffer = {};
-    VmaAllocation stagingAlloc = {};
-    nijiEngine.m_context.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                       VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingAlloc);
+        VkBuffer stagingBuffer = {};
+        VmaAllocation stagingAlloc = {};
+        nijiEngine.m_context.create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                           VMA_MEMORY_USAGE_CPU_ONLY, stagingBuffer, stagingAlloc);
 
-    void* data = nullptr;
-    vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &data);
-    memcpy(data, Desc.Data, static_cast<size_t>(imageSize));
-    vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
-    stbi_image_free((void*)Desc.Data);
+        void* data = nullptr;
+        vmaMapMemory(nijiEngine.m_context.m_allocator, stagingAlloc, &data);
+        memcpy(data, Desc.Data, static_cast<size_t>(imageSize));
+        vmaUnmapMemory(nijiEngine.m_context.m_allocator, stagingAlloc);
+        stbi_image_free((void*)Desc.Data);
 
-    nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, Desc.Width, Desc.Height,
-                                              Desc.Layers, 0, 0);
+        nijiEngine.m_context.copy_buffer_to_image(stagingBuffer, TextureImage, Desc.Width,
+                                                  Desc.Height, Desc.Layers, 0, 0);
 
-    vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
+        vmaDestroyBuffer(nijiEngine.m_context.m_allocator, stagingBuffer, stagingAlloc);
+    }
 
-    if (!Desc.IsMipMapped)
-        nijiEngine.m_context.transition_image_layout(TextureImage, Desc.Format,
-                                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                     Desc.Mips, Desc.Layers);
-    else if (Desc.IsMipMapped)
-        nijiEngine.m_context.generateMipmaps(TextureImage, Desc.Format, Desc.Width, Desc.Height,
-                                             Desc.Mips);
+    if (!Desc.IsReadWrite)
+    {
+        if (!Desc.IsMipMapped)
+            nijiEngine.m_context.transition_image_layout(TextureImage, Desc.Format,
+                                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                         Desc.Mips, Desc.Layers);
+        else if (Desc.IsMipMapped)
+            nijiEngine.m_context.generateMipmaps(TextureImage, Desc.Format, Desc.Width, Desc.Height,
+                                                 Desc.Mips);
+    }
 
     TextureImageView =
         nijiEngine.m_context.create_image_view(TextureImage, Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
                                                Desc.Mips, Desc.Layers);
 
-    ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ImageInfo.imageLayout =
+        !Desc.IsReadWrite ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
     ImageInfo.imageView = TextureImageView;
     ImageInfo.sampler = VK_NULL_HANDLE;
+
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE, TextureImage, Desc.Name);
 }
 
 Texture::Texture(const TextureDesc& desc, const std::string& path)
@@ -649,6 +710,8 @@ Texture::Texture(const TextureDesc& desc, const std::string& path)
     ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     ImageInfo.imageView = TextureImageView;
     ImageInfo.sampler = VK_NULL_HANDLE;
+
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE, TextureImage, Desc.Name);
 }
 
 void Texture::cleanup() const
@@ -691,6 +754,37 @@ std::vector<char> niji::read_binary_file(const std::string& path)
         return buffer;
     assert(false);
     return std::vector<char>();
+}
+
+TransitionInfo niji::usage_to_barrier(TransitionType usage, VkFormat format)
+{
+    switch (usage)
+    {
+    case TransitionType::Undefined:
+        return {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
+    case TransitionType::ColorAttachment:
+        return {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    case TransitionType::DepthStencilAttachmentWrite:
+        return {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL};
+    case TransitionType::DepthStencilAttachmentLate:
+        return {VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL};
+    case TransitionType::ShaderRead:
+        if (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT)
+            return {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL};
+        else
+            return {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT,
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+    case TransitionType::Present:
+        return {VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+    }
+    // Fallback:
+    return {};
 }
 
 inline static VkFilter to_vk(SamplerDesc::Filter filterMode)
@@ -786,10 +880,21 @@ Sampler::Sampler(const SamplerDesc& desc)
     if (vkCreateSampler(nijiEngine.m_context.m_device, &samplerInfo, nullptr, &Handle) !=
         VK_SUCCESS)
         throw std::runtime_error("Failed to Create Sampler!");
+
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_SAMPLER, Handle, Desc.Name);
 }
 
 void Sampler::cleanup() const
 {
     if (Handle != VK_NULL_HANDLE)
         vkDestroySampler(nijiEngine.m_context.m_device, Handle, nullptr);
+}
+
+RenderTarget::RenderTarget(VkImage image, VkImageView view, VkFormat Format,
+                                 VkImageLayout layout, VkAttachmentLoadOp load,
+                                 VkAttachmentStoreOp store, VkClearValue clear)
+    : Image(image), ImageView(view), Format(Format), ImageLayout(layout), LoadOp(load),
+      StoreOp(store), ClearValue(clear)
+{
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE, Image, Name);
 }

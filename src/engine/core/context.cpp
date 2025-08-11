@@ -107,6 +107,11 @@ void Context::framebuffer_resize_callback(GLFWwindow* window, int width, int hei
     context->m_framebufferResized = true;
 }
 
+void Context::get_window_size(int& width, int& height)
+{
+    glfwGetWindowSize(m_window, &width, &height);
+}
+
 void Context::init_allocator()
 {
     // initialize the memory allocator
@@ -140,6 +145,16 @@ void Context::create_instance()
     auto extensions = get_required_extensions();
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
 
+    VkValidationFeatureEnableEXT enables[] = {/*
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,*/
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT};
+
+    VkValidationFeaturesEXT validationFeatures = {};
+    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validationFeatures.enabledValidationFeatureCount = 3;
+    validationFeatures.pEnabledValidationFeatures = enables;
+
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
@@ -151,6 +166,7 @@ void Context::create_instance()
         createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
         populate_debug_messenger_create_info(debugCreateInfo);
+        debugCreateInfo.pNext = &validationFeatures;
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else
@@ -429,6 +445,9 @@ void Context::create_command_pool()
 
     if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Command Pool!");
+
+    
+    SetObjectName(m_device, VK_OBJECT_TYPE_COMMAND_POOL, m_commandPool, "Command Pool");
 }
 
 uint32_t Context::find_memory_type(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
@@ -599,16 +618,19 @@ VkImageView Context::create_image_view(VkImage image, VkFormat format,
     return imageView;
 }
 
+static inline bool is_depth_format(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+           format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
 void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                       VkImageLayout newLayout, uint32_t mipLevels,
                                       uint32_t layerCount)
 {
     VkCommandBuffer commandBuffer = begin_single_time_commands();
 
-    VkPipelineStageFlags sourceStage = {};
-    VkPipelineStageFlags destinationStage = {};
-
-    VkImageMemoryBarrier barrier = {};
+    VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
     barrier.newLayout = newLayout;
@@ -620,21 +642,33 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = layerCount;
 
-    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    // Decide aspect mask
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+        oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||
+        newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && is_depth_format(format))
     {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
         if (has_stencil_component(format))
+        {
             barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
     }
     else
+    {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
 
+    VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = 0;
+
+    // Handle known transition types
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
@@ -643,7 +677,6 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
     {
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
@@ -653,12 +686,68 @@ void Context::transition_image_layout(VkImage image, VkFormat format, VkImageLay
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
                                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        destinationStage =
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        destinationStage =
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (has_stencil_component(format))
+            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (has_stencil_component(format))
+            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    }
+
     else
-        throw std::invalid_argument("Unsupported Layout Transition");
+    {
+        std::cerr << "[WARN] Unhandled layout transition: " << oldLayout << " -> " << newLayout
+                  << std::endl;
+        end_single_time_commands(commandBuffer);
+        return;
+    }
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1,
                          &barrier);

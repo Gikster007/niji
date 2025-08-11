@@ -31,22 +31,6 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         }
     }
 
-    // Create Scene Info Buffer
-    {
-        VkDeviceSize bufferSize = sizeof(SceneInfo);
-        m_sceneInfoBuffer.resize(MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            SceneInfo ubo = {};
-            BufferDesc bufferDesc = {};
-            bufferDesc.IsPersistent = true;
-            bufferDesc.Name = "Scene Info Data";
-            bufferDesc.Size = sizeof(SceneInfo);
-            bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
-            m_sceneInfoBuffer[i] = Buffer(bufferDesc, &ubo);
-        }
-    }
-
     // Create Point Light Buffer
     {
         VkDeviceSize bufferSize = sizeof(PointLight);
@@ -66,6 +50,7 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     {
         DescriptorInfo descriptorInfo = {};
         descriptorInfo.IsPushDescriptor = true;
+        descriptorInfo.Name = "Forward Pass Descriptor";
 
         DescriptorBinding passDataBinding = {};
         passDataBinding.Type = DescriptorBinding::BindType::UBO;
@@ -74,14 +59,6 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         passDataBinding.Sampler = nullptr;
         passDataBinding.Resource = &m_passBuffer;
         descriptorInfo.Bindings.push_back(passDataBinding);
-
-        DescriptorBinding dirLightBinding = {};
-        dirLightBinding.Type = DescriptorBinding::BindType::UBO;
-        dirLightBinding.Count = 1;
-        dirLightBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
-        dirLightBinding.Sampler = nullptr;
-        dirLightBinding.Resource = &m_sceneInfoBuffer;
-        descriptorInfo.Bindings.push_back(dirLightBinding);
 
         DescriptorBinding pointLightBinding = {};
         pointLightBinding.Type = DescriptorBinding::BindType::STORAGE_BUFFER;
@@ -133,22 +110,46 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
             descriptorInfo.Bindings.push_back(textureBinding);
         }
 
+        DescriptorBinding sceneInfoBinding = {};
+        sceneInfoBinding.Type = DescriptorBinding::BindType::UBO;
+        sceneInfoBinding.Count = 1;
+        sceneInfoBinding.Stage = DescriptorBinding::BindStage::ALL;
+        sceneInfoBinding.Sampler = nullptr;
+        // sceneInfoBinding.Resource = &m_sceneInfoBuffer;
+        descriptorInfo.Bindings.push_back(sceneInfoBinding);
+
+        DescriptorBinding lightGridBinding = {};
+        lightGridBinding.Type = DescriptorBinding::BindType::TEXTURE;
+        lightGridBinding.Count = 1;
+        lightGridBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        lightGridBinding.Sampler = nullptr;
+        descriptorInfo.Bindings.push_back(lightGridBinding);
+
+        DescriptorBinding lightIndexListBinding = {};
+        lightIndexListBinding.Type = DescriptorBinding::BindType::STORAGE_BUFFER;
+        lightIndexListBinding.Count = 1;
+        lightIndexListBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        lightIndexListBinding.Sampler = nullptr;
+        // lightIndexListBinding.Resource = &m_lightIndexList;
+        descriptorInfo.Bindings.push_back(lightIndexListBinding);
+
         m_passDescriptor = Descriptor(descriptorInfo);
     }
 
-    PipelineDesc pipelineDesc = {globalDescriptor.m_setLayout, m_passDescriptor.m_setLayout};
+    GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
+                                         m_passDescriptor.m_setLayout};
 
     pipelineDesc.Name = "Forward Pass";
     pipelineDesc.VertexShader = "shaders/spirv/forward_pass.vert.spv";
     pipelineDesc.FragmentShader = "shaders/spirv/forward_pass.frag.spv";
 
-    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::BACK;
+    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
     pipelineDesc.Rasterizer.RasterizerDiscardEnable = false;
     pipelineDesc.Rasterizer.DepthClampEnable = false;
     pipelineDesc.Rasterizer.LineWidth = 1.0f;
 
-    pipelineDesc.Topology = PipelineDesc::PrimitiveTopology::TRIANGLE_LIST;
+    pipelineDesc.Topology = GraphicsPipelineDesc::PrimitiveTopology::TRIANGLE_LIST;
 
     pipelineDesc.Viewport.Width = swapchain.m_extent.width;
     pipelineDesc.Viewport.Height = swapchain.m_extent.height;
@@ -156,6 +157,10 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     pipelineDesc.Viewport.MinDepth = 0.0f;
     pipelineDesc.Viewport.ScissorWidth = swapchain.m_extent.width;
     pipelineDesc.Viewport.ScissorHeight = swapchain.m_extent.height;
+
+    pipelineDesc.DepthTestEnable = true;
+    pipelineDesc.DepthWriteEnable = false;
+    pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::LESS_OR_EQUAL;
 
     pipelineDesc.ColorAttachmentFormat = swapchain.m_format;
 
@@ -171,7 +176,7 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     m_pipeline = Pipeline(pipelineDesc);
 }
 
-void ForwardPass::update(Renderer& renderer)
+void ForwardPass::update(Renderer& renderer, CommandList& cmd)
 {
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
@@ -185,6 +190,7 @@ void ForwardPass::update(Renderer& renderer)
     {
         int currentIndex = static_cast<int>(m_debugSettings.RenderMode);
 
+        ImGui::Begin("Render Settings");
         if (ImGui::BeginCombo("Render Mode", RenderFlagNames[currentIndex]))
         {
             for (int i = 0; i < static_cast<int>(DebugSettings::RenderFlags::COUNT); ++i)
@@ -199,7 +205,13 @@ void ForwardPass::update(Renderer& renderer)
             }
             ImGui::EndCombo();
         }
+        ImGui::Checkbox("Draw Light Heatmap", &m_debugSettings.DrawLightHeatmap);
+        ImGui::End();
+
         memcpy(m_passBuffer[frameIndex].Data, &m_debugSettings, sizeof(m_debugSettings));
+
+        vkCmdUpdateBuffer(cmd.m_commandBuffer, m_passBuffer[frameIndex].Handle, 0,
+                          sizeof(DebugSettings), &m_debugSettings);
     }
 
     {
@@ -213,39 +225,9 @@ void ForwardPass::update(Renderer& renderer)
             else
                 printf("\nWARNING: Max Amount of Point Lights Reached!\n");
         }
-        memcpy(m_pointLightBuffer[frameIndex].Data, pointLightsArray.data(),
-               sizeof(PointLight) * pointLightsArray.size());
 
-        auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
-        for (const auto& [ent, dirLight] : dirLightView.each())
-        {
-            SceneInfo sceneInfo = {};
-            sceneInfo.DirLight = dirLight;
-            sceneInfo.PointLightCount = pointLightsArray.size();
-
-            memcpy(m_sceneInfoBuffer[frameIndex].Data, &sceneInfo, sizeof(sceneInfo));
-        }
-    }
-
-    {
-        ModelData ubo = {};
-
-        auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
-        for (auto&& [entity, trans, mesh] : view.each())
-        {
-            auto& model = mesh.Model;
-            auto& modelMesh = model->m_meshes[mesh.MeshID];
-            auto& material = model->m_materials[mesh.MaterialID];
-
-            /*ubo.Model = glm::rotate(trans.World(), time * glm::radians(30.0f), glm::vec3(0.0f,
-            0.0f, 1.0f));*/
-            ubo.Model = trans.World();
-            ubo.InvModel = glm::transpose(glm::inverse(ubo.Model));
-
-            ubo.MaterialInfo = material.m_materialInfo;
-
-            memcpy(material.m_data[frameIndex].Data, &ubo, sizeof(ubo));
-        }
+        vkCmdUpdateBuffer(cmd.m_commandBuffer, m_pointLightBuffer[frameIndex].Handle, 0,
+                          sizeof(PointLight) * pointLightsArray.size(), pointLightsArray.data());
     }
 }
 
@@ -254,8 +236,26 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
-    info.ColorAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment.LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+
+    info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+
+    {
+        TransitionInfo before = {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+                                 VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL};
+
+        TransitionInfo after = {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                                VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+                                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL};
+        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (nijiEngine.m_context.has_stencil_component(info.DepthAttachment->Format))
+            aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        cmd.transition_image_explicit(*info.DepthAttachment, before, after, aspect, 1, 1);
+    }
 
     cmd.begin_rendering(info, m_name);
 
@@ -292,15 +292,13 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
         {
             m_passDescriptor.m_info.Bindings[0].Resource = &m_passBuffer[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[1].Resource = &m_sceneInfoBuffer[frameIndex];
+            m_passDescriptor.m_info.Bindings[1].Resource = &m_pointLightBuffer[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[2].Resource = &m_pointLightBuffer[frameIndex];
+            m_passDescriptor.m_info.Bindings[2].Resource = &material.m_data[frameIndex];
 
-            m_passDescriptor.m_info.Bindings[3].Resource = &material.m_data[frameIndex];
+            m_passDescriptor.m_info.Bindings[3].Resource = &material.m_sampler;
 
-            m_passDescriptor.m_info.Bindings[4].Resource = &material.m_sampler;
-
-            m_passDescriptor.m_info.Bindings[5].Resource = &renderer.m_envmap->m_sampler;
+            m_passDescriptor.m_info.Bindings[4].Resource = &renderer.m_envmap->m_sampler;
 
             std::array<std::optional<Texture>*, 5> textures = {
                 &material.m_materialData.BaseColor, &material.m_materialData.NormalTexture,
@@ -311,26 +309,34 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
             for (size_t i = 0; i < 5; ++i)
             {
                 bool hasValue = textures[i]->has_value();
-                m_passDescriptor.m_info.Bindings[6 + i].Resource =
+                m_passDescriptor.m_info.Bindings[5 + i].Resource =
                     hasValue ? &(textures[i]->value()) : &renderer.m_fallbackTexture;
             }
+
+            // m_depthTexture = Texture(*info.DepthAttachment);
+            // m_passDescriptor.m_info.Bindings[5].Resource = &m_depthTexture;
+
             // IBL Textures (binding 8..10)
             if (renderer.m_envmap)
             {
-                m_passDescriptor.m_info.Bindings[11 + 0].Resource =
+                m_passDescriptor.m_info.Bindings[10 + 0].Resource =
                     &renderer.m_envmap->m_specularCubemap;
-                m_passDescriptor.m_info.Bindings[11 + 1].Resource =
+                m_passDescriptor.m_info.Bindings[10 + 1].Resource =
                     &renderer.m_envmap->m_diffuseCubemap;
-                m_passDescriptor.m_info.Bindings[11 + 2].Resource =
+                m_passDescriptor.m_info.Bindings[10 + 2].Resource =
                     &renderer.m_envmap->m_brdfTexture;
             }
             else
             {
                 printf("\nWARNING: Envmap is Null! \n");
-                m_passDescriptor.m_info.Bindings[11 + 0].Resource = &renderer.m_fallbackTexture;
-                m_passDescriptor.m_info.Bindings[11 + 1].Resource = &renderer.m_fallbackTexture;
-                m_passDescriptor.m_info.Bindings[11 + 2].Resource = &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[10 + 0].Resource = &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[10 + 1].Resource = &renderer.m_fallbackTexture;
+                m_passDescriptor.m_info.Bindings[10 + 2].Resource = &renderer.m_fallbackTexture;
             }
+            m_passDescriptor.m_info.Bindings[13].Resource = &renderer.m_sceneInfoBuffer[frameIndex];
+
+            m_passDescriptor.m_info.Bindings[14].Resource = &renderer.m_lightGridTexture;
+            m_passDescriptor.m_info.Bindings[15].Resource = &renderer.m_lightIndexList[frameIndex];
 
             std::vector<VkWriteDescriptorSet> writes = {};
             std::vector<VkDescriptorBufferInfo> bufferInfos = {};
@@ -355,11 +361,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 void ForwardPass::cleanup()
 {
     base_cleanup();
-
-    for (int i = 0; i < m_sceneInfoBuffer.size(); i++)
-    {
-        m_sceneInfoBuffer[i].cleanup();
-    }
 
     for (int i = 0; i < m_pointLightBuffer.size(); i++)
     {

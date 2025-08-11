@@ -5,10 +5,10 @@
 namespace niji
 {
 
-class ImGuiPass final : public RenderPass
+class DepthPass final : public RenderPass
 {
   public:
-    ImGuiPass()
+    DepthPass()
     {
     }
 
@@ -18,7 +18,6 @@ class ImGuiPass final : public RenderPass
     void cleanup();
 
   private:
-    VkDescriptorPool m_imguiDescriptorPool = {};
 };
 
 } // namespace niji

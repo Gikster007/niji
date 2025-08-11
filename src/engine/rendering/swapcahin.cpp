@@ -118,8 +118,7 @@ void Swapchain::create()
 
     vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, m_object, &imageCount, nullptr);
     m_images.resize(imageCount);
-    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, m_object, &imageCount,
-                            m_images.data());
+    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, m_object, &imageCount, m_images.data());
 
     m_format = surfaceFormat.format;
     m_extent = extent;
@@ -139,13 +138,18 @@ void Swapchain::create_depth_resources()
 {
     VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
     nijiEngine.m_context.create_image(m_extent.width, m_extent.height, 1, 1, depthFormat,
-                            VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                            VMA_MEMORY_USAGE_GPU_ONLY, 0, m_depthImage, m_depthImageAllocation);
-    m_depthImageView =
-        nijiEngine.m_context.create_image_view(m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1);
+                                      VK_IMAGE_TILING_OPTIMAL,
+                                      VK_IMAGE_USAGE_SAMPLED_BIT |
+                                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                      VMA_MEMORY_USAGE_GPU_ONLY, 0, m_depthImage,
+                                      m_depthImageAllocation);
+    m_depthImageView = nijiEngine.m_context.create_image_view(m_depthImage, depthFormat,
+                                                              VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1);
 
-    nijiEngine.m_context.transition_image_layout(m_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED,
-                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1, 1);
+    nijiEngine.m_context.transition_image_layout(m_depthImage, depthFormat,
+                                                 VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                 1, 1);
 }
 
 void Swapchain::cleanup()

@@ -51,6 +51,10 @@ class Context
     friend class Descriptor;
     friend class Texture;
     friend class Sampler;
+    friend class DepthPass;
+    friend class SkyboxPass;
+    friend class LightCullingPass;
+    friend class RenderTarget;
 
   public:
     Context();
@@ -61,6 +65,8 @@ class Context
     void cleanup();
 
     static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+
+    void get_window_size(int& width, int& height);
 
   private:
     void init_allocator();

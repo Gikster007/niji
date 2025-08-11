@@ -267,7 +267,7 @@ void App::load_lights(std::string path)
         set.RadiusZ = jset.value("RadiusZ", 2.1f);
         set.YPos = jset.value("YPos", 3.4f);
         set.Speed = jset.value("Speed", 0.5f);
-        set.Animate = jset.value("Animate", true);
+        set.Animate = jset.value("Animate", false);
         set.DrawDebugSpheres = jset.value("DrawDebugSpheres", false);
 
         for (auto& jlight : jset["PointLights"])

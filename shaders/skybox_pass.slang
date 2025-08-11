@@ -5,6 +5,7 @@ cbuffer Camera
     float4x4 View;
     float4x4 Proj;
     float3 Pos;
+    float _pad0;
 }
 // Set = 1, Binding = 0
 [[vk::binding(0, 1)]]

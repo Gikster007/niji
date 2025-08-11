@@ -19,6 +19,8 @@ CommandList::CommandList()
     if (vkAllocateCommandBuffers(nijiEngine.m_context.m_device, &allocInfo, &m_commandBuffer) !=
         VK_SUCCESS)
         throw std::runtime_error("Failed to Allocate Command Buffers!");
+
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer, m_name);
 }
 
 void CommandList::begin_list(const char* debugName) const
@@ -49,9 +51,6 @@ void CommandList::begin_list(const char* debugName) const
 
 void CommandList::begin_rendering(const RenderInfo& info, const std::string& passName) const
 {
-    /*SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_RENDER_PASS, m_commandBuffer,
-                  debugName);*/
-
     VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     labelInfo.pLabelName = passName.c_str();
     labelInfo.color[0] = 0.2f;
@@ -62,48 +61,56 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
     VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
 
     VkRenderingAttachmentInfoKHR colorAttachment = {};
-    const auto& src = info.ColorAttachment;
+    //const auto& src = info.ColorAttachment;
 
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    colorAttachment.imageView = src.ImageView;
-    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachment.loadOp = src.LoadOp;
-    colorAttachment.storeOp = src.StoreOp;
-    colorAttachment.clearValue = src.ClearValue;
+    colorAttachment.imageView = info.ColorAttachment->ImageView;
+    colorAttachment.imageLayout = info.ColorAttachment->CurrentLayout;
+    colorAttachment.loadOp = info.ColorAttachment->LoadOp;
+    colorAttachment.storeOp = info.ColorAttachment->StoreOp;
+    colorAttachment.clearValue = info.ColorAttachment->ClearValue;
     VkRenderingAttachmentInfoKHR depthAttachment{};
     if (info.HasDepth)
     {
+        /*VkImageLayout newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+        if (info.DepthAttachment.StoreOp == VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;*/
+
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        depthAttachment.imageView = info.DepthAttachment.ImageView;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        depthAttachment.loadOp = info.DepthAttachment.LoadOp;
-        depthAttachment.storeOp = info.DepthAttachment.StoreOp;
-        depthAttachment.clearValue = info.DepthAttachment.ClearValue;
+        depthAttachment.imageView = info.DepthAttachment->ImageView;
+        depthAttachment.imageLayout = info.DepthAttachment->CurrentLayout;
+        depthAttachment.loadOp = info.DepthAttachment->LoadOp;
+        depthAttachment.storeOp = info.DepthAttachment->StoreOp;
+        depthAttachment.clearValue = info.DepthAttachment->ClearValue;
     }
 
     VkRenderingInfoKHR renderingInfo = {};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     renderingInfo.renderArea = info.RenderArea;
     renderingInfo.layerCount = info.LayerCount;
-    renderingInfo.colorAttachmentCount = 1;
-    renderingInfo.pColorAttachments = &colorAttachment;
+    renderingInfo.colorAttachmentCount =
+        info.ColorAttachment->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? 1 : 0;
+    renderingInfo.pColorAttachments =
+        info.ColorAttachment->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment
+                                                                        : nullptr;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
 
-    auto& infoRT = info.ColorAttachment;
-    transition_image(infoRT.Image, infoRT.Format, infoRT.ImageLayout,
-                     colorAttachment.imageLayout,
-                     TransitionType::ColorAttachment);
+   /* auto& infoRT = info.ColorAttachment;
+    transition_image(infoRT.Image, infoRT.Format, infoRT.ImageLayout, colorAttachment.imageLayout,
+                     TransitionType::ColorAttachment);*/
 
-    auto& depthInfoRT = info.DepthAttachment;
+    /*auto& depthInfoRT = info.DepthAttachment;
     transition_image(depthInfoRT.Image, depthInfoRT.Format, depthInfoRT.ImageLayout,
-                     depthAttachment.imageLayout, TransitionType::DepthStencilAttachment);
+                     depthAttachment.imageLayout, TransitionType::DepthStencilAttachment);*/
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);
 }
 
-void CommandList::bind_pipeline(const VkPipeline& pipeline) const
+void CommandList::bind_pipeline(const VkPipeline& pipeline, const bool isCompute) const
 {
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdBindPipeline(m_commandBuffer,
+                      !isCompute ? VK_PIPELINE_BIND_POINT_GRAPHICS : VK_PIPELINE_BIND_POINT_COMPUTE,
+                      pipeline);
 }
 
 void CommandList::bind_viewport(const VkExtent2D& extent) const
@@ -174,6 +181,12 @@ void CommandList::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t fi
     vkCmdDraw(m_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
+void CommandList::dispatch(const uint32_t groupCountX, const uint32_t groupCountY,
+                           const uint32_t groupCountZ) const
+{
+    vkCmdDispatch(m_commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+
 void CommandList::end_rendering(const RenderInfo& info) const
 {
     VKCmdEndRenderingKHR(m_commandBuffer);
@@ -181,8 +194,9 @@ void CommandList::end_rendering(const RenderInfo& info) const
     if (info.PrepareForPresent)
     {
         auto& rt = info.ColorAttachment;
-        transition_image(rt.Image, rt.Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        transition_image(rt->Image, rt->Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
+        rt->CurrentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     }
 
     VKCmdEndDebugUtilsLabelEXT(m_commandBuffer);
@@ -207,6 +221,38 @@ void CommandList::cleanup()
                              &m_commandBuffer);
         m_commandBuffer = VK_NULL_HANDLE;
     }
+}
+
+void CommandList::transition_image_explicit(RenderTarget& rt, TransitionInfo before,
+                                            TransitionInfo after, VkImageAspectFlags aspectMask,
+                                            uint32_t mipLevels, uint32_t layerCount) const
+{
+    if (before.Layout == after.Layout)
+        return; // No transition needed
+
+    rt.CurrentLayout = after.Layout;
+
+    VkImageMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = before.Stage;
+    barrier.srcAccessMask = before.Access;
+    barrier.dstStageMask = after.Stage;
+    barrier.dstAccessMask = after.Access;
+    barrier.oldLayout = before.Layout;
+    barrier.newLayout = after.Layout;
+    barrier.image = rt.Image;
+    barrier.subresourceRange.aspectMask = aspectMask;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = mipLevels;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = layerCount;
+
+    VkDependencyInfo dependencyInfo{};
+    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependencyInfo.imageMemoryBarrierCount = 1;
+    dependencyInfo.pImageMemoryBarriers = &barrier;
+
+    VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
 }
 
 void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -257,7 +303,7 @@ void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout
         aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         break;
 
-    case TransitionType::DepthStencilAttachment:
+    case TransitionType::DepthStencilAttachmentWrite:
         dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -270,7 +316,7 @@ void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout
     case TransitionType::Present:
         srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         break;
 

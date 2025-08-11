@@ -15,7 +15,7 @@ class RenderPass
 {
   public:
     virtual void init(Swapchain& swapchain, Descriptor& globalDescriptor) = 0;
-    virtual void update(Renderer& renderer) = 0;
+    virtual void update(Renderer& renderer, CommandList& cmd) = 0;
     virtual void record(Renderer& renderer, CommandList& cmd, RenderInfo& info) = 0;
     virtual void cleanup() = 0;
 

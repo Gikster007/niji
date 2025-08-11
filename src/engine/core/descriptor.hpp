@@ -19,7 +19,8 @@ struct DescriptorBinding
         UBO,
         SAMPLER,
         TEXTURE,
-        STORAGE_BUFFER
+        STORAGE_BUFFER,
+        STORAGE_TEXTURE
 
     } Type = BindType::NONE;
 
@@ -28,7 +29,9 @@ struct DescriptorBinding
         NONE,
         VERTEX_SHADER,
         FRAGMENT_SHADER,
-        ALL_GRAPHICS
+        ALL_GRAPHICS,
+        COMPUTE,
+        ALL
     } Stage = BindStage::NONE;
 
     uint32_t Count = {};
@@ -41,6 +44,7 @@ struct DescriptorInfo
 {
     std::vector<DescriptorBinding> Bindings = {};
     bool IsPushDescriptor = false;
+    char* Name = nullptr;
 };
 
 class Descriptor
@@ -63,6 +67,8 @@ class Descriptor
   private:
     friend class ForwardPass;
     friend class SkyboxPass;
+    friend class LightCullingPass;
+    friend class DepthPass;
 
     DescriptorInfo m_info = {};
 };

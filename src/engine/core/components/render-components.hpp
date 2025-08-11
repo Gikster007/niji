@@ -97,7 +97,7 @@ struct Camera
     float Fov = 60.0f;
     float AspectRatio = 16.0f / 9.0f;
     float NearPlane = 0.1f;
-    float FarPlane = 1000.0f;
+    float FarPlane = 100.0f;
 
     glm::vec3 Front = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 Right = glm::vec3(1.0f, 0.0f, 0.0f);

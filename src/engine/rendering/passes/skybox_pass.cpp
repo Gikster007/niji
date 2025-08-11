@@ -4,6 +4,8 @@
 
 #include "../model/model.hpp"
 
+#include "engine.hpp"
+
 using namespace niji;
 
 void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
@@ -26,6 +28,7 @@ void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     {
         DescriptorInfo descriptorInfo = {};
         descriptorInfo.IsPushDescriptor = true;
+        descriptorInfo.Name = "Skybox Pass Descriptor";
 
         DescriptorBinding textureBinding = {};
         textureBinding.Type = DescriptorBinding::BindType::TEXTURE;
@@ -44,7 +47,8 @@ void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         m_passDescriptor = Descriptor(descriptorInfo);
     }
 
-    PipelineDesc pipelineDesc = {globalDescriptor.m_setLayout, m_passDescriptor.m_setLayout};
+    GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
+                                         m_passDescriptor.m_setLayout};
 
     pipelineDesc.Name = "Skybox Pass";
     pipelineDesc.VertexShader = "shaders/spirv/skybox_pass.vert.spv";
@@ -56,7 +60,7 @@ void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     pipelineDesc.Rasterizer.DepthClampEnable = false;
     pipelineDesc.Rasterizer.LineWidth = 1.0f;
 
-    pipelineDesc.Topology = PipelineDesc::PrimitiveTopology::TRIANGLE_LIST;
+    pipelineDesc.Topology = GraphicsPipelineDesc::PrimitiveTopology::TRIANGLE_LIST;
 
     pipelineDesc.Viewport.Width = swapchain.m_extent.width;
     pipelineDesc.Viewport.Height = swapchain.m_extent.height;
@@ -64,6 +68,10 @@ void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     pipelineDesc.Viewport.MinDepth = 0.0f;
     pipelineDesc.Viewport.ScissorWidth = swapchain.m_extent.width;
     pipelineDesc.Viewport.ScissorHeight = swapchain.m_extent.height;
+
+    pipelineDesc.DepthTestEnable = true;
+    pipelineDesc.DepthWriteEnable = false;
+    pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::ALWAYS;
 
     pipelineDesc.ColorAttachmentFormat = swapchain.m_format;
 
@@ -74,7 +82,7 @@ void SkyboxPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     m_pipeline = Pipeline(pipelineDesc);
 }
 
-void SkyboxPass::update(Renderer& renderer)
+void SkyboxPass::update(Renderer& renderer, CommandList& cmd)
 {
 }
 
@@ -83,7 +91,43 @@ void SkyboxPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
-    info.DepthAttachment.StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+    info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+    {
+        auto usage_before = (info.DepthAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+                                ? TransitionType::Undefined
+                                : TransitionType::DepthStencilAttachmentWrite;
+        auto usage_after = TransitionType::DepthStencilAttachmentWrite;
+
+        TransitionInfo before = usage_to_barrier(usage_before, info.DepthAttachment->Format);
+        TransitionInfo after = usage_to_barrier(usage_after, info.DepthAttachment->Format);
+
+        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (nijiEngine.m_context.has_stencil_component(info.DepthAttachment->Format))
+            aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        cmd.transition_image_explicit(*info.DepthAttachment, before, after, aspect, 1, 1);
+    }
+
+    {
+        TransitionInfo before;
+        if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+            before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
+        else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+            before = {VK_PIPELINE_STAGE_2_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+
+        TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
+    }
 
     cmd.begin_rendering(info, m_name);
 
