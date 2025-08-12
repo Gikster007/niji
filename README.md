@@ -1,6 +1,6 @@
 # Niji Engine ***WIP***
 
-### Toy Renderer written in C++ with `Vulkan`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image` `EnTT` `VMA` `fastgltf` `mikktspace` `ImGui`
+### Vulkan Renderer written in `C++` and `Slang`. Other dependencies: `CMake` `GLFW` `GLM` `STB_Image` `EnTT` `VMA` `fastgltf` `mikktspace` `ImGui` `nlohmann/json`
 
 <br>
 
@@ -13,20 +13,26 @@
 - [x] Abstracted Renderer with Pass System
 - [x] Shaders written in Slang
 - [x] Dear ImGUI Implementation
-- [x] PBR Lighting (Directional Light + IBL)
+- [x] PBR Lighting (Directional and Point Lights + IBL)
 - [x] Skybox
 - [x] Mipmapping
+- [x] Lights Editor via ImGui and ImGuizmo
+- [x] Basic Lights Serialization via nlohmann/json
+- [x] Debug Line Rendering
+- [x] Shader Hot Reload
+- [ ] Shader Printf
+- [ ] Tiled Forward+ Rendering (WIP...)
 - [ ] Clustered Forward+ Rendering
 
 and more...
 
 ## Latest Render
-<img width="1918" height="1115" alt="image" src="https://github.com/user-attachments/assets/1710a775-e355-4b23-970a-d6121c1d772a" />
+<img width="1921" height="1120" alt="image" src="https://github.com/user-attachments/assets/0abdc686-6607-4550-97b1-be3c76b66864" />
 
 Details:
-- Lights: 1 Direction Light
+- Lights: 96 moving Point Lights
 - IBL: 1 *Distant Light Probe*, Diffuse 1024x1024 cubemap, Specular 1024x1024 cubemap with 7 mips
-- Performance: ~3ms @ 1920x1080p
+- Performance: ~3.4ms @ 1920x1080p on RTX4060 laptop edition. Depth Pre-Pass saved about 4ms of frame time
 
 ## How to build
 `Windows`
