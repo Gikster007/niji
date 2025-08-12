@@ -485,6 +485,8 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
                     Sphere s = {};
                     glm::vec4 centerWS = glm::vec4(pointLight.Position, 1.0f);
                     s.Center = glm::vec3(camera.GetViewMatrix() * centerWS);
+                    //printf("World Space Pos: %f, %f, %f \n", centerWS.x, centerWS.y, centerWS.z);
+                    //printf("View Space Pos: %f, %f, %f \n", s.Center.x, s.Center.y, s.Center.z);
                     s.Radius = pointLight.Range;
                     pointLightsArray.push_back(s);
                 }

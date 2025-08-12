@@ -22,9 +22,10 @@ void LineRenderPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
                                          m_passDescriptor.m_setLayout};
 
+    add_shader("shaders/line_render_pass.slang", ShaderType::FRAG_AND_VERT);
     pipelineDesc.Name = "Line Render Pass";
-    pipelineDesc.VertexShader = "shaders/spirv/line_render_pass.vert.spv";
-    pipelineDesc.FragmentShader = "shaders/spirv/line_render_pass.frag.spv";
+    pipelineDesc.VertexShader = m_vertFrag.Spirv[0];
+    pipelineDesc.FragmentShader = m_vertFrag.Spirv[1];
 
     pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::BACK;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::LINE;
@@ -53,10 +54,10 @@ void LineRenderPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
                              VertexElement(1, VK_FORMAT_R32G32B32_SFLOAT,
                                            offsetof(DebugLine, Color)));
 
-    m_pipeline = Pipeline(pipelineDesc);
+    m_pipelines.emplace(pipelineDesc.Name, Pipeline(pipelineDesc));
 }
 
-void LineRenderPass::update(Renderer& renderer, CommandList& cmd)
+void LineRenderPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     if (nijiEngine.m_debugLines.size() > 0)
     {
@@ -74,6 +75,7 @@ void LineRenderPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& in
 {
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
+    const Pipeline& pipeline = m_pipelines.at("Line Render Pass");
 
     info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -83,7 +85,7 @@ void LineRenderPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& in
 
     cmd.begin_rendering(info, m_name);
 
-    cmd.bind_pipeline(m_pipeline.PipelineObject);
+    cmd.bind_pipeline(pipeline.PipelineObject);
 
     cmd.bind_viewport(swapchain.m_extent);
     cmd.bind_scissor(swapchain.m_extent);
@@ -94,7 +96,7 @@ void LineRenderPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& in
 
     // Globals - 0
     {
-        cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 0, 1,
+        cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.PipelineLayout, 0, 1,
                                  &renderer.m_globalDescriptor.m_set[renderer.m_currentFrame]);
     }
 

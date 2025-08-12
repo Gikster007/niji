@@ -30,9 +30,10 @@ void DepthPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
                                          m_passDescriptor.m_setLayout};
 
+    add_shader("shaders/depth_pass.slang", ShaderType::FRAG_AND_VERT);
     pipelineDesc.Name = "Depth Pass";
-    pipelineDesc.VertexShader = "shaders/spirv/depth_pass.vert.spv";
-    pipelineDesc.FragmentShader = "shaders/spirv/depth_pass.frag.spv";
+    pipelineDesc.VertexShader = m_vertFrag.Spirv[0];
+    pipelineDesc.FragmentShader = m_vertFrag.Spirv[1];
 
     pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
@@ -65,10 +66,10 @@ void DepthPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
                                            offsetof(Vertex, Tangent)),
                              VertexElement(4, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
 
-    m_pipeline = Pipeline(pipelineDesc);
+    m_pipelines.emplace(pipelineDesc.Name, Pipeline(pipelineDesc));
 }
 
-void DepthPass::update(Renderer& renderer, CommandList& cmd)
+void DepthPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     const uint32_t& frameIndex = renderer.m_currentFrame;
     {
@@ -96,6 +97,7 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
+    const Pipeline& pipeline = m_pipelines.at("Depth Pass");
 
     info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
     info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
@@ -105,7 +107,7 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
     cmd.begin_rendering(info, m_name);
 
-    cmd.bind_pipeline(m_pipeline.PipelineObject);
+    cmd.bind_pipeline(pipeline.PipelineObject);
 
     cmd.bind_viewport(swapchain.m_extent);
     cmd.bind_scissor(swapchain.m_extent);
@@ -126,7 +128,7 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
         // Globals - 0
         {
-            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 0,
+            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.PipelineLayout, 0,
                                      1,
                                      &renderer.m_globalDescriptor.m_set[renderer.m_currentFrame]);
         }
@@ -145,7 +147,7 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
             m_passDescriptor.push_descriptor_writes(writes, bufferInfos, imageInfos);
 
-            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 1,
+            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.PipelineLayout, 1,
                                     static_cast<uint32_t>(writes.size()), writes.data());
         }
 

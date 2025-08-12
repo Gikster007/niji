@@ -270,9 +270,10 @@ inline static VkCompareOp to_vk(GraphicsPipelineDesc::DepthCompareOp compareOp)
     }
 }
 
-Pipeline::Pipeline(GraphicsPipelineDesc& desc)
+Pipeline::Pipeline(GraphicsPipelineDesc desc)
 {
     Name = desc.Name;
+    GraphicsDesc = desc;
 
     auto vertShaderCode = read_file(desc.VertexShader);
     auto fragShaderCode = read_file(desc.FragmentShader);
@@ -441,9 +442,11 @@ Pipeline::Pipeline(GraphicsPipelineDesc& desc)
     vkDestroyShaderModule(nijiEngine.m_context.m_device, vertShaderModule, nullptr);
 }
 
-Pipeline::Pipeline(ComputePipelineDesc& desc)
+Pipeline::Pipeline(ComputePipelineDesc desc)
 {
     Name = desc.Name;
+    ComputeDesc = desc;
+    IsGraphicsPipeline = false;
 
     auto computeShaderCode = read_file(desc.ComputeShader);
 

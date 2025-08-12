@@ -80,7 +80,7 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     ImGui_ImplVulkan_Init(&init_info);
 }
 
-void ImGuiPass::update(Renderer& renderer, CommandList& cmd)
+void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
 
 }

@@ -140,10 +140,12 @@ void LightCullingPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     {
         ComputePipelineDesc gridFrustumsDesc = {globalDescriptor.m_setLayout,
                                                 m_passDescriptor.m_setLayout};
-        gridFrustumsDesc.Name = "Grid Frustum Compute Pass";
-        gridFrustumsDesc.ComputeShader = "shaders/spirv/grid_frustums_cs.spv";
 
-        m_pipeline = Pipeline(gridFrustumsDesc);
+        add_shader("shaders/grid_frustums_cs.slang", ShaderType::COMPUTE);
+        gridFrustumsDesc.Name = "Grid Frustum Compute Pass";
+        gridFrustumsDesc.ComputeShader = m_compute.Spirv[0];
+
+        m_pipelines.emplace(gridFrustumsDesc.Name, Pipeline(gridFrustumsDesc));
     }
 
     // Init Light Culling Descriptor
@@ -222,14 +224,16 @@ void LightCullingPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     {
         ComputePipelineDesc lightCullingDesc = {globalDescriptor.m_setLayout,
                                                 m_lightCullingDescriptor.m_setLayout};
-        lightCullingDesc.Name = "Light Culling Compute Pass";
-        lightCullingDesc.ComputeShader = "shaders/spirv/light_culling_cs.spv";
 
-        m_lightCullingPipeline = Pipeline(lightCullingDesc);
+        add_shader("shaders/light_culling_cs.slang", ShaderType::COMPUTE);
+        lightCullingDesc.Name = "Light Culling Compute Pass";
+        lightCullingDesc.ComputeShader = m_compute.Spirv[0];
+
+        m_pipelines.emplace(lightCullingDesc.Name, Pipeline(lightCullingDesc));
     }
 }
 
-void LightCullingPass::update(Renderer& renderer, CommandList& cmd)
+void LightCullingPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     on_window_resize();
 
@@ -252,9 +256,9 @@ void LightCullingPass::update(Renderer& renderer, CommandList& cmd)
     }
 
     {
-        uint32_t zero = 0;
+        /*uint32_t zero = 0;
         vkCmdUpdateBuffer(cmd.m_commandBuffer, m_lightIndexCounter[frameIndex].Handle, 0,
-                          sizeof(uint32_t), &zero);
+                          sizeof(uint32_t), &zero);*/
     }
 }
 
@@ -265,7 +269,7 @@ glm::vec3 plane_intersection(const glm::vec3& n1, float d1, const glm::vec3& n2,
     glm::vec3 n3xn1 = glm::cross(n3, n1);
     glm::vec3 n1xn2 = glm::cross(n1, n2);
     float denom = glm::dot(n1, n2xn3);
-    //assert(fabs(denom) > 1e-6f); // planes should not be parallel
+    // assert(fabs(denom) > 1e-6f); // planes should not be parallel
     /*if (fabs(denom) < 1e-6f)
     {
         return glm::vec3(0.0f);
@@ -277,8 +281,27 @@ static bool computeFrustums = true;
 static bool captureFrustum = false;
 void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
+    //// DEBUG ONLY
+    //{
+    //    VkMemoryBarrier2 memoryBarrier = {};
+    //    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    //    memoryBarrier.srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    //    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+    //    memoryBarrier.dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    //    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+    //    VkDependencyInfo depInfo = {};
+    //    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    //    depInfo.memoryBarrierCount = 1;
+    //    depInfo.pMemoryBarriers = &memoryBarrier;
+
+    //    vkCmdPipelineBarrier2(cmd.m_commandBuffer, &depInfo);
+    //}
+
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
+    const Pipeline& frustumPipeline = m_pipelines.at("Grid Frustum Compute Pass");
+    const Pipeline& cullingPipeline = m_pipelines.at("Light Culling Compute Pass");
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -302,7 +325,7 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
     if (computeFrustums)
     {
         // computeFrustums = false;
-        //  Grid Frustums Computation
+        //   Grid Frustums Computation
         {
             VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
             labelInfo.pLabelName = "Compute Grid Frustums";
@@ -313,7 +336,7 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
 
             VKCmdBeginDebugUtilsLabelEXT(cmd.m_commandBuffer, &labelInfo);
 
-            cmd.bind_pipeline(m_pipeline.PipelineObject, true);
+            cmd.bind_pipeline(frustumPipeline.PipelineObject, true);
 
             // Per Pass Bindings
             {
@@ -331,8 +354,9 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
 
                 m_passDescriptor.push_descriptor_writes(writes, bufferInfos, imageInfos);
 
-                cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline.PipelineLayout,
-                                        1, static_cast<uint32_t>(writes.size()), writes.data());
+                cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        frustumPipeline.PipelineLayout, 1,
+                                        static_cast<uint32_t>(writes.size()), writes.data());
             }
 
             cmd.dispatch(m_totalThreadGroups.x, m_totalThreadGroups.y, 1);
@@ -457,6 +481,32 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
                              VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1, &bufferBarrier, 0,
                              nullptr);
 
+        // Syncing (for Light Grid)
+        {
+            VkImageMemoryBarrier2 imgBarrier = {};
+            imgBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            imgBarrier.srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            imgBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            imgBarrier.dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            imgBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+            imgBarrier.oldLayout = renderer.m_lightGridTexture.ImageInfo.imageLayout,
+            imgBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imgBarrier.image = renderer.m_lightGridTexture.TextureImage;
+            imgBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imgBarrier.subresourceRange.baseMipLevel = 0;
+            imgBarrier.subresourceRange.levelCount = 1;
+            imgBarrier.subresourceRange.baseArrayLayer = 0;
+            imgBarrier.subresourceRange.layerCount = 1;
+
+            VkDependencyInfo depInfo = {};
+            depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            depInfo.imageMemoryBarrierCount = 1;
+            depInfo.pImageMemoryBarriers = &imgBarrier;
+
+            VKCmdPipelineBarrier2KHR(cmd.m_commandBuffer, &depInfo);
+            renderer.m_lightGridTexture.ImageInfo.imageLayout = imgBarrier.newLayout;
+        }
+
         {
             nijiEngine.m_context.get_window_size(m_winWidth, m_winHeight);
 
@@ -492,12 +542,12 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
 
         VKCmdBeginDebugUtilsLabelEXT(cmd.m_commandBuffer, &labelInfo);
 
-        cmd.bind_pipeline(m_lightCullingPipeline.PipelineObject, true);
+        cmd.bind_pipeline(cullingPipeline.PipelineObject, true);
 
         // Globals - 0
         {
-            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_COMPUTE,
-                                     m_lightCullingPipeline.PipelineLayout, 0, 1,
+            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_COMPUTE, cullingPipeline.PipelineLayout,
+                                     0, 1,
                                      &renderer.m_globalDescriptor.m_set[renderer.m_currentFrame]);
         }
 
@@ -532,17 +582,14 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
 
             m_lightCullingDescriptor.push_descriptor_writes(writes, bufferInfos, imageInfos);
 
-            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_COMPUTE,
-                                    m_lightCullingPipeline.PipelineLayout, 1,
-                                    static_cast<uint32_t>(writes.size()), writes.data());
+            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_COMPUTE, cullingPipeline.PipelineLayout,
+                                    1, static_cast<uint32_t>(writes.size()), writes.data());
         }
 
         cmd.dispatch(m_totalThreadGroups.x, m_totalThreadGroups.y, 1);
 
         VKCmdEndDebugUtilsLabelEXT(cmd.m_commandBuffer);
     }
-
-    
 
     // Syncing (for Light Grid)
     {
@@ -552,7 +599,7 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
         imgBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
         imgBarrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
         imgBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        imgBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+        imgBarrier.oldLayout = renderer.m_lightGridTexture.ImageInfo.imageLayout,
         imgBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
         imgBarrier.image = renderer.m_lightGridTexture.TextureImage;
         imgBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -566,7 +613,7 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
         depInfo.imageMemoryBarrierCount = 1;
         depInfo.pImageMemoryBarriers = &imgBarrier;
 
-        VKCmdPipelineBarrier2KHR(cmd.m_commandBuffer, &depInfo);
+        vkCmdPipelineBarrier2(cmd.m_commandBuffer, &depInfo);
         renderer.m_lightGridTexture.ImageInfo.imageLayout = imgBarrier.newLayout;
     }
 
@@ -581,19 +628,14 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
         bar.buffer = renderer.m_lightIndexList[frameIndex].Handle;
         bar.size = renderer.m_lightIndexList[frameIndex].Desc.Size;
 
-        /*VkMemoryBarrier2 memBarrier = {};
-        memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
-        memBarrier.srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        memBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        memBarrier.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        memBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;*/
-
         VkDependencyInfo depInfo = {};
         depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         depInfo.bufferMemoryBarrierCount = 1;
         depInfo.pBufferMemoryBarriers = &bar;
 
-        VKCmdPipelineBarrier2KHR(cmd.m_commandBuffer, &depInfo);
+        vkCmdPipelineBarrier2(cmd.m_commandBuffer, &depInfo);
+
+        // VKCmdPipelineBarrier2KHR(cmd.m_commandBuffer, &depInfo);
     }
 }
 
@@ -601,7 +643,6 @@ void LightCullingPass::cleanup()
 {
     base_cleanup();
 
-    m_lightCullingPipeline.cleanup();
     m_lightCullingDescriptor.cleanup();
 
     for (int i = 0; i < m_dispatchParams.size(); i++)

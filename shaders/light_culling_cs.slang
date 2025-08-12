@@ -1,6 +1,6 @@
 // Inspired by: https://www.3dgep.com/forward-plus/#frustum-culling
 
-#define MAX_LIGHTS_PER_TILE 1024
+#define MAX_LIGHTS_PER_TILE 256
 #define BLOCK_SIZE 16
 
 // TODO: Move duplicate structs to a slang module that can be imported in multiple .slang files
@@ -166,10 +166,11 @@ void o_AppendLight(uint lightIndex)
 [numthreads(BLOCK_SIZE, BLOCK_SIZE, 1)]
 void compute_main(ComputeShaderInput input)
 {
-    //o_LightGrid[input.GroupID.xy] = uint2(0, 0);
-    //o_LightIndexList[input.GroupIndex] = 0;
-    //GroupMemoryBarrierWithGroupSync();
-    // Calculate min & max depth in threadgroup / tile.
+    // o_LightGrid[input.GroupID.xy] = uint2(0, 0);
+    // o_LightIndexList[input.GroupIndex] = 0;
+    // GroupMemoryBarrierWithGroupSync();
+    //  Calculate min & max depth in threadgroup / tile.
+    
     int2 texCoord = input.DispatchThreadID.xy;
     float fDepth = DepthTextureVS.Load(int3(texCoord, 0)).r;
     uint uDepth = asuint(fDepth);
@@ -189,13 +190,14 @@ void compute_main(ComputeShaderInput input)
 
     GroupMemoryBarrierWithGroupSync();
 
+
     float fMinDepth = asfloat(uMinDepth);
     float fMaxDepth = asfloat(uMaxDepth);
 
     // Convert depth values to view space.
-    float minDepthVS = clip_to_view(float4(0, 0, fMinDepth, 1)).z;
-    float maxDepthVS = clip_to_view(float4(0, 0, fMaxDepth, 1)).z;
-    float nearClipVS = clip_to_view(float4(0, 0, 0, 1)).z;
+    float minDepthVS = screen_to_view(float4(0, 0, fMinDepth, 1)).z;
+    float maxDepthVS = screen_to_view(float4(0, 0, fMaxDepth, 1)).z;
+    float nearClipVS = screen_to_view(float4(0, 0, 0, 1)).z;
 
     // Clipping plane for minimum depth value
     // (used for testing lights within the bounds of opaque geometry).
@@ -206,10 +208,12 @@ void compute_main(ComputeShaderInput input)
     for (uint i = input.GroupIndex; i < PointLightCount; i += BLOCK_SIZE * BLOCK_SIZE)
     {
         Sphere sphere = Lights[i];
+        bool insideFrustum = sphere_inside_frustum(sphere, GroupFrustum, nearClipVS, maxDepthVS);
+        bool insidePlane = sphere_inside_plane(sphere, minPlane);
 
-        if (sphere_inside_frustum(sphere, GroupFrustum, nearClipVS, maxDepthVS))
+        if (insideFrustum)
         {
-            if (!sphere_inside_plane(sphere, minPlane))
+            if (!insidePlane)
             {
                 // Add light to light list for opaque geometry.
                 o_AppendLight(i);

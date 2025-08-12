@@ -13,7 +13,7 @@ class DepthPass final : public RenderPass
     }
 
     void init(Swapchain& swapchain, Descriptor& globalDescriptor);
-    void update(Renderer& renderer, CommandList& cmd);
+    void update_impl(Renderer& renderer, CommandList& cmd);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
 

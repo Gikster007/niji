@@ -38,7 +38,7 @@ const std::vector<const char*> DEVICE_EXTENSIONS = {
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr int MAX_POINT_LIGHTS = 128;
-constexpr int MAX_DEBUG_LINES = 100000;
+constexpr int MAX_DEBUG_LINES = 10000;
 
 #ifdef NDEBUG
 constexpr bool ENABLE_VALIDATION_LAYERS = false;

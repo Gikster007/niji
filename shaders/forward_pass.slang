@@ -120,11 +120,17 @@ cbuffer SceneInfo
     int2 _pad2; // 64 bytes
 }
 
+// Set = 1, Binding = 14
 [[vk::binding(14, 1)]]
 Texture2D<uint2> lightGrid;
 
+// Set = 1, Binding = 15
 [[vk::binding(15, 1)]]
 StructuredBuffer<uint> lightIndexList;
+
+// Set = 1, Binding = 16
+[[vk::binding(16, 1)]]
+SamplerState pointSampler;
 
 struct VertexInput
 {
@@ -151,7 +157,7 @@ VertexOutput vertex_main(VertexInput input)
 {
     VertexOutput output;
     float4 worldPosition = mul(Model, float4(input.Position, 1.0f));
-    output.Position = mul(Proj, mul(View, mul( Model, float4(input.Position, 1.0f))));
+    output.Position = mul(Proj, mul(View, mul(Model, float4(input.Position, 1.0f))));
     output.FragPosition = worldPosition;
     output.Color = input.Color;
     output.Normal = mul((float3x3)InvModel, input.Normal);
@@ -216,14 +222,23 @@ float3 CalculateFRough(float3 F0, float ndotv, float roughness)
 [shader("fragment")]
 float4 fragment_main(VertexOutput input) : SV_Target
 {
+    if (drawLightHeatmap)
+    {
+        // float2 uv = input.Position.xy / float2(1920.0f, 1080.0f);
+        uint2 tileIndex = uint2(floor(input.Position.xy / 16));
+        int2 grid = lightGrid.Load(uint3(uint2(tileIndex), 0));
+        return float4(grid.ggg, 1.0f);
+        //return float4(asfloat(grid.r), asfloat(grid.g), 0.0f, 1.0f);
+    }
+
     // if (renderMode == RenderFlags::ALBEDO)
     //{
     //     float2 uv = input.Position.xy / float2(1920.0f, 1080.0f);
     //     float rawDepth = baseColor.Sample(linearSampler, uv).r;
-    //
+    
     //     // Optional: linearize if needed
     //     float linearDepth = 0.1f * 1000.0f / (1000.0f - rawDepth * (1000.0f - 0.1f));
-    //
+    
     //     return float4(float3(linearDepth * 0.1f), 1.0f); // or vec3(linearDepth)
     // }
 
@@ -291,16 +306,17 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
         uint2 tileIndex = uint2(floor(input.Position.xy / 16));
 
-        uint2 lightInfo = lightGrid[tileIndex];
+        // uint2 lightInfo = lightGrid.Sample(pointSampler, tileIndex);
+        uint2 lightInfo = lightGrid.Load(int3(tileIndex, 0));
         uint startOffset = lightInfo.x;
         uint lightCount = lightInfo.y;
 
         // Point Light Contribution
-        for (int i = 0; i < PointLightCount; i++)
+        for (int i = 0; i < 1; i++)
         {
-            // uint lightIndex = lightIndexList[startOffset + i];
+            //uint lightIndex = lightIndexList[startOffset + i];
             //
-            // PointLight pointLight = pointLights[lightIndex];
+            //PointLight pointLight = pointLights[lightIndex];
             PointLight pointLight = pointLights[i];
 
             float3 toLight = pointLight.Position - input.FragPosition.xyz;
@@ -357,7 +373,8 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
         if (drawLightHeatmap)
             final = lerp(final, heatMap, 1.0f);
-        //final = lerp(final, heatMap, 0.75f);
+        // final = lerp(final, heatMap, 0.75f);
+        //final = float4(1.0f);
         break;
     case RenderFlags::ALBEDO:
         final = albedo;

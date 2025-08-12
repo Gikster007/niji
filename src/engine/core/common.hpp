@@ -364,6 +364,7 @@ struct RasterizerState
 
 struct GraphicsPipelineDesc
 {
+    GraphicsPipelineDesc() = default;
     GraphicsPipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
         : GlobalDescriptorSetLayout(globalLayout), PassDescriptorSetLayout(passlLayout)
     {
@@ -405,12 +406,13 @@ struct GraphicsPipelineDesc
 
   private:
     friend class Pipeline;
-    VkDescriptorSetLayout& GlobalDescriptorSetLayout;
-    VkDescriptorSetLayout& PassDescriptorSetLayout;
+    VkDescriptorSetLayout GlobalDescriptorSetLayout;
+    VkDescriptorSetLayout PassDescriptorSetLayout;
 };
 
 struct ComputePipelineDesc
 {
+    ComputePipelineDesc() = default;
     ComputePipelineDesc(VkDescriptorSetLayout& globalLayout, VkDescriptorSetLayout& passlLayout)
         : GlobalDescriptorSetLayout(globalLayout), PassDescriptorSetLayout(passlLayout)
     {
@@ -421,21 +423,26 @@ struct ComputePipelineDesc
 
     private:
     friend class Pipeline;
-    VkDescriptorSetLayout& GlobalDescriptorSetLayout;
-    VkDescriptorSetLayout& PassDescriptorSetLayout;
+    VkDescriptorSetLayout GlobalDescriptorSetLayout;
+    VkDescriptorSetLayout PassDescriptorSetLayout;
 };
 
 struct Pipeline
 {
     Pipeline() = default;
-    Pipeline(GraphicsPipelineDesc& desc);
-    Pipeline(ComputePipelineDesc& desc);
+    Pipeline(GraphicsPipelineDesc desc);
+    Pipeline(ComputePipelineDesc desc);
 
     void cleanup();
 
     VkPipeline PipelineObject = {};
     VkPipelineLayout PipelineLayout = {};
     char* Name = nullptr;
+
+    GraphicsPipelineDesc GraphicsDesc;
+    ComputePipelineDesc ComputeDesc;
+
+    bool IsGraphicsPipeline = true;
 };
 
 // TODO: Switch naming style to convention (All caps with "_" between words)

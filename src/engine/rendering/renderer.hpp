@@ -50,6 +50,7 @@ class Renderer : System
 
   private:
     friend class Material;
+    friend class RenderPass;
     friend class ForwardPass;
     friend class ImGuiPass;
     friend class SkyboxPass;

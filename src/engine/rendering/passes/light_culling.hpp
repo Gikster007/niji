@@ -48,7 +48,7 @@ class LightCullingPass final : public RenderPass
     }
 
     void init(Swapchain& swapchain, Descriptor& globalDescriptor);
-    void update(Renderer& renderer, CommandList& cmd);
+    void update_impl(Renderer& renderer, CommandList& cmd);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
 
@@ -56,7 +56,6 @@ class LightCullingPass final : public RenderPass
     void on_window_resize();
 
   private:
-    Pipeline m_lightCullingPipeline = {};
     Descriptor m_lightCullingDescriptor = {};
 
     std::vector<Buffer> m_dispatchParams = {};

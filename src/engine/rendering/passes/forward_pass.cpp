@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include <imgui_impl_vulkan.h>
 #include <vk_mem_alloc.h>
 #include <imgui.h>
 
@@ -45,6 +46,21 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
             bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
             m_pointLightBuffer[i] = Buffer(bufferDesc, nullptr);
         }
+    }
+
+    // Create Point Sampler
+    {
+        SamplerDesc desc = {};
+        desc.MagFilter = SamplerDesc::Filter::NEAREST;
+        desc.MinFilter = SamplerDesc::Filter::NEAREST;
+        desc.AddressModeU = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.AddressModeV = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.AddressModeW = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.EnableAnisotropy = true;
+        desc.MipmapMode = SamplerDesc::MipMapMode::NEAREST;
+        desc.Name = "Forward Pass Point Sampler";
+
+        m_pointSampler = Sampler(desc);
     }
 
     {
@@ -119,7 +135,7 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         descriptorInfo.Bindings.push_back(sceneInfoBinding);
 
         DescriptorBinding lightGridBinding = {};
-        lightGridBinding.Type = DescriptorBinding::BindType::TEXTURE;
+        lightGridBinding.Type = DescriptorBinding::BindType::STORAGE_TEXTURE;
         lightGridBinding.Count = 1;
         lightGridBinding.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
         lightGridBinding.Sampler = nullptr;
@@ -133,15 +149,23 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         // lightIndexListBinding.Resource = &m_lightIndexList;
         descriptorInfo.Bindings.push_back(lightIndexListBinding);
 
+        DescriptorBinding samplerBinding3 = {};
+        samplerBinding3.Type = DescriptorBinding::BindType::SAMPLER;
+        samplerBinding3.Count = 1;
+        samplerBinding3.Stage = DescriptorBinding::BindStage::FRAGMENT_SHADER;
+        samplerBinding3.Sampler = nullptr;
+        descriptorInfo.Bindings.push_back(samplerBinding3);
+
         m_passDescriptor = Descriptor(descriptorInfo);
     }
 
     GraphicsPipelineDesc pipelineDesc = {globalDescriptor.m_setLayout,
                                          m_passDescriptor.m_setLayout};
 
+    add_shader("shaders/forward_pass.slang", ShaderType::FRAG_AND_VERT);
     pipelineDesc.Name = "Forward Pass";
-    pipelineDesc.VertexShader = "shaders/spirv/forward_pass.vert.spv";
-    pipelineDesc.FragmentShader = "shaders/spirv/forward_pass.frag.spv";
+    pipelineDesc.VertexShader = m_vertFrag.Spirv[0];
+    pipelineDesc.FragmentShader = m_vertFrag.Spirv[1];
 
     pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
@@ -173,10 +197,10 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
                                            offsetof(Vertex, Tangent)),
                              VertexElement(4, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
 
-    m_pipeline = Pipeline(pipelineDesc);
+    m_pipelines.emplace(pipelineDesc.Name, Pipeline(pipelineDesc));
 }
 
-void ForwardPass::update(Renderer& renderer, CommandList& cmd)
+void ForwardPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     const uint32_t& frameIndex = renderer.m_currentFrame;
 
@@ -235,6 +259,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
+    const Pipeline& pipeline = m_pipelines.at("Forward Pass");
 
     info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -257,9 +282,26 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
         cmd.transition_image_explicit(*info.DepthAttachment, before, after, aspect, 1, 1);
     }
 
+    //// DEBUG ONLY
+    //{
+    //    VkMemoryBarrier2 memoryBarrier = {};
+    //    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    //    memoryBarrier.srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    //    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+    //    memoryBarrier.dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    //    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+
+    //    VkDependencyInfo depInfo = {};
+    //    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    //    depInfo.memoryBarrierCount = 1;
+    //    depInfo.pMemoryBarriers = &memoryBarrier;
+
+    //    vkCmdPipelineBarrier2(cmd.m_commandBuffer, &depInfo);
+    //}
+
     cmd.begin_rendering(info, m_name);
 
-    cmd.bind_pipeline(m_pipeline.PipelineObject);
+    cmd.bind_pipeline(pipeline.PipelineObject);
 
     cmd.bind_viewport(swapchain.m_extent);
     cmd.bind_scissor(swapchain.m_extent);
@@ -283,7 +325,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
         // Globals - 0
         {
-            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 0,
+            cmd.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.PipelineLayout, 0,
                                      1,
                                      &renderer.m_globalDescriptor.m_set[renderer.m_currentFrame]);
         }
@@ -337,6 +379,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
             m_passDescriptor.m_info.Bindings[14].Resource = &renderer.m_lightGridTexture;
             m_passDescriptor.m_info.Bindings[15].Resource = &renderer.m_lightIndexList[frameIndex];
+            m_passDescriptor.m_info.Bindings[16].Resource = &m_pointSampler;
 
             std::vector<VkWriteDescriptorSet> writes = {};
             std::vector<VkDescriptorBufferInfo> bufferInfos = {};
@@ -348,7 +391,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
             m_passDescriptor.push_descriptor_writes(writes, bufferInfos, imageInfos);
 
-            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.PipelineLayout, 1,
+            cmd.push_descriptor_set(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.PipelineLayout, 1,
                                     static_cast<uint32_t>(writes.size()), writes.data());
         }
 
@@ -361,6 +404,8 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 void ForwardPass::cleanup()
 {
     base_cleanup();
+
+    m_pointSampler.cleanup();
 
     for (int i = 0; i < m_pointLightBuffer.size(); i++)
     {
