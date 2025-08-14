@@ -134,5 +134,7 @@ class Context
     VkQueue m_graphicsQueue = {};
     VkQueue m_presentQueue = {};
     VkCommandPool m_commandPool = {};
+
+    Sampler m_globalSampler = {};
 };
 } // namespace niji

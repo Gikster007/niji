@@ -59,6 +59,17 @@ Context::Context()
     load_vulkan_function_pointers(m_device);
 
     init_allocator();
+
+    SamplerDesc desc = {};
+    desc.MagFilter = SamplerDesc::Filter::LINEAR;
+    desc.MinFilter = SamplerDesc::Filter::LINEAR;
+    desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
+    desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
+    desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
+    desc.EnableAnisotropy = true;
+    desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+
+    m_globalSampler = Sampler(desc);
 }
 
 void Context::init()
@@ -78,6 +89,8 @@ void Context::init_window()
 
 void Context::cleanup()
 {
+    m_globalSampler.cleanup();
+
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
 #if DEBUG_ALLOCATIONS
@@ -166,7 +179,7 @@ void Context::create_instance()
         createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
         populate_debug_messenger_create_info(debugCreateInfo);
-        debugCreateInfo.pNext = &validationFeatures;
+        //debugCreateInfo.pNext = &validationFeatures;
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else
