@@ -207,6 +207,7 @@ struct TextureDesc
 
     bool IsReadWrite = false;
     bool IsMipMapped = false;
+    bool ShowInImGui = false;
     uint32_t Mips = 1;
     uint32_t Layers = 1;
 
@@ -244,6 +245,8 @@ struct Texture
     VmaAllocation TextureImageAllocation = {};
 
     VkDescriptorImageInfo ImageInfo = {};
+    
+    VkDescriptorSet ImGuiHandle = {};
 };
 
 struct SamplerDesc

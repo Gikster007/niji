@@ -48,7 +48,8 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
         pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
         pool_info.pPoolSizes = pool_sizes;
 
-        vkCreateDescriptorPool(nijiEngine.m_context.m_device, &pool_info, nullptr, &m_imguiDescriptorPool);
+        vkCreateDescriptorPool(nijiEngine.m_context.m_device, &pool_info, nullptr,
+                               &m_imguiDescriptorPool);
     }
 
     QueueFamilyIndices indices =
@@ -84,7 +85,12 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
 void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
+    auto& image = renderer.m_fallbackTexture;
 
+    ImGui::Begin("Debug Image");
+    auto& size = ImGui::GetContentRegionAvail();
+    ImGui::Image(image.ImGuiHandle, size);
+    ImGui::End();
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)

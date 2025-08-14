@@ -73,80 +73,6 @@ inline static void CreateCube(std::vector<glm::vec3>& vertices, std::vector<uint
 
 void Renderer::init()
 {
-    // Fallback Texture
-    {
-        int width = -1, height = -1, channels = -1;
-        unsigned char* imageData = nullptr;
-
-        imageData = stbi_load("assets/missing.png", &width, &height, &channels, STBI_rgb_alpha);
-
-        if (!imageData)
-        {
-            printf("[Renderer] Failed to load Fallback Texture");
-        }
-
-        TextureDesc desc = {};
-        desc.Width = width;
-        desc.Height = height;
-        desc.Channels = 4;
-        desc.Data = imageData;
-        desc.IsMipMapped = true;
-        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
-        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-        m_fallbackTexture = Texture(desc);
-    }
-
-    // Create Cube
-    {
-        std::vector<glm::vec3> vertices = {};
-        std::vector<uint32_t> indices = {};
-        CreateCube(vertices, indices);
-
-        m_cube = Mesh(vertices, indices);
-    }
-
-    int width = 0, height = 0;
-    nijiEngine.m_context.get_window_size(width, height);
-
-    uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
-    uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
-    glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
-    // Create Light Grid RWTexture
-    {
-
-        TextureDesc desc = {};
-        desc.Width = totalThreads.x;
-        desc.Height = totalThreads.y;
-        desc.Channels = 2;
-        desc.IsMipMapped = false;
-        desc.Data = nullptr;
-        desc.Format = VK_FORMAT_R32G32_UINT;
-        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        desc.Usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        desc.IsReadWrite = true;
-        m_lightGridTexture = Texture(desc);
-    }
-
-    // Create Light Index List Buffer
-    {
-        VkDeviceSize bufferSize = sizeof(LightIndexList);
-        m_lightIndexList.resize(MAX_FRAMES_IN_FLIGHT);
-        const uint32_t totalTiles = totalThreads.x * totalThreads.y;
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            LightIndexList buffer = {};
-            buffer.counter = 0;
-            BufferDesc bufferDesc = {};
-            bufferDesc.IsPersistent = true;
-            bufferDesc.Name = "Light Index List Buffer";
-            bufferDesc.Size = sizeof(LightIndexList) * totalTiles * MAX_LIGHTS_PER_TILE;
-            bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
-            m_lightIndexList[i] = Buffer(bufferDesc, &buffer);
-        }
-    }
-
     // Global Descriptor
     {
         // Camera Data
@@ -212,7 +138,7 @@ void Renderer::init()
         m_globalDescriptor = Descriptor(info);
     }
 
-    // Render Passes
+     // Render Passes
     {
         m_renderPasses.push_back(std::make_unique<SkyboxPass>());
         m_renderPasses.push_back(std::make_unique<DepthPass>());
@@ -225,6 +151,82 @@ void Renderer::init()
         for (auto& pass : m_renderPasses)
         {
             pass->init(m_swapchain, m_globalDescriptor);
+        }
+    }
+
+    // Fallback Texture
+    {
+        int width = -1, height = -1, channels = -1;
+        unsigned char* imageData = nullptr;
+
+        imageData = stbi_load("assets/missing.png", &width, &height, &channels, STBI_rgb_alpha);
+
+        if (!imageData)
+        {
+            printf("[Renderer] Failed to load Fallback Texture");
+        }
+
+        TextureDesc desc = {};
+        desc.Width = width;
+        desc.Height = height;
+        desc.Channels = 4;
+        desc.Data = imageData;
+        desc.IsMipMapped = true;
+        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
+        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        desc.ShowInImGui = true;
+
+        m_fallbackTexture = Texture(desc);
+    }
+
+    // Create Cube
+    {
+        std::vector<glm::vec3> vertices = {};
+        std::vector<uint32_t> indices = {};
+        CreateCube(vertices, indices);
+
+        m_cube = Mesh(vertices, indices);
+    }
+
+    int width = 0, height = 0;
+    nijiEngine.m_context.get_window_size(width, height);
+
+    uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
+    uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
+    glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
+    // Create Light Grid RWTexture
+    {
+
+        TextureDesc desc = {};
+        desc.Width = totalThreads.x;
+        desc.Height = totalThreads.y;
+        desc.Channels = 2;
+        desc.IsMipMapped = false;
+        desc.Data = nullptr;
+        desc.Format = VK_FORMAT_R32G32_UINT;
+        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        desc.Usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        desc.IsReadWrite = true;
+        desc.ShowInImGui = true;
+        m_lightGridTexture = Texture(desc);
+    }
+
+    // Create Light Index List Buffer
+    {
+        VkDeviceSize bufferSize = sizeof(LightIndexList);
+        m_lightIndexList.resize(MAX_FRAMES_IN_FLIGHT);
+        const uint32_t totalTiles = totalThreads.x * totalThreads.y;
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            LightIndexList buffer = {};
+            buffer.counter = 0;
+            BufferDesc bufferDesc = {};
+            bufferDesc.IsPersistent = true;
+            bufferDesc.Name = "Light Index List Buffer";
+            bufferDesc.Size = sizeof(LightIndexList) * totalTiles * MAX_LIGHTS_PER_TILE;
+            bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
+            m_lightIndexList[i] = Buffer(bufferDesc, &buffer);
         }
     }
 

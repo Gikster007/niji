@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <fstream>
 
+#include <imgui_impl_vulkan.h>
 #include <vk_mem_alloc.h>
 #include <stb_image.h>
 
@@ -578,6 +579,12 @@ Texture::Texture(const TextureDesc& desc) : Desc(desc)
     ImageInfo.sampler = VK_NULL_HANDLE;
 
     SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE, TextureImage, Desc.Name);
+
+    if (Desc.ShowInImGui)
+    {
+        ImGuiHandle = ImGui_ImplVulkan_AddTexture(nijiEngine.m_context.m_globalSampler.Handle, TextureImageView,
+                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 }
 
 Texture::Texture(const TextureDesc& desc, const std::string& path)
@@ -719,6 +726,9 @@ Texture::Texture(const TextureDesc& desc, const std::string& path)
 
 void Texture::cleanup() const
 {
+    if (Desc.ShowInImGui)
+        ImGui_ImplVulkan_RemoveTexture(ImGuiHandle);
+
     vkDestroyImageView(nijiEngine.m_context.m_device, TextureImageView, nullptr);
     vmaDestroyImage(nijiEngine.m_context.m_allocator, TextureImage, TextureImageAllocation);
 }
