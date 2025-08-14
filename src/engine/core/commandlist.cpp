@@ -20,7 +20,8 @@ CommandList::CommandList()
         VK_SUCCESS)
         throw std::runtime_error("Failed to Allocate Command Buffers!");
 
-    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer, m_name);
+    SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer,
+                  m_name);
 }
 
 void CommandList::begin_list(const char* debugName) const
@@ -36,7 +37,8 @@ void CommandList::begin_list(const char* debugName) const
         throw std::runtime_error("Failed to begin recording command buffer!");
 }
 
-void CommandList::begin_rendering(const RenderInfo& info, const std::string& passName) const
+void CommandList::begin_rendering(const RenderInfo& info, const std::string& passName,
+                                  bool renderToViewport) const
 {
     VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
     labelInfo.pLabelName = passName.c_str();
@@ -47,14 +49,19 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
 
     VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
 
-    VkRenderingAttachmentInfoKHR colorAttachment = {};
+    RenderTarget* target = nullptr;
+    if (renderToViewport)
+        target = info.ViewportTarget;
+    else
+        target = info.ColorAttachment;
 
+    VkRenderingAttachmentInfoKHR colorAttachment = {};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    colorAttachment.imageView = info.ColorAttachment->ImageView;
-    colorAttachment.imageLayout = info.ColorAttachment->CurrentLayout;
-    colorAttachment.loadOp = info.ColorAttachment->LoadOp;
-    colorAttachment.storeOp = info.ColorAttachment->StoreOp;
-    colorAttachment.clearValue = info.ColorAttachment->ClearValue;
+    colorAttachment.imageView = target->ImageView;
+    colorAttachment.imageLayout = target->CurrentLayout;
+    colorAttachment.loadOp = target->LoadOp;
+    colorAttachment.storeOp = target->StoreOp;
+    colorAttachment.clearValue = target->ClearValue;
     VkRenderingAttachmentInfoKHR depthAttachment = {};
     if (info.HasDepth)
     {
@@ -70,11 +77,9 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     renderingInfo.renderArea = info.RenderArea;
     renderingInfo.layerCount = info.LayerCount;
-    renderingInfo.colorAttachmentCount =
-        info.ColorAttachment->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? 1 : 0;
+    renderingInfo.colorAttachmentCount = target->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? 1 : 0;
     renderingInfo.pColorAttachments =
-        info.ColorAttachment->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment
-                                                                        : nullptr;
+        target->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment : nullptr;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);

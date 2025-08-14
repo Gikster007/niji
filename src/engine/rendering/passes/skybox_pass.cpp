@@ -94,8 +94,8 @@ void SkyboxPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     const Pipeline& pipeline = m_pipelines.at("Skybox Pass");
 
 
-    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    info.ViewportTarget->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -118,18 +118,18 @@ void SkyboxPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
     {
         TransitionInfo before;
-        if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+        if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
             before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
-        else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-            before = {VK_PIPELINE_STAGE_2_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+        else if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+            before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
 
         TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
 
         VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 
-        cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
+        cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
     }
 
     cmd.begin_rendering(info, m_name);

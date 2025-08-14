@@ -11,7 +11,7 @@ class CommandList
 
     void begin_list(const char* debugName = "Unnamed Commandlist") const;
 
-    void begin_rendering(const RenderInfo& info, const std::string& passName) const;
+    void begin_rendering(const RenderInfo& info, const std::string& passName, bool renderToViewport = true) const;
     void bind_pipeline(const VkPipeline& pipeline, const bool isCompute = false) const;
     void bind_viewport(const VkExtent2D& extent) const;
     void bind_scissor(const VkExtent2D& extent) const;

@@ -85,23 +85,56 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
 void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
-    auto& image = renderer.m_fallbackTexture;
-
-    ImGui::Begin("Debug Image");
-    auto& size = ImGui::GetContentRegionAvail();
-    ImGui::Image(image.ImGuiHandle, size);
-    ImGui::End();
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
 
-    cmd.begin_rendering(info, m_name);
+    {
+        TransitionInfo before;
+        if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+            before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
+        else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+            before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+
+        TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
+    }
+
+    {
+        TransitionInfo before;
+        if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            before = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+        TransitionInfo after = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+
+        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
+    }
+
+    auto& viewportRT = renderer.m_viewportTargets[renderer.m_imageIndex];
+
+    ImGui::Begin("Debug Image");
+    auto& size = ImGui::GetContentRegionAvail();
+    ImGui::Image(viewportRT.ImGuiHandle, size);
+    ImGui::End();
+
+    cmd.begin_rendering(info, m_name, false);
 
     ImGui::Render();
 

@@ -261,8 +261,8 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     const uint32_t& frameIndex = renderer.m_currentFrame;
     const Pipeline& pipeline = m_pipelines.at("Forward Pass");
 
-    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.ViewportTarget->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;

@@ -15,7 +15,6 @@
 
 #include "swapchain.hpp"
 
-
 namespace niji
 {
 
@@ -77,6 +76,7 @@ class Renderer : System
     std::vector<Buffer> m_lightIndexList = {};
 
     std::array<RenderTarget, MAX_FRAMES_IN_FLIGHT> m_colorAttachments = {};
+    std::array<RenderTarget, MAX_FRAMES_IN_FLIGHT> m_viewportTargets = {};
     RenderTarget m_depthAttachment = {};
     RenderInfo m_renderInfo = {};
 

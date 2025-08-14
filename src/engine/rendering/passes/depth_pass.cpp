@@ -99,8 +99,8 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     const uint32_t& frameIndex = renderer.m_currentFrame;
     const Pipeline& pipeline = m_pipelines.at("Depth Pass");
 
-    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
-    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
+    info.ViewportTarget->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;

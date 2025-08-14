@@ -138,7 +138,7 @@ void Renderer::init()
         m_globalDescriptor = Descriptor(info);
     }
 
-     // Render Passes
+    // Render Passes
     {
         m_renderPasses.push_back(std::make_unique<SkyboxPass>());
         m_renderPasses.push_back(std::make_unique<DepthPass>());
@@ -241,21 +241,36 @@ void Renderer::init()
 
     create_sync_objects();
 
-    m_colorAttachments[0] = {m_swapchain.m_images[0], m_swapchain.m_imageViews[0]};
-    m_colorAttachments[0].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-    m_colorAttachments[0].Name = "Color Target 0";
-    m_colorAttachments[1] = {m_swapchain.m_images[1], m_swapchain.m_imageViews[1]};
-    m_colorAttachments[1].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-    m_colorAttachments[1].Name = "Color Target 1";
+    // Render Targets and Render Info
+    {
+        m_colorAttachments[0] = {m_swapchain.m_images[0], m_swapchain.m_imageViews[0]};
+        m_colorAttachments[0].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+        m_colorAttachments[0].Name = "Color Target 0";
+        m_colorAttachments[1] = {m_swapchain.m_images[1], m_swapchain.m_imageViews[1]};
+        m_colorAttachments[1].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+        m_colorAttachments[1].Name = "Color Target 1";
 
-    VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    m_depthAttachment = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView, depthFormat};
-    m_depthAttachment.ClearValue = {1.0f, 0.0f};
-    m_depthAttachment.Name = "Depth Target";
+        VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
+        m_depthAttachment = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView, depthFormat};
+        m_depthAttachment.ClearValue = {1.0f, 0.0f};
+        m_depthAttachment.Name = "Depth Target";
 
-    m_renderInfo = RenderInfo(m_swapchain.m_extent);
-    m_renderInfo.ColorAttachment = &m_colorAttachments[0];
-    m_renderInfo.DepthAttachment = &m_depthAttachment;
+        RenderTargetDesc desc = {};
+        desc.ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+        desc.Format = m_swapchain.m_format;
+        desc.Width = m_swapchain.m_extent.width;
+        desc.Height = m_swapchain.m_extent.height;
+        desc.ShowInImGui = true;
+        desc.Name = "Viewport Target 0";
+        m_viewportTargets[0] = RenderTarget(desc);
+        desc.Name = "Viewport Target 1";
+        m_viewportTargets[1] = RenderTarget(desc);
+
+        m_renderInfo = RenderInfo(m_swapchain.m_extent);
+        m_renderInfo.ColorAttachment = &m_colorAttachments[0];
+        m_renderInfo.DepthAttachment = &m_depthAttachment;
+        m_renderInfo.ViewportTarget = &m_viewportTargets[0];
+    }
 }
 
 void Renderer::update(const float dt)
@@ -308,6 +323,7 @@ void Renderer::render()
 
     m_renderInfo.ColorAttachment = &m_colorAttachments[m_imageIndex];
     m_renderInfo.HasDepth = true;
+    m_renderInfo.ViewportTarget = &m_viewportTargets[m_imageIndex];
 
     int i = 0;
     for (auto& pass : m_renderPasses)
@@ -399,6 +415,11 @@ void Renderer::cleanup()
     }
     m_renderPasses.clear();
 
+    for (int i = 0; i < m_viewportTargets.size(); i++)
+    {
+        m_viewportTargets[i].cleanup();
+    }
+
     m_cube.cleanup();
 
     m_globalDescriptor.cleanup();
@@ -487,8 +508,8 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
                     Sphere s = {};
                     glm::vec4 centerWS = glm::vec4(pointLight.Position, 1.0f);
                     s.Center = glm::vec3(camera.GetViewMatrix() * centerWS);
-                    //printf("World Space Pos: %f, %f, %f \n", centerWS.x, centerWS.y, centerWS.z);
-                    //printf("View Space Pos: %f, %f, %f \n", s.Center.x, s.Center.y, s.Center.z);
+                    // printf("World Space Pos: %f, %f, %f \n", centerWS.x, centerWS.y, centerWS.z);
+                    // printf("View Space Pos: %f, %f, %f \n", s.Center.x, s.Center.y, s.Center.z);
                     s.Radius = pointLight.Range;
                     pointLightsArray.push_back(s);
                 }
@@ -497,17 +518,17 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
                               m_spheres[currentImage].Handle, 0,
                               sizeof(Sphere) * pointLightsArray.size(), pointLightsArray.data());
 
-            //size_t dataSize = sizeof(Sphere) * pointLightsArray.size();
+            // size_t dataSize = sizeof(Sphere) * pointLightsArray.size();
 
-            //void* data = nullptr;
-            //VkResult result = vmaMapMemory(m_context->m_allocator,
-            //                               m_spheres[currentImage].BufferAllocation, &data);
-            //if (result != VK_SUCCESS)
+            // void* data = nullptr;
+            // VkResult result = vmaMapMemory(m_context->m_allocator,
+            //                                m_spheres[currentImage].BufferAllocation, &data);
+            // if (result != VK_SUCCESS)
             //{
-            //    throw std::runtime_error("Failed to map memory for spheres buffer.");
-            //}
+            //     throw std::runtime_error("Failed to map memory for spheres buffer.");
+            // }
 
-            //memcpy(data, pointLightsArray.data(), dataSize);
+            // memcpy(data, pointLightsArray.data(), dataSize);
 
             ////// If not using VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, flush manually
             //// VkMappedMemoryRange range{};
@@ -519,7 +540,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
             //// vkFlushMappedMemoryRanges(m_context->m_device, 1, &range);
 
             //// Unmap if buffer is not persistently mapped (optional)
-            //vmaUnmapMemory(m_context->m_allocator, m_spheres[currentImage].BufferAllocation);
+            // vmaUnmapMemory(m_context->m_allocator, m_spheres[currentImage].BufferAllocation);
         }
 
         auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
