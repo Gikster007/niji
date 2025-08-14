@@ -21,6 +21,8 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
     // 2. Set style (optional)
     ImGui::StyleColorsDark();
+    auto& style = ImGui::GetStyle();
+    style.FontScaleMain = 1.25f;
 
     // 3. Init ImGui for GLFW
     ImGui_ImplGlfw_InitForVulkan(nijiEngine.m_context.m_window, true);
