@@ -34,19 +34,6 @@ void CommandList::begin_list(const char* debugName) const
 
     if (vkBeginCommandBuffer(m_commandBuffer, &beginInfo) != VK_SUCCESS)
         throw std::runtime_error("Failed to begin recording command buffer!");
-
-    /*SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_COMMAND_BUFFER, m_commandBuffer,
-                  debugName);
-
-    VkDebugUtilsLabelEXT labelInfo{VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT};
-    labelInfo.pLabelName = debugName;
-    labelInfo.color[0] = 0.2f;
-    labelInfo.color[1] = 0.6f;
-    labelInfo.color[2] = 0.9f;
-    labelInfo.color[3] = 1.0f;
-
-    if (VKCmdBeginDebugUtilsLabelEXT)
-        VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);*/
 }
 
 void CommandList::begin_rendering(const RenderInfo& info, const std::string& passName) const
@@ -61,7 +48,6 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
     VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
 
     VkRenderingAttachmentInfoKHR colorAttachment = {};
-    //const auto& src = info.ColorAttachment;
 
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
     colorAttachment.imageView = info.ColorAttachment->ImageView;
@@ -69,13 +55,9 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
     colorAttachment.loadOp = info.ColorAttachment->LoadOp;
     colorAttachment.storeOp = info.ColorAttachment->StoreOp;
     colorAttachment.clearValue = info.ColorAttachment->ClearValue;
-    VkRenderingAttachmentInfoKHR depthAttachment{};
+    VkRenderingAttachmentInfoKHR depthAttachment = {};
     if (info.HasDepth)
     {
-        /*VkImageLayout newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        if (info.DepthAttachment.StoreOp == VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;*/
-
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
         depthAttachment.imageView = info.DepthAttachment->ImageView;
         depthAttachment.imageLayout = info.DepthAttachment->CurrentLayout;
@@ -94,14 +76,6 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
         info.ColorAttachment->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment
                                                                         : nullptr;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
-
-   /* auto& infoRT = info.ColorAttachment;
-    transition_image(infoRT.Image, infoRT.Format, infoRT.ImageLayout, colorAttachment.imageLayout,
-                     TransitionType::ColorAttachment);*/
-
-    /*auto& depthInfoRT = info.DepthAttachment;
-    transition_image(depthInfoRT.Image, depthInfoRT.Format, depthInfoRT.ImageLayout,
-                     depthAttachment.imageLayout, TransitionType::DepthStencilAttachment);*/
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);
 }
