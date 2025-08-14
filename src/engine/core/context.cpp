@@ -59,21 +59,23 @@ Context::Context()
     load_vulkan_function_pointers(m_device);
 
     init_allocator();
-
-    SamplerDesc desc = {};
-    desc.MagFilter = SamplerDesc::Filter::LINEAR;
-    desc.MinFilter = SamplerDesc::Filter::LINEAR;
-    desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
-    desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
-    desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
-    desc.EnableAnisotropy = true;
-    desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
-
-    m_globalSampler = Sampler(desc);
 }
 
 void Context::init()
 {
+    // Init Global Sampler
+    {
+        SamplerDesc desc = {};
+        desc.MagFilter = SamplerDesc::Filter::LINEAR;
+        desc.MinFilter = SamplerDesc::Filter::LINEAR;
+        desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
+        desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
+        desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
+        desc.EnableAnisotropy = true;
+        desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+
+        m_globalSampler = Sampler(desc);
+    }
 }
 
 void Context::init_window()
@@ -158,8 +160,9 @@ void Context::create_instance()
     auto extensions = get_required_extensions();
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
 
-    VkValidationFeatureEnableEXT enables[] = {/*
-        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,*/
+    VkValidationFeatureEnableEXT enables[] = {
+        /*
+VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,*/
         VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
         VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT};
 
@@ -179,7 +182,7 @@ void Context::create_instance()
         createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 
         populate_debug_messenger_create_info(debugCreateInfo);
-        //debugCreateInfo.pNext = &validationFeatures;
+        // debugCreateInfo.pNext = &validationFeatures;
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else
@@ -459,7 +462,6 @@ void Context::create_command_pool()
     if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Command Pool!");
 
-    
     SetObjectName(m_device, VK_OBJECT_TYPE_COMMAND_POOL, m_commandPool, "Command Pool");
 }
 
