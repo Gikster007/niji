@@ -66,11 +66,12 @@ add_library(imgui
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_widgets.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/backends/imgui_impl_glfw.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/backends/imgui_impl_vulkan.cpp
-    ${CMAKE_SOURCE_DIR}/lib/imgui/ImGuizmo.cpp
+    ${CMAKE_SOURCE_DIR}/lib/imguizmo/ImGuizmo.cpp
 )
 target_include_directories(imgui PUBLIC
     ${CMAKE_SOURCE_DIR}/lib/imgui
     ${CMAKE_SOURCE_DIR}/lib/imgui/backends
+    ${CMAKE_SOURCE_DIR}/lib/imguizmo
 )
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
 target_link_libraries(niji PUBLIC imgui glfw)
