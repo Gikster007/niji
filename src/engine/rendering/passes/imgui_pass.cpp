@@ -93,7 +93,7 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
-    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
+    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE_KHR;
 
     {
         TransitionInfo before;

@@ -100,7 +100,7 @@ void DepthPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     const Pipeline& pipeline = m_pipelines.at("Depth Pass");
 
     info.ViewportTarget->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
-    info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE;
+    info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE_KHR;
 
     info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
