@@ -84,6 +84,10 @@ void Context::init_window()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if (mode->height <= 1080 && mode->height <= 1920)
+        glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+
     m_window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "niji", nullptr, nullptr);
     glfwSetWindowUserPointer(m_window, this);
     glfwSetFramebufferSizeCallback(m_window, framebuffer_resize_callback);
