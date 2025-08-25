@@ -324,6 +324,7 @@ void Renderer::render()
     m_renderInfo.ColorAttachment = &m_colorAttachments[m_imageIndex];
     m_renderInfo.HasDepth = true;
     m_renderInfo.ViewportTarget = &m_viewportTargets[m_imageIndex];
+    m_renderInfo.RenderArea.extent = m_swapchain.m_extent;
 
     int i = 0;
     for (auto& pass : m_renderPasses)
