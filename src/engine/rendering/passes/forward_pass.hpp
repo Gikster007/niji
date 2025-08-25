@@ -17,6 +17,7 @@ class ForwardPass final : public RenderPass
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
 
+    void debug_panel();
   private:
     DebugSettings m_debugSettings = {};
     std::vector<Buffer> m_pointLightBuffer = {};

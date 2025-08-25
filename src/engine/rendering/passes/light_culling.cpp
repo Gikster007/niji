@@ -231,6 +231,9 @@ void LightCullingPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
         m_pipelines.emplace(lightCullingDesc.Name, Pipeline(lightCullingDesc));
     }
+
+    nijiEngine.m_editor.add_debug_menu_panel("Light Culling Pass Panel",
+                                             std::bind(&LightCullingPass::debug_panel, this));
 }
 
 void LightCullingPass::update_impl(Renderer& renderer, CommandList& cmd)
@@ -279,6 +282,86 @@ glm::vec3 plane_intersection(const glm::vec3& n1, float d1, const glm::vec3& n2,
 
 static bool computeFrustums = true;
 static bool captureFrustum = false;
+void LightCullingPass::debug_panel()
+{
+    // Debug Draw Frustum Planes
+    {
+        ImGui::Checkbox("Debug Frustums", &captureFrustum);
+        if (captureFrustum)
+        {
+            glm::vec3 camPos = glm::vec3(0, 0, 0);
+            float nearDist = 0.1f;
+            float farDist = 1.0f;
+
+            glm::vec3 nearCenter = glm::vec3(0, 0, -nearDist);
+            glm::vec3 farCenter = glm::vec3(0, 0, -farDist);
+
+            glm::vec3 nearNormal = glm::vec3(0, 0, 1); // looking down -Z
+            float nearD = nearDist;                    // signed distance from origin (positive)
+
+            glm::vec3 farNormal = glm::vec3(0, 0, -1);
+            float farD = -farDist;
+
+            Frustum* frustums = reinterpret_cast<Frustum*>(m_frustums[0/*frameIndex*/].Data);
+            for (int y = 0; y < m_totalThreads.y; y++)
+            {
+                for (int x = 0; x < m_totalThreads.x; x++)
+                {
+
+                    Frustum& frustum = frustums[x + y * m_totalThreads.x];
+
+                    glm::vec3 leftPlaneNormal = frustums->Planes[0].Normal;
+                    glm::vec3 rightPlaneNormal = frustums->Planes[1].Normal;
+                    glm::vec3 topPlaneNormal = frustums->Planes[2].Normal;
+                    glm::vec3 bottomPlaneNormal = frustums->Planes[3].Normal;
+
+                    glm::vec3 nearTopLeft = plane_intersection(topPlaneNormal, 0, leftPlaneNormal,
+                                                               0, nearNormal, nearD);
+                    glm::vec3 nearTopRight = plane_intersection(topPlaneNormal, 0, rightPlaneNormal,
+                                                                0, nearNormal, nearD);
+                    glm::vec3 nearBottomLeft =
+                        plane_intersection(bottomPlaneNormal, 0, leftPlaneNormal, 0, nearNormal,
+                                           nearD);
+                    glm::vec3 nearBottomRight =
+                        plane_intersection(bottomPlaneNormal, 0, rightPlaneNormal, 0, nearNormal,
+                                           nearD);
+
+                    glm::vec3 farTopLeft =
+                        plane_intersection(topPlaneNormal, 0, leftPlaneNormal, 0, farNormal, farD);
+                    glm::vec3 farTopRight =
+                        plane_intersection(topPlaneNormal, 0, rightPlaneNormal, 0, farNormal, farD);
+                    glm::vec3 farBottomLeft =
+                        plane_intersection(bottomPlaneNormal, 0, leftPlaneNormal, 0, farNormal,
+                                           farD);
+                    glm::vec3 farBottomRight =
+                        plane_intersection(bottomPlaneNormal, 0, rightPlaneNormal, 0, farNormal,
+                                           farD);
+
+                    glm::vec3 color = glm::vec3(1, 1, 0); // yellow for example
+
+                    // Near plane rectangle
+                    nijiEngine.add_line(nearTopLeft, nearTopRight, color);
+                    nijiEngine.add_line(nearTopRight, nearBottomRight, color);
+                    nijiEngine.add_line(nearBottomRight, nearBottomLeft, color);
+                    nijiEngine.add_line(nearBottomLeft, nearTopLeft, color);
+
+                    // Far plane rectangle
+                    nijiEngine.add_line(farTopLeft, farTopRight, color);
+                    nijiEngine.add_line(farTopRight, farBottomRight, color);
+                    nijiEngine.add_line(farBottomRight, farBottomLeft, color);
+                    nijiEngine.add_line(farBottomLeft, farTopLeft, color);
+
+                    // Connect near and far planes
+                    nijiEngine.add_line(nearTopLeft, farTopLeft, color);
+                    nijiEngine.add_line(nearTopRight, farTopRight, color);
+                    nijiEngine.add_line(nearBottomLeft, farBottomLeft, color);
+                    nijiEngine.add_line(nearBottomRight, farBottomRight, color);
+                }
+            }
+        }
+    }
+}
+
 void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     //// DEBUG ONLY
@@ -383,85 +466,6 @@ void LightCullingPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& 
             depInfo.pBufferMemoryBarriers = &memBarrier;
 
             VKCmdPipelineBarrier2KHR(cmd.m_commandBuffer, &depInfo);
-        }
-    }
-
-    // Debug Draw Frustum Planes
-    {
-        ImGui::Begin("Debug");
-        ImGui::Checkbox("Debug Frustums", &captureFrustum);
-        ImGui::End();
-        if (captureFrustum)
-        {
-            glm::vec3 camPos = glm::vec3(0, 0, 0);
-            float nearDist = 0.1f;
-            float farDist = 1.0f;
-
-            glm::vec3 nearCenter = glm::vec3(0, 0, -nearDist);
-            glm::vec3 farCenter = glm::vec3(0, 0, -farDist);
-
-            glm::vec3 nearNormal = glm::vec3(0, 0, 1); // looking down -Z
-            float nearD = nearDist;                    // signed distance from origin (positive)
-
-            glm::vec3 farNormal = glm::vec3(0, 0, -1);
-            float farD = -farDist;
-
-            Frustum* frustums = reinterpret_cast<Frustum*>(m_frustums[frameIndex].Data);
-            for (int y = 0; y < m_totalThreads.y; y++)
-            {
-                for (int x = 0; x < m_totalThreads.x; x++)
-                {
-
-                    Frustum& frustum = frustums[x + y * m_totalThreads.x];
-
-                    glm::vec3 leftPlaneNormal = frustums->Planes[0].Normal;
-                    glm::vec3 rightPlaneNormal = frustums->Planes[1].Normal;
-                    glm::vec3 topPlaneNormal = frustums->Planes[2].Normal;
-                    glm::vec3 bottomPlaneNormal = frustums->Planes[3].Normal;
-
-                    glm::vec3 nearTopLeft = plane_intersection(topPlaneNormal, 0, leftPlaneNormal,
-                                                               0, nearNormal, nearD);
-                    glm::vec3 nearTopRight = plane_intersection(topPlaneNormal, 0, rightPlaneNormal,
-                                                                0, nearNormal, nearD);
-                    glm::vec3 nearBottomLeft =
-                        plane_intersection(bottomPlaneNormal, 0, leftPlaneNormal, 0, nearNormal,
-                                           nearD);
-                    glm::vec3 nearBottomRight =
-                        plane_intersection(bottomPlaneNormal, 0, rightPlaneNormal, 0, nearNormal,
-                                           nearD);
-
-                    glm::vec3 farTopLeft =
-                        plane_intersection(topPlaneNormal, 0, leftPlaneNormal, 0, farNormal, farD);
-                    glm::vec3 farTopRight =
-                        plane_intersection(topPlaneNormal, 0, rightPlaneNormal, 0, farNormal, farD);
-                    glm::vec3 farBottomLeft =
-                        plane_intersection(bottomPlaneNormal, 0, leftPlaneNormal, 0, farNormal,
-                                           farD);
-                    glm::vec3 farBottomRight =
-                        plane_intersection(bottomPlaneNormal, 0, rightPlaneNormal, 0, farNormal,
-                                           farD);
-
-                    glm::vec3 color = glm::vec3(1, 1, 0); // yellow for example
-
-                    // Near plane rectangle
-                    nijiEngine.add_line(nearTopLeft, nearTopRight, color);
-                    nijiEngine.add_line(nearTopRight, nearBottomRight, color);
-                    nijiEngine.add_line(nearBottomRight, nearBottomLeft, color);
-                    nijiEngine.add_line(nearBottomLeft, nearTopLeft, color);
-
-                    // Far plane rectangle
-                    nijiEngine.add_line(farTopLeft, farTopRight, color);
-                    nijiEngine.add_line(farTopRight, farBottomRight, color);
-                    nijiEngine.add_line(farBottomRight, farBottomLeft, color);
-                    nijiEngine.add_line(farBottomLeft, farTopLeft, color);
-
-                    // Connect near and far planes
-                    nijiEngine.add_line(nearTopLeft, farTopLeft, color);
-                    nijiEngine.add_line(nearTopRight, farTopRight, color);
-                    nijiEngine.add_line(nearBottomLeft, farBottomLeft, color);
-                    nijiEngine.add_line(nearBottomRight, farBottomRight, color);
-                }
-            }
         }
     }
 

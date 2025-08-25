@@ -52,6 +52,8 @@ class LightCullingPass final : public RenderPass
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
 
+    void debug_panel();
+
     private:
     void on_window_resize();
 

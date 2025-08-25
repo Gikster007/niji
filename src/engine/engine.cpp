@@ -11,7 +11,7 @@ void Engine::run()
     update();
 }
 
-Engine::Engine() : ecs(*new ECS()), m_context(*new Context())
+Engine::Engine() : ecs(*new ECS()), m_context(*new Context()), m_editor(*new Editor())
 {
 }
 
@@ -19,6 +19,7 @@ Engine::~Engine()
 {
     delete &ecs;
     delete &m_context;
+    delete &m_editor;
 }
 
 void Engine::init()

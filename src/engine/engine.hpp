@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 
+#include "core/editor/editor.hpp"
 #include "core/context.hpp"
 #include "core/ecs.hpp"
 
@@ -28,9 +29,11 @@ class Engine
   public:
     ECS& ecs;
     Context& m_context;
+    Editor& m_editor;
 
   private:
     friend class LineRenderPass;
+
     std::vector<DebugLine> m_debugLines = {};
 };
 } // namespace niji

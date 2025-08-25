@@ -1,5 +1,6 @@
 #include "forward_pass.hpp"
 
+#include <functional>
 #include <stdexcept>
 
 #include <imgui_impl_vulkan.h>
@@ -198,6 +199,29 @@ void ForwardPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
                              VertexElement(4, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, TexCoord)));
 
     m_pipelines.emplace(pipelineDesc.Name, Pipeline(pipelineDesc));
+
+    nijiEngine.m_editor.add_debug_menu_panel("Forward Pass Panel", std::bind(&ForwardPass::debug_panel, this));
+}
+
+void ForwardPass::debug_panel()
+{
+    int currentIndex = static_cast<int>(m_debugSettings.RenderMode);
+
+    if (ImGui::BeginCombo("Render Mode", RenderFlagNames[currentIndex]))
+    {
+        for (int i = 0; i < static_cast<int>(DebugSettings::RenderFlags::COUNT); ++i)
+        {
+            bool isSelected = (i == currentIndex);
+            if (ImGui::Selectable(RenderFlagNames[i], isSelected))
+            {
+                m_debugSettings.RenderMode = static_cast<DebugSettings::RenderFlags>(i);
+            }
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::Checkbox("Draw Light Heatmap", &m_debugSettings.DrawLightHeatmap);
 }
 
 void ForwardPass::update_impl(Renderer& renderer, CommandList& cmd)
@@ -212,26 +236,6 @@ void ForwardPass::update_impl(Renderer& renderer, CommandList& cmd)
     startTime).count();*/
 
     {
-        int currentIndex = static_cast<int>(m_debugSettings.RenderMode);
-
-        ImGui::Begin("Render Settings");
-        if (ImGui::BeginCombo("Render Mode", RenderFlagNames[currentIndex]))
-        {
-            for (int i = 0; i < static_cast<int>(DebugSettings::RenderFlags::COUNT); ++i)
-            {
-                bool isSelected = (i == currentIndex);
-                if (ImGui::Selectable(RenderFlagNames[i], isSelected))
-                {
-                    m_debugSettings.RenderMode = static_cast<DebugSettings::RenderFlags>(i);
-                }
-                if (isSelected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::Checkbox("Draw Light Heatmap", &m_debugSettings.DrawLightHeatmap);
-        ImGui::End();
-
         memcpy(m_passBuffer[frameIndex].Data, &m_debugSettings, sizeof(m_debugSettings));
 
         vkCmdUpdateBuffer(cmd.m_commandBuffer, m_passBuffer[frameIndex].Handle, 0,

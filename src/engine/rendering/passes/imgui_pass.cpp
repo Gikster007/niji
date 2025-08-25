@@ -17,7 +17,7 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // 2. Set style (optional)
     ImGui::StyleColorsDark();
@@ -85,6 +85,8 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 
 void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
+    // Draw Editor
+    nijiEngine.m_editor.render();
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
