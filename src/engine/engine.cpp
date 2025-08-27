@@ -11,7 +11,8 @@ void Engine::run()
     update();
 }
 
-Engine::Engine() : ecs(*new ECS()), m_context(*new Context()), m_editor(*new Editor())
+Engine::Engine()
+    : ecs(*new ECS()), m_context(*new Context()), m_editor(*new Editor()), m_logger(*new Logger())
 {
 }
 
@@ -65,7 +66,8 @@ void Engine::add_line(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3&
     }
 }
 
-void Engine::add_sphere(const glm::vec3& center, const float& radius, const glm::vec3& color, int segments)
+void Engine::add_sphere(const glm::vec3& center, const float& radius, const glm::vec3& color,
+                        int segments)
 {
     const float step = glm::two_pi<float>() / segments;
 

@@ -271,6 +271,13 @@ void Renderer::init()
         m_renderInfo.DepthAttachment = &m_depthAttachment;
         m_renderInfo.ViewportTarget = &m_viewportTargets[0];
     }
+
+    nijiEngine.m_logger.log_info("Info Test");
+    nijiEngine.m_logger.log_warning("Warning Test");
+    nijiEngine.m_logger.log_error("Error Test");
+    nijiEngine.m_logger.log_error("Error Test");
+    nijiEngine.m_logger.log_error("Error Test");
+    nijiEngine.m_logger.log_error("Error Test");
 }
 
 void Renderer::update(const float dt)

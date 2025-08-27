@@ -5,6 +5,7 @@
 
 #include "core/editor/editor.hpp"
 #include "core/context.hpp"
+#include "core/logger.hpp"
 #include "core/ecs.hpp"
 
 namespace niji
@@ -30,6 +31,7 @@ class Engine
     ECS& ecs;
     Context& m_context;
     Editor& m_editor;
+    Logger& m_logger;
 
   private:
     friend class LineRenderPass;

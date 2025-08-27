@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include "engine.hpp"
+
 using namespace niji;
 
 void Editor::add_debug_menu_panel(const char* name, PanelFunction function)
@@ -29,5 +31,10 @@ void Editor::render()
             }
             ImGui::EndMainMenuBar();
         }
+    }
+
+    // Engine Console
+    {
+        nijiEngine.m_logger.render();
     }
 }
