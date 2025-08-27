@@ -14,6 +14,8 @@ struct Panel
     bool Visible = true;
 };
 
+class Renderer;
+
 class Editor
 {
   public:
@@ -22,7 +24,7 @@ class Editor
     void add_debug_menu_panel(const char* name, PanelFunction function);
 
   private:
-    void render();
+    void render(Renderer& renderer);
 
   private:
     friend class ImGuiPass;

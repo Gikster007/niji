@@ -56,6 +56,7 @@ class Renderer : System
     friend class LineRenderPass;
     friend class LightCullingPass;
     friend class DepthPass;
+    friend class Editor;
 
     std::vector<Buffer> m_cameraData = {};
     std::vector<Buffer> m_spheres = {};

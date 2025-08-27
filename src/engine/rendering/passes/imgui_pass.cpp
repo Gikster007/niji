@@ -173,7 +173,7 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
 void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     // Draw Editor
-    nijiEngine.m_editor.render();
+    nijiEngine.m_editor.render(renderer);
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
