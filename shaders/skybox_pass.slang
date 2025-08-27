@@ -43,7 +43,7 @@ VertexOutput vertex_main(SkyboxInput input)
 [shader("fragment")]
 float4 fragment_main(VertexOutput input) : SV_Target
 {
-    float3 environment = cubemap.SampleLevel(linearSampler, normalize(input.TexCoord), 0.0f).rgb;
+    float3 environment = pow(cubemap.SampleLevel(linearSampler, normalize(input.TexCoord), 0.0f).rgb, 1.0f / 2.2f);
 
     return float4(environment, 1.0f);
 }

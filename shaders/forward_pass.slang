@@ -244,8 +244,8 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
     float4 albedo = pow(baseColor.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
     albedo *= MatInfo.AlbedoFactor;
-    float4 occlusion = pow(occlusionMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
-    float4 roughMetallic = pow(roughMetalMap.Sample(linearSampler, input.TexCoord), 1.0f / 2.2f);
+    float4 occlusion = occlusionMap.Sample(linearSampler, input.TexCoord);
+    float4 roughMetallic = roughMetalMap.Sample(linearSampler, input.TexCoord);
 
     float3 normal = normalize(input.Normal);
 
@@ -253,7 +253,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
     if (MatInfo.HasNormalMap == 1)
     {
-        float3 normalTs = pow(normalMap.Sample(linearSampler, input.TexCoord).rgb, 1.0f / 2.2f);
+        float3 normalTs = normalMap.Sample(linearSampler, input.TexCoord).rgb;
         float3 T = normalize(input.Tangent);
         float3 B = normalize(input.BiTangent);
         const float3x3 tbn = float3x3(T, B, normal);
@@ -359,8 +359,8 @@ float4 fragment_main(VertexOutput input) : SV_Target
         Kd *= 1.0f - metallic;
 
         float3 prefilteredColor =
-            pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1 / 2.2f);
-        float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1 / 2.2f);
+            pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1.0f / 2.2f);
+        float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1.0f / 2.2f);
         float2 brdf = brdfLUT.Sample(iblSampler, float2(ndotv, roughness)).rg;
         float3 specularIBL = prefilteredColor * Ks; //* (F * brdf.x + brdf.y);
         float3 diffuse = albedo.rgb * irradiance.rgb;
@@ -389,7 +389,7 @@ float4 fragment_main(VertexOutput input) : SV_Target
         final = float4(normalize(input.Normal) * 0.5f + 0.5f, 1.0f);
         break;
     case RenderFlags::NORMAL_MAP:
-        float3 normalTs = pow(normalMap.Sample(linearSampler, input.TexCoord).xyz, 1.0f / 2.2f);
+        float3 normalTs = normalMap.Sample(linearSampler, input.TexCoord).xyz;
         final = float4(normalTs, 1.0f);
         break;
     case RenderFlags::SHADING_NORMAL:
@@ -412,5 +412,5 @@ float4 fragment_main(VertexOutput input) : SV_Target
         break;
     }
 
-    return pow(final, 2.2f);
+    return final;
 }

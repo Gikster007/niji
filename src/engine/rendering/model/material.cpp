@@ -45,7 +45,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
     int largestWidth = 1, largestHeight = 1;
 
-    auto loadTexture = [&](const auto& textureInfo) -> std::optional<Texture> {
+    auto loadTexture = [&](const auto& textureInfo, bool isLinear) -> std::optional<Texture> {
         size_t textureIndex = {};
 
         // Base Color, RM, Emissive Textures
@@ -130,7 +130,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         desc.Channels = 4;
         desc.IsMipMapped = true;
         desc.Data = imageData;
-        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
+        desc.Format = isLinear ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
         desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
         desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -140,20 +140,20 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
     // Load all relevant textures
     if (material.pbrData.baseColorTexture.has_value())
-        m_materialData.BaseColor = loadTexture(material.pbrData.baseColorTexture.value());
+        m_materialData.BaseColor = loadTexture(material.pbrData.baseColorTexture.value(), false);
 
     if (material.normalTexture.has_value())
-        m_materialData.NormalTexture = loadTexture(material.normalTexture.value());
+        m_materialData.NormalTexture = loadTexture(material.normalTexture.value(), true);
 
     if (material.occlusionTexture.has_value())
-        m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture.value());
+        m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture.value(), true);
 
     if (material.pbrData.metallicRoughnessTexture.has_value())
         m_materialData.RoughMetallic =
-            loadTexture(material.pbrData.metallicRoughnessTexture.value());
+            loadTexture(material.pbrData.metallicRoughnessTexture.value(), true);
 
     if (material.emissiveTexture.has_value())
-        m_materialData.Emissive = loadTexture(material.emissiveTexture.value());
+        m_materialData.Emissive = loadTexture(material.emissiveTexture.value(), false);
 
     // Create Sampler
     {
