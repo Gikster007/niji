@@ -60,7 +60,6 @@ target_link_libraries(niji PRIVATE Vulkan::Vulkan)
 # https://github.com/ocornut/imgui/tree/docking & https://github.com/CedricGuillemet/ImGuizmo
 add_library(imgui
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui.cpp
-    ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_demo.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_draw.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_tables.cpp
     ${CMAKE_SOURCE_DIR}/lib/imgui/imgui_widgets.cpp

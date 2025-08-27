@@ -263,7 +263,7 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
     Swapchain& swapchain = renderer.m_swapchain;
     const uint32_t& frameIndex = renderer.m_currentFrame;
-    const Pipeline& pipeline = m_pipelines.at("Forward Pass");
+    const Pipeline& pipeline = m_pipelines.at("Forward Pass"); 
 
     info.ViewportTarget->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
     info.ViewportTarget->LoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
