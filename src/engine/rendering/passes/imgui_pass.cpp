@@ -218,7 +218,7 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 
     auto& viewportRT = renderer.m_viewportTargets[renderer.m_imageIndex];
 
-    ImGui::Begin("Debug Image");
+    ImGui::Begin("Viewport");
     auto& size = ImGui::GetContentRegionAvail();
     ImGui::Image(viewportRT.ImGuiHandle, size);
     ImGui::End();
