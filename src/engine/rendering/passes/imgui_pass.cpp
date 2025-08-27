@@ -103,6 +103,7 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.Fonts->AddFontFromFileTTF("assets/fonts/Inter_24pt-Regular.ttf", 16.0f);
 
     // 2. Set style (optional)
     ImGui::StyleColorsDark();
