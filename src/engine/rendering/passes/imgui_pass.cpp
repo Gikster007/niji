@@ -4,6 +4,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui.h>
 
+#include "../app/camera_system.hpp"
 #include "../../engine.hpp"
 #include "../renderer.hpp"
 
@@ -221,6 +222,9 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     ImGui::Begin("Viewport");
     auto& size = ImGui::GetContentRegionAvail();
     ImGui::Image(viewportRT.ImGuiHandle, size);
+    auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+    if (cameraSystem.m_checkViewportBounds)
+        cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
     ImGui::End();
 
     cmd.begin_rendering(info, m_name, false);

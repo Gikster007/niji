@@ -17,6 +17,8 @@ class CameraSystem : public niji::System
 
   public:
     niji::Camera m_camera = {};
+    bool m_isInsideViewport = false;
+    bool m_checkViewportBounds = true;
 
   private:
     float m_lastX = 0.0f, m_lastY = 0.0f;

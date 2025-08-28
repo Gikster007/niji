@@ -1,5 +1,7 @@
 #include "camera_system.hpp"
 
+#include <imgui.h>
+
 #include "../engine/engine.hpp"
 
 CameraSystem::CameraSystem()
@@ -22,7 +24,16 @@ void CameraSystem::render()
 
 void CameraSystem::UpdateFlyCamera(GLFWwindow* window, float deltaTime)
 {
+    if (!m_isInsideViewport)
+    {
+        m_checkViewportBounds = true;
+        return;
+    }
+
     bool enableMouseLook = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+
+    if (enableMouseLook && m_isInsideViewport)
+        m_checkViewportBounds = false;
 
     if (enableMouseLook)
     {
@@ -57,6 +68,7 @@ void CameraSystem::UpdateFlyCamera(GLFWwindow* window, float deltaTime)
     {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         m_firstMouse = true;
+        m_checkViewportBounds = true;
     }
 
     // Movement (WASD + QE)
