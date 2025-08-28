@@ -33,6 +33,8 @@ uint32_t GetBytesPerTexel(VkFormat format);
 // Source BEE engine
 std::vector<char> read_binary_file(const std::string& path);
 
+std::vector<char> read_file(const std::string& filename);
+
 struct Vertex
 {
     glm::vec3 Pos = {};

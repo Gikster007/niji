@@ -4,6 +4,7 @@
 
 #include "rendering/passes/render_pass.hpp"
 #include "rendering/renderer.hpp"
+#include "core/common.hpp"
 #include "engine.hpp"
 
 using namespace niji;
@@ -14,6 +15,7 @@ void Editor::add_debug_menu_panel(const char* name, PanelFunction function)
     m_panels.push_back({name, function, true});
 }
 
+static std::vector<char> buffer = {};
 void Editor::render(Renderer& renderer)
 {
     // Docking
@@ -61,7 +63,19 @@ void Editor::render(Renderer& renderer)
 
         for (const auto& shader : shaders)
         {
-            ImGui::Selectable(shader->Source.c_str(), false);
+            if (ImGui::Selectable(shader->Source.c_str(), false))
+            {
+                buffer = read_file(shader->Source);
+                buffer.push_back('\0'); // Needed For ImGui
+            }
+        }
+
+        if (!buffer.empty())
+        {
+            ImGui::Begin("Shader Editor");
+            ImGui::InputTextMultiline("##source", buffer.data(), buffer.size(),
+                                      ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 30));
+            ImGui::End();
         }
 
         ImGui::End();

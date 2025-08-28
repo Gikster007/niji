@@ -137,7 +137,7 @@ void Buffer::cleanup()
     }
 }
 
-static std::vector<char> read_file(const std::string& filename)
+std::vector<char> niji::read_file(const std::string& filename)
 {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
