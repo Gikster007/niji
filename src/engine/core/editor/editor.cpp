@@ -9,6 +9,18 @@
 
 using namespace niji;
 
+// Callback to handle resizing when buffer grows
+static int InputTextCallback(ImGuiInputTextCallbackData* data)
+{
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackResize)
+    {
+        auto* buf = reinterpret_cast<std::vector<char>*>(data->UserData);
+        buf->resize(data->BufSize); // Resize to new capacity
+        data->Buf = buf->data();
+    }
+    return 0;
+}
+
 void Editor::add_debug_menu_panel(const char* name, PanelFunction function)
 {
     // Default All Added Panels to Visible;
@@ -16,6 +28,7 @@ void Editor::add_debug_menu_panel(const char* name, PanelFunction function)
 }
 
 static std::vector<char> buffer = {};
+static std::string currentShader = {};
 void Editor::render(Renderer& renderer)
 {
     // Docking
@@ -44,8 +57,6 @@ void Editor::render(Renderer& renderer)
 
     // Shader Editor
     {
-        ImGui::Begin("Shaders");
-
         // TODO: ADD TO INIT FUNCTION
         // Get All Render Passes
         auto& passes = renderer.m_renderPasses;
@@ -61,20 +72,37 @@ void Editor::render(Renderer& renderer)
                 shaders.push_back(std::make_shared<Shader>(pass->m_compute));
         }
 
+        // Display All Shaders
+        ImGui::Begin("Shaders");
         for (const auto& shader : shaders)
         {
             if (ImGui::Selectable(shader->Source.c_str(), false))
             {
                 buffer = read_file(shader->Source);
                 buffer.push_back('\0'); // Needed For ImGui
+                currentShader = shader->Source;
             }
         }
 
+        // Display Shader Editor Window
         if (!buffer.empty())
         {
             ImGui::Begin("Shader Editor");
+            ImGuiInputTextFlags flags =
+                ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_AllowTabInput;
             ImGui::InputTextMultiline("##source", buffer.data(), buffer.size(),
-                                      ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 30));
+                                      ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 40), flags,
+                                      InputTextCallback, (void*)&buffer);
+            if (ImGui::Button("Save Shader"))
+            {
+                FILE* f = fopen(currentShader.c_str(), "w");
+                if (f)
+                {
+                    fwrite(buffer.data(), 1, strlen(buffer.data()), f);
+                    fclose(f);
+                }
+            }
+
             ImGui::End();
         }
 
