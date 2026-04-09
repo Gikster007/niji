@@ -2,6 +2,8 @@
 
 #include "common.hpp"
 
+#include "rendering/render_target.hpp"
+
 namespace niji
 {
 class CommandList

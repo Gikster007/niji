@@ -4,6 +4,8 @@
 
 #include "core/common.hpp"
 
+#include "rendering/sampler.hpp"
+
 class GLFWwindow;
 
 struct VmaAllocator_T;

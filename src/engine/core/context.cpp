@@ -10,6 +10,7 @@
 #include <stb_image.h>
 
 #include "rendering/swapchain.hpp"
+#include "rendering/texture.hpp"
 
 #include "vulkan-functions.hpp"
 

@@ -120,13 +120,13 @@ cbuffer SceneInfo
     int2 _pad2; // 64 bytes
 }
 
-// Set = 1, Binding = 14
-[[vk::binding(14, 1)]]
-Texture2D<uint2> lightGrid;
+//// Set = 1, Binding = 14
+//[[vk::binding(14, 1)]]
+//Texture2D<uint2> lightGrid;
 
-// Set = 1, Binding = 15
-[[vk::binding(15, 1)]]
-StructuredBuffer<uint> lightIndexList;
+//// Set = 1, Binding = 15
+//[[vk::binding(15, 1)]]
+//StructuredBuffer<uint> lightIndexList;
 
 // Set = 1, Binding = 16
 [[vk::binding(16, 1)]]
@@ -222,14 +222,14 @@ float3 CalculateFRough(float3 F0, float ndotv, float roughness)
 [shader("fragment")]
 float4 fragment_main(VertexOutput input) : SV_Target
 {
-    if (drawLightHeatmap)
-    {
-        // float2 uv = input.Position.xy / float2(1920.0f, 1080.0f);
-        uint2 tileIndex = uint2(floor(input.Position.xy / 16));
-        int2 grid = lightGrid.Load(uint3(uint2(tileIndex), 0));
-        return float4(grid.ggg, 1.0f);
-        //return float4(asfloat(grid.r), asfloat(grid.g), 0.0f, 1.0f);
-    }
+    //if (drawLightHeatmap)
+    //{
+    //    // float2 uv = input.Position.xy / float2(1920.0f, 1080.0f);
+    //    uint2 tileIndex = uint2(floor(input.Position.xy / 16));
+    //    int2 grid = lightGrid.Load(uint3(uint2(tileIndex), 0));
+    //    return float4(grid.ggg, 1.0f);
+    //    //return float4(asfloat(grid.r), asfloat(grid.g), 0.0f, 1.0f);
+    //}
 
     // if (renderMode == RenderFlags::ALBEDO)
     //{
@@ -304,15 +304,15 @@ float4 fragment_main(VertexOutput input) : SV_Target
         float3 lightOut =
             (kD * albedo.rgb * INVPI + specular) * dirLight.Color * dirLight.Intensity * ndotl;
 
-        uint2 tileIndex = uint2(floor(input.Position.xy / 16));
+        //uint2 tileIndex = uint2(floor(input.Position.xy / 16));
 
-        // uint2 lightInfo = lightGrid.Sample(pointSampler, tileIndex);
-        uint2 lightInfo = lightGrid.Load(int3(tileIndex, 0));
-        uint startOffset = lightInfo.x;
-        uint lightCount = lightInfo.y;
+        //// uint2 lightInfo = lightGrid.Sample(pointSampler, tileIndex);
+        //uint2 lightInfo = lightGrid.Load(int3(tileIndex, 0));
+        //uint startOffset = lightInfo.x;
+        //uint lightCount = lightInfo.y;
 
         // Point Light Contribution
-        for (int i = 0; i < 1; i++)
+        for (int i = 0; i < PointLightCount; i++)
         {
             //uint lightIndex = lightIndexList[startOffset + i];
             //
@@ -368,11 +368,11 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
         final = float4(lightOut + ambient + emissive.rgb, albedo.a);
 
-        float heat = saturate(lightCount / 1.0f);      // Normalize to [0,1] range
-        float4 heatMap = float4(heat, 0, 1 - heat, 1); // Heatmap: blue = low, red = high
+        //float heat = saturate(lightCount / 1.0f);      // Normalize to [0,1] range
+        //float4 heatMap = float4(heat, 0, 1 - heat, 1); // Heatmap: blue = low, red = high
 
-        if (drawLightHeatmap)
-            final = lerp(final, heatMap, 1.0f);
+        //if (drawLightHeatmap)
+        //    final = lerp(final, heatMap, 1.0f);
         // final = lerp(final, heatMap, 0.75f);
         //final = float4(1.0f);
         break;

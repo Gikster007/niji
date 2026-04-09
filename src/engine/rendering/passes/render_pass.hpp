@@ -12,6 +12,8 @@
 
 #include "../swapchain.hpp"
 
+#include "rendering/shader.hpp"
+
 namespace fs = std::filesystem;
 
 namespace niji

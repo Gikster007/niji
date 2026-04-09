@@ -110,241 +110,6 @@ static const char* RenderFlagNames[] = {"Albedo",         "UVs",        "Geometr
                                         "Bitangent",      "Occlusion",  "Emissive",
                                         "Metallic",       "Roughness",  "None"};
 
-struct BufferDesc
-{
-    VkDeviceSize Size = {};
-
-    enum class BufferUsage
-    {
-        Invalid,
-        Vertex,
-        Index,
-        Uniform,
-        Storage
-    } Usage = {};
-
-    bool IsPersistent = false;
-    char* Name = "Unknown Buffer";
-};
-
-struct Buffer
-{
-    Buffer() = default;
-    Buffer(BufferDesc& desc, void* data);
-    ~Buffer();
-
-    Buffer(Buffer&& other) noexcept;
-    Buffer& operator=(Buffer&& other) noexcept;
-
-    Buffer(const Buffer&) = delete;
-    Buffer& operator=(const Buffer&) = delete;
-
-    void cleanup();
-
-    VkBuffer Handle = {};
-    VmaAllocation BufferAllocation = {};
-    BufferDesc Desc = {};
-
-    void* Data = nullptr;
-    bool Mapped = false;
-};
-
-enum class ShaderType
-{
-    NONE,
-    VERTEX,
-    FRAGMENT,
-    FRAG_AND_VERT,
-    COMPUTE
-};
-
-struct Shader
-{
-    Shader() = default;
-    Shader(const std::string path, const ShaderType shaderType);
-
-    std::string Source = {};
-    std::vector<std::string> Spirv = {};
-    ShaderType Type = {};
-
-    void init();
-
-    bool re_compile();
-};
-
-struct RenderTargetDesc
-{
-    VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    VkClearValue ClearValue = {};
-    VkFormat Format = {};
-
-    uint32_t Width = 1;
-    uint32_t Height = 1;
-
-    bool ShowInImGui = false;
-
-    char* Name = nullptr;
-};
-
-// TODO: Refactor (create RenderTargetInfo struct which holds construct info that will be passed in
-// the constructor of RenderTarget)
-struct RenderTarget
-{
-    RenderTarget() = default;
-    // Swapchain Image RT
-    RenderTarget(VkImage image, VkImageView view, VkFormat Format = VK_FORMAT_UNDEFINED,
-                 VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
-                 VkAttachmentLoadOp load = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                 VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE, VkClearValue clear = {});
-    // Custom RT
-    RenderTarget(RenderTargetDesc desc);
-    void cleanup() const;
-
-    VkImage Image = VK_NULL_HANDLE;
-    VkImageView ImageView = VK_NULL_HANDLE;
-    VkFormat Format = VK_FORMAT_UNDEFINED;
-    VkImageLayout ImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    
-    VkImageLayout CurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkAttachmentLoadOp LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    VkAttachmentStoreOp StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    VkClearValue ClearValue = {};
-
-    char* Name = nullptr;
-
-    // Used only for Custom RTs
-    VmaAllocation Allocation = {};
-    VkDescriptorSet ImGuiHandle = {};
-};
-
-struct RenderInfo
-{
-    RenderInfo() = default;
-    RenderInfo(const VkExtent2D& extent)
-    {
-        RenderArea.offset = {0, 0};
-        RenderArea.extent = extent;
-    }
-
-    VkRect2D RenderArea = {{0, 0}, {0, 0}};
-    uint32_t LayerCount = 1;
-
-    RenderTarget* ColorAttachment = nullptr;
-    RenderTarget* DepthAttachment = nullptr;
-    RenderTarget* ViewportTarget = nullptr;
-
-    bool HasDepth = false;
-    bool PrepareForPresent = false;
-};
-
-struct TextureDesc
-{
-    int Width = 0;
-    int Height = 0;
-    int Channels = 4;
-    unsigned char* Data = nullptr;
-    char* Name = nullptr;
-
-    enum class TextureType
-    {
-        NONE,
-        TEXTURE_2D,
-        CUBEMAP
-    } Type = TextureType::NONE;
-
-    bool IsReadWrite = false;
-    bool IsMipMapped = false;
-    bool ShowInImGui = false;
-    uint32_t Mips = 1;
-    uint32_t Layers = 1;
-
-    VkFormat Format = {};
-    VkImageUsageFlags Usage = {};
-    VmaMemoryUsage MemoryUsage = {};
-};
-
-struct Texture
-{
-    Texture() = default;
-    Texture(const TextureDesc& desc);
-    // Used only for Envmap Loading
-    Texture(const TextureDesc& desc, const std::string& path);
-    // Used only for translating a Depth RT
-    Texture(RenderTarget& depthRT)
-    {
-        TextureImage = depthRT.Image;
-        TextureImageView = depthRT.ImageView;
-        Desc.Format = depthRT.Format;
-        Desc.Type = TextureDesc::TextureType::TEXTURE_2D;
-
-        // Populate descriptor info so it can be used in descriptor sets
-        ImageInfo.imageLayout = depthRT.ImageLayout;
-        ImageInfo.imageView = depthRT.ImageView;
-        ImageInfo.sampler = VK_NULL_HANDLE; // You can assign a sampler if needed
-    }
-
-    void cleanup() const;
-
-    TextureDesc Desc = {};
-
-    VkImage TextureImage = {};
-    VkImageView TextureImageView = {};
-    VmaAllocation TextureImageAllocation = {};
-
-    VkDescriptorImageInfo ImageInfo = {};
-    
-    VkDescriptorSet ImGuiHandle = {};
-};
-
-struct SamplerDesc
-{
-    enum class Filter
-    {
-        NONE,
-        NEAREST,
-        LINEAR
-    } MagFilter = Filter::NONE;
-    Filter MinFilter = Filter::NONE;
-
-    enum class AddressMode
-    {
-        NONE,
-        REPEAT,
-        MIRRORED_REPEAT,
-        EDGE_CLAMP,
-        BORDER_CLAMP,
-        MIRRORED_EDGE_CLAMP
-    } AddressModeU = AddressMode::NONE;
-    AddressMode AddressModeV = AddressMode::NONE;
-    AddressMode AddressModeW = AddressMode::NONE;
-
-    enum class MipMapMode
-    {
-        NONE,
-        NEAREST,
-        LINEAR
-    } MipmapMode = MipMapMode::NONE;
-
-    bool EnableAnisotropy = false;
-    uint32_t MaxMips = 0;
-
-    char* Name = {};
-};
-
-struct Sampler
-{
-    Sampler() = default;
-    Sampler(const SamplerDesc& desc);
-
-    void cleanup() const;
-
-    SamplerDesc Desc = {};
-
-    VkSampler Handle = {};
-};
-
 struct VertexLayout
 {
     VertexLayout() = default;
@@ -458,8 +223,8 @@ struct GraphicsPipelineDesc
 
   private:
     friend class Pipeline;
-    VkDescriptorSetLayout GlobalDescriptorSetLayout;
-    VkDescriptorSetLayout PassDescriptorSetLayout;
+    VkDescriptorSetLayout GlobalDescriptorSetLayout = {};
+    VkDescriptorSetLayout PassDescriptorSetLayout = {};
 };
 
 struct ComputePipelineDesc
@@ -473,10 +238,10 @@ struct ComputePipelineDesc
     std::string ComputeShader = {};
     char* Name = "Unknown Compute Pipeline";
 
-    private:
+  private:
     friend class Pipeline;
-    VkDescriptorSetLayout GlobalDescriptorSetLayout;
-    VkDescriptorSetLayout PassDescriptorSetLayout;
+    VkDescriptorSetLayout GlobalDescriptorSetLayout = {};
+    VkDescriptorSetLayout PassDescriptorSetLayout = {};
 };
 
 struct Pipeline
@@ -491,8 +256,8 @@ struct Pipeline
     VkPipelineLayout PipelineLayout = {};
     char* Name = nullptr;
 
-    GraphicsPipelineDesc GraphicsDesc;
-    ComputePipelineDesc ComputeDesc;
+    GraphicsPipelineDesc GraphicsDesc = {};
+    ComputePipelineDesc ComputeDesc = {};
 
     bool IsGraphicsPipeline = true;
 };

@@ -6,6 +6,8 @@
 #include <vk_mem_alloc.h>
 #include <stb_image.h>
 
+#include "common.hpp"
+
 using namespace niji;
 
 Envmap::Envmap(const std::string& path)

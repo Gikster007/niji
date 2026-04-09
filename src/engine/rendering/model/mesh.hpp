@@ -1,9 +1,10 @@
 #pragma once
 
-#include "core/common.hpp"
-//#include "../renderer.hpp"
-
 #include <fastgltf/types.hpp>
+
+#include "core/common.hpp"
+
+#include "rendering/buffer.hpp"
 
 namespace niji
 {

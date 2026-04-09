@@ -142,7 +142,7 @@ void Renderer::init()
     {
         m_renderPasses.push_back(std::make_unique<SkyboxPass>());
         m_renderPasses.push_back(std::make_unique<DepthPass>());
-        m_renderPasses.push_back(std::make_unique<LightCullingPass>());
+        //m_renderPasses.push_back(std::make_unique<LightCullingPass>());
         m_renderPasses.push_back(std::make_unique<ForwardPass>());
         m_renderPasses.push_back(std::make_unique<LineRenderPass>());
         m_renderPasses.push_back(std::make_unique<ImGuiPass>());

@@ -4,7 +4,10 @@
 #include <array>
 
 #include "commandlist.hpp"
-#include "common.hpp"
+
+#include "rendering/sampler.hpp"
+#include "rendering/texture.hpp"
+#include "rendering/buffer.hpp"
 
 namespace niji
 {
