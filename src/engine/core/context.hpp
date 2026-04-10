@@ -2,9 +2,7 @@
 
 #include <optional>
 
-#include "core/common.hpp"
-
-#include "rendering/sampler.hpp"
+#include "rendering/resources/sampler.hpp"
 
 class GLFWwindow;
 
@@ -36,28 +34,6 @@ struct QueueFamilyIndices
 
 class Context
 {
-    friend class Renderer;
-    friend class Swapchain;
-    friend class CommandList;
-    friend class Engine;
-    friend class Model;
-    friend class Mesh;
-    friend class Material;
-    friend class Buffer;
-    friend class Pipeline;
-    friend class RenderPass;
-    friend class ForwardPass;
-    friend class ImGuiPass;
-    friend class Texture;
-    friend class CameraSystem;
-    friend class Descriptor;
-    friend class Texture;
-    friend class Sampler;
-    friend class DepthPass;
-    friend class SkyboxPass;
-    friend class LightCullingPass;
-    friend class RenderTarget;
-
   public:
     Context();
     void init();
@@ -71,7 +47,7 @@ class Context
     void get_window_size(int& width, int& height);
 
   private:
-    void init_allocator();
+    //void init_allocator();
     void create_instance();
     bool check_validation_layer_support();
     std::vector<const char*> get_required_extensions();
@@ -121,7 +97,7 @@ class Context
     void generateMipmaps(VkImage image, VkFormat format, uint32_t width, uint32_t height,
                          uint32_t mipLevels);
 
-  private:
+  public:
     GLFWwindow* m_window = nullptr;
     bool m_framebufferResized = false;
     VkInstance m_instance = {};
@@ -129,7 +105,7 @@ class Context
 
     VkSurfaceKHR m_surface = {};
 
-    VmaAllocator m_allocator = {};
+    //VmaAllocator m_allocator = {};
 
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};

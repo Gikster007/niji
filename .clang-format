@@ -17,3 +17,5 @@ ReferenceAlignment: Left
 # Function Decalration Spacing
 PenaltyBreakBeforeFirstCallParameter: 100
 AlwaysBreakTemplateDeclarations: Yes
+
+SpaceBeforeCpp11BracedList: true

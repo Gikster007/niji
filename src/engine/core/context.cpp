@@ -9,8 +9,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "common.hpp"
+
 #include "rendering/swapchain.hpp"
-#include "rendering/texture.hpp"
+#include "rendering/resources/texture.hpp"
 
 #include "vulkan-functions.hpp"
 
@@ -59,7 +61,7 @@ Context::Context()
 
     load_vulkan_function_pointers(m_device);
 
-    init_allocator();
+    //init_allocator();
 }
 
 void Context::init()
@@ -132,19 +134,10 @@ void Context::get_window_size(int& width, int& height)
     glfwGetWindowSize(m_window, &width, &height);
 }
 
-void Context::init_allocator()
-{
-    // initialize the memory allocator
-    VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = m_physicalDevice;
-    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-    allocatorInfo.device = m_device;
-    allocatorInfo.instance = m_instance;
-
-    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT |
-                          VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
-    vmaCreateAllocator(&allocatorInfo, &m_allocator);
-}
+//void Context::init_allocator()
+//{
+//    
+//}
 
 void Context::create_instance()
 {

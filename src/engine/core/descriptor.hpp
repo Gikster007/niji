@@ -3,11 +3,9 @@
 #include <variant>
 #include <array>
 
-#include "commandlist.hpp"
-
-#include "rendering/sampler.hpp"
-#include "rendering/texture.hpp"
-#include "rendering/buffer.hpp"
+#include "rendering/resources/sampler.hpp"
+#include "rendering/resources/texture.hpp"
+#include "rendering/resources/buffer.hpp"
 
 namespace niji
 {

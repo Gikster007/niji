@@ -12,7 +12,7 @@
 
 #include "../swapchain.hpp"
 
-#include "rendering/shader.hpp"
+#include "rendering/resources/shader.hpp"
 
 namespace fs = std::filesystem;
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <optional>
-#include <string>
+#include "core/common.hpp"
 
 #include "core/editor/editor.hpp"
 #include "core/context.hpp"

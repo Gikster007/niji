@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <string>
 #include <array>
 
 #include <glm/glm.hpp>
@@ -11,9 +10,15 @@
 #include "core/envmap.hpp"
 #include "core/ecs.hpp"
 
+#include "core/commandlist.hpp"
+
+#include "resources/render_target.hpp"
+
 #include "model/mesh.hpp"
 
 #include "swapchain.hpp"
+
+#include "resources/pool.hpp"
 
 namespace niji
 {

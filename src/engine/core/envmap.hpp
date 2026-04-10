@@ -1,7 +1,7 @@
 #pragma once
 
-#include "rendering/texture.hpp"
-#include "rendering/sampler.hpp"
+#include "rendering/resources/texture.hpp"
+#include "rendering/resources/sampler.hpp"
 
 namespace niji
 {
