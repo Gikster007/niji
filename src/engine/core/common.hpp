@@ -10,6 +10,7 @@ typedef VmaAllocation_T* VmaAllocation;
 
 namespace niji
 {
+// TODO: Move this to context class
 template <typename HandleType>
 void SetObjectName(VkDevice device, VkObjectType type, HandleType handle, const char* name)
 {

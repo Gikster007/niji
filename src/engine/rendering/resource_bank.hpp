@@ -37,6 +37,11 @@ class ResourceBank
     // VMA Allocator
     VmaAllocator m_allocator = {};
 
+    // Bindless Descriptor
+    VkDescriptorSetLayout m_bindless_set_layout {};
+    VkDescriptorPool m_bindless_pool {};
+    VkDescriptorSet m_bindless_set {};
+
     Pool<Texture, TextureHandle, ResourceType::Texture> m_textures {};
     Pool<Sampler, SamplerHandle, ResourceType::Sampler> m_samplers {};
     Pool<Buffer, BufferHandle, ResourceType::Buffer> m_buffers {};

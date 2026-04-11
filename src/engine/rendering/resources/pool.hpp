@@ -104,6 +104,11 @@ class Pool
         return m_pool[handle.index - 1u];
     }
 
+    const uint32_t capacity() const
+    {
+        return m_capacity;
+    }
+
   private:
     Resource* m_pool = nullptr;
     Handle* m_stack = nullptr;
