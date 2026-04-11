@@ -18,9 +18,7 @@ struct ResourceHandle
 {   
     ResourceHandle() = default;
 
-    ResourceHandle(uint32_t index, ResourceType type) : Index(index), Type(type)
-    {
-    }
+    ResourceHandle(uint32_t index, ResourceType type) : Index(index), Type(type) {}
 
     inline bool is_valid() const
     {

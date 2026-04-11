@@ -7,71 +7,71 @@
 namespace niji
 {
 
-inline static VkFilter to_vk(SamplerDesc::Filter filterMode)
-{
-    switch (filterMode)
-    {
-    case niji::SamplerDesc::Filter::NONE:
-        throw std::runtime_error("Invalid Sampler Filter Mode!");
-        break;
-    case niji::SamplerDesc::Filter::NEAREST:
-        return VK_FILTER_NEAREST;
-        break;
-    case niji::SamplerDesc::Filter::LINEAR:
-        return VK_FILTER_LINEAR;
-        break;
-    default:
-        throw std::runtime_error("Invalid Sampler Filter Mode!");
-        break;
-    }
-}
-
-inline static VkSamplerAddressMode to_vk(SamplerDesc::AddressMode addressMode)
-{
-    switch (addressMode)
-    {
-    case niji::SamplerDesc::AddressMode::NONE:
-        throw std::runtime_error("Invalid Sampler Address Mode!");
-        break;
-    case niji::SamplerDesc::AddressMode::REPEAT:
-        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        break;
-    case niji::SamplerDesc::AddressMode::MIRRORED_REPEAT:
-        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        break;
-    case niji::SamplerDesc::AddressMode::EDGE_CLAMP:
-        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        break;
-    case niji::SamplerDesc::AddressMode::BORDER_CLAMP:
-        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        break;
-    case niji::SamplerDesc::AddressMode::MIRRORED_EDGE_CLAMP:
-        return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
-        break;
-    default:
-        throw std::runtime_error("Invalid Sampler Address Mode!");
-        break;
-    }
-}
-
-inline static VkSamplerMipmapMode to_vk(SamplerDesc::MipMapMode mipmapMode)
-{
-    switch (mipmapMode)
-    {
-    case niji::SamplerDesc::MipMapMode::NONE:
-        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
-        break;
-    case niji::SamplerDesc::MipMapMode::NEAREST:
-        return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case niji::SamplerDesc::MipMapMode::LINEAR:
-        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        break;
-    default:
-        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
-        break;
-    }
-}
+//inline static VkFilter to_vk(SamplerDesc::Filter filterMode)
+//{
+//    switch (filterMode)
+//    {
+//    case niji::SamplerDesc::Filter::NONE:
+//        throw std::runtime_error("Invalid Sampler Filter Mode!");
+//        break;
+//    case niji::SamplerDesc::Filter::NEAREST:
+//        return VK_FILTER_NEAREST;
+//        break;
+//    case niji::SamplerDesc::Filter::LINEAR:
+//        return VK_FILTER_LINEAR;
+//        break;
+//    default:
+//        throw std::runtime_error("Invalid Sampler Filter Mode!");
+//        break;
+//    }
+//}
+//
+//inline static VkSamplerAddressMode to_vk(SamplerDesc::AddressMode addressMode)
+//{
+//    switch (addressMode)
+//    {
+//    case niji::SamplerDesc::AddressMode::NONE:
+//        throw std::runtime_error("Invalid Sampler Address Mode!");
+//        break;
+//    case niji::SamplerDesc::AddressMode::REPEAT:
+//        return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+//        break;
+//    case niji::SamplerDesc::AddressMode::MIRRORED_REPEAT:
+//        return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+//        break;
+//    case niji::SamplerDesc::AddressMode::EDGE_CLAMP:
+//        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+//        break;
+//    case niji::SamplerDesc::AddressMode::BORDER_CLAMP:
+//        return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+//        break;
+//    case niji::SamplerDesc::AddressMode::MIRRORED_EDGE_CLAMP:
+//        return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+//        break;
+//    default:
+//        throw std::runtime_error("Invalid Sampler Address Mode!");
+//        break;
+//    }
+//}
+//
+//inline static VkSamplerMipmapMode to_vk(SamplerDesc::MipMapMode mipmapMode)
+//{
+//    switch (mipmapMode)
+//    {
+//    case niji::SamplerDesc::MipMapMode::NONE:
+//        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
+//        break;
+//    case niji::SamplerDesc::MipMapMode::NEAREST:
+//        return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+//        break;
+//    case niji::SamplerDesc::MipMapMode::LINEAR:
+//        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+//        break;
+//    default:
+//        throw std::runtime_error("Invalid Sampler Mip Map Mode!");
+//        break;
+//    }
+//}
 
 Sampler::Sampler(const SamplerDesc& desc)
 {

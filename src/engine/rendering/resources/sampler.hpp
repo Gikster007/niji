@@ -10,8 +10,8 @@ struct SamplerDesc
         NONE,
         NEAREST,
         LINEAR
-    } MagFilter = Filter::NONE;
-    Filter MinFilter = Filter::NONE;
+    } MagFilter = Filter::LINEAR;
+    Filter MinFilter = Filter::LINEAR;
 
     enum class AddressMode
     {
@@ -21,33 +21,31 @@ struct SamplerDesc
         EDGE_CLAMP,
         BORDER_CLAMP,
         MIRRORED_EDGE_CLAMP
-    } AddressModeU = AddressMode::NONE;
-    AddressMode AddressModeV = AddressMode::NONE;
-    AddressMode AddressModeW = AddressMode::NONE;
+    } AddressModeU = AddressMode::REPEAT;
+    AddressMode AddressModeV = AddressMode::REPEAT;
+    AddressMode AddressModeW = AddressMode::REPEAT;
 
     enum class MipMapMode
     {
         NONE,
         NEAREST,
         LINEAR
-    } MipmapMode = MipMapMode::NONE;
+    } MipmapMode = MipMapMode::NEAREST;
 
-    bool EnableAnisotropy = false;
+    std::string Name = "Unknown Sampler";
+
     uint32_t MaxMips = 0;
-
-    char* Name = {};
+    bool EnableAnisotropy = false;
 };
 
+// Sampler Resource
 struct Sampler
 {
     Sampler() = default;
-    Sampler(const SamplerDesc& desc);
 
-    void cleanup() const;
+    //void cleanup() const;
 
-    SamplerDesc Desc = {};
-
-    VkSampler Handle = {};
+    VkSampler Object = {};
 };
 
 } // namespace niji

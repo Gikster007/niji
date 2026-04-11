@@ -3,46 +3,45 @@
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
+#include "rendering/utils/enum_flags.hpp"
+
 namespace niji
 {
 
-struct BufferDesc
+enum class BufferUsage
 {
-    VkDeviceSize Size = {};
-
-    enum class BufferUsage
-    {
-        Invalid,
-        Vertex,
-        Index,
-        Uniform,
-        Storage
-    } Usage = {};
-
-    bool IsPersistent = false;
-    char* Name = "Unknown Buffer";
+    Invalid = 0u,
+    TransferDst = 1u << 1u, // Can Be Written to by a Transfer Command
+    TransferSrc = 1u << 2u, // Can be Read from by a Transfer Command
+    Vertex = 1u << 3u,      // Vertex Buffer
+    Index = 1u << 4u,       // Index Buffer
+    Uniform = 1u << 5u,     // Uniform Buffer
+    Storage = 1u << 6u      // Storage BUffer
 };
 
+struct BufferDesc
+{
+    uint64_t Size = 0u;
+
+    std::string Name = "Unknown Buffer";
+
+    BufferUsage Usage = BufferUsage::Invalid;
+};
+ENUM_CLASS_FLAGS(BufferUsage);
+
+// Buffer Resource
 struct Buffer
 {
     Buffer() = default;
-    Buffer(BufferDesc& desc, void* data);
-    ~Buffer();
 
-    Buffer(Buffer&& other) noexcept;
-    Buffer& operator=(Buffer&& other) noexcept;
+    // void cleanup();
 
-    Buffer(const Buffer&) = delete;
-    Buffer& operator=(const Buffer&) = delete;
+    VkBuffer Object = {};
+    VmaAllocation Allocation = {};
 
-    void cleanup();
-
-    VkBuffer Handle = {};
-    VmaAllocation BufferAllocation = {};
     BufferDesc Desc = {};
 
-    void* Data = nullptr;
-    bool Mapped = false;
+    VkDeviceAddress Address = {};
 };
 
 } // namespace niji

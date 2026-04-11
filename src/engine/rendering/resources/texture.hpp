@@ -2,61 +2,71 @@
 
 #include <string>
 
-enum VmaMemoryUsage;
+#include "rendering/utils/enum_flags.hpp"
+
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 
 namespace niji
 {
 
-struct RenderTarget;
+struct Size3D
+{
+    uint32_t X = 0u;
+    uint32_t Y = 0u;
+    uint32_t Z = 0u;
+
+    inline bool is_2d() const
+    {
+        return Z == 0u;
+    }
+};
+
+enum class TextureFormat : uint32_t
+{
+    Invalid = 0u,
+    RGBA8Unorm,
+    RGBA16SFloat,
+    D32SFloat
+};
+
+enum class TextureUsage : uint32_t
+{
+    Invalid = 0u,
+    TransferDst = 1u << 1u,     // Can Be Written to by a Transfer Command
+    TransferSrc = 1u << 2u,     // Can be Read from by a Transfer Command
+    Sampled = 1u << 3u,         // Read-only Texture
+    Storage = 1u << 4u,         // RW Texture
+    ColorAttachment = 1u << 5u, // Raster Pass Color Attachment
+    DepthStencil = 1u << 6u     // Raster Pass DepthStencil Attachment
+};
+ENUM_CLASS_FLAGS(TextureUsage);
 
 struct TextureDesc
 {
-    int Width = 0;
-    int Height = 0;
-    int Channels = 4;
-    unsigned char* Data = nullptr;
-    char* Name = nullptr;
+    std::string Name = "Unknown Texture";
+    TextureFormat Format = TextureFormat::Invalid;
+    TextureUsage Usage = TextureUsage::Invalid;
 
-    enum class TextureType
-    {
-        NONE,
-        TEXTURE_2D,
-        CUBEMAP
-    } Type = TextureType::NONE;
+    uint32_t Mips = 1u;
+    uint32_t Layers = 1u;
 
-    bool IsReadWrite = false;
-    bool IsMipMapped = false;
-    bool ShowInImGui = false;
-    uint32_t Mips = 1;
-    uint32_t Layers = 1;
-
-    VkFormat Format = {};
-    VkImageUsageFlags Usage = {};
-    VmaMemoryUsage MemoryUsage = {};
+    Size3D Size {};
 };
 
+// Texture Resource
 struct Texture
 {
     Texture() = default;
-    Texture(const TextureDesc& desc);
-    // Used only for Envmap Loading
-    Texture(const TextureDesc& desc, const std::string& path);
-    // Used only for translating a Depth RT
-    Texture(RenderTarget& depthRT);
 
-    void cleanup() const;
+    // void cleanup() const;
 
-    TextureDesc Desc = {};
+    VkImage Image {};
+    VkImageView FullView {}; // Used For All Images
+    VmaAllocation Allocation {};
 
-    VkImage TextureImage = {};
-    VkImageView TextureImageView = {};
-    VmaAllocation TextureImageAllocation = {};
-
-    VkDescriptorImageInfo ImageInfo = {};
-
-    VkDescriptorSet ImGuiHandle = {};
+    TextureDesc Desc {};
+    std::vector<VkImageView> MippedViews {}; // Used For Storage Images (we can write to individual mips of a Storage Image)
 };
 
 } // namespace niji
