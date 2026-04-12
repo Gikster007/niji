@@ -323,7 +323,7 @@ void Context::pick_physical_device()
 
 bool Context::is_device_suitable(VkPhysicalDevice device)
 {
-    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(device, m_surface);
+    m_queueIndices = QueueFamilyIndices::find_queue_families(device, m_surface);
 
     bool extensionsSupported = check_device_extension_support(device);
     bool swapChainAdequate = false;
@@ -336,7 +336,7 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
     VkPhysicalDeviceFeatures supportedFeatures = {};
     vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    return indices.is_complete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy &&
+    return m_queueIndices.is_complete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy &&
            supportedFeatures.fillModeNonSolid;
 }
 
@@ -429,6 +429,7 @@ void Context::create_logical_device()
         throw std::runtime_error("Failed To Create Logical Device!");
 
     vkGetDeviceQueue(m_device, indices.GraphicsFamily.value(), 0, &m_graphicsQueue);
+    vkGetDeviceQueue(m_device, indices.TransferFamily.value(), 0, &m_transferQueue);
     vkGetDeviceQueue(m_device, indices.PresentFamily.value(), 0, &m_presentQueue);
 }
 
@@ -451,12 +452,10 @@ bool Context::check_device_extension_support(VkPhysicalDevice device)
 
 void Context::create_command_pool()
 {
-    QueueFamilyIndices queueFamilyIndices = QueueFamilyIndices::find_queue_families(m_physicalDevice, m_surface);
-
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.GraphicsFamily.value();
+    poolInfo.queueFamilyIndex = m_queueIndices.GraphicsFamily.value();
 
     if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
         throw std::runtime_error("Failed to Create Command Pool!");
@@ -537,89 +536,6 @@ void Context::end_single_time_commands(VkCommandBuffer commandBuffer) const
     vkQueueWaitIdle(m_graphicsQueue);
 
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
-}
-
-void Context::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage, VkBuffer& buffer,
-                            VmaAllocation& allocation, bool persistent) const
-{
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = memoryUsage;
-    if (persistent)
-        allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS)
-        throw std::runtime_error("Failed to Create Buffer with VMA!");
-}
-
-void Context::copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-    VkCommandBuffer commandBuffer = begin_single_time_commands();
-
-    VkBufferCopy copyRegion = {};
-    copyRegion.srcOffset = 0;
-    copyRegion.dstOffset = 0;
-    copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-    end_single_time_commands(commandBuffer);
-}
-
-void Context::create_texture_image_view(Texture& texture)
-{
-    texture.TextureImageView = create_image_view(texture.TextureImage, texture.Desc.Format, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                 texture.Desc.Mips, texture.Desc.Layers);
-}
-
-void Context::create_image(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers, VkFormat format,
-                           VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VkImageCreateFlags flags,
-                           VkImage& image, VmaAllocation& allocation) const
-{
-    VkImageCreateInfo imageInfo = {};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent = {width, height, 1};
-    imageInfo.mipLevels = mipLevels;
-    imageInfo.arrayLayers = arrayLayers;
-    imageInfo.format = format;
-    imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.flags = flags;
-
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = memoryUsage;
-
-    if (vmaCreateImage(m_allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create image with VMA!");
-}
-
-VkImageView Context::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels,
-                                       uint32_t layerCount) const
-{
-    VkImageViewCreateInfo viewInfo = {};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = image;
-    viewInfo.viewType = layerCount > 1 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = format;
-    viewInfo.subresourceRange.aspectMask = aspectFlags;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = mipLevels;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = layerCount;
-
-    VkImageView imageView = {};
-    if (vkCreateImageView(m_device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
-        throw std::runtime_error("Failed to create image view!");
-
-    return imageView;
 }
 
 static inline bool is_depth_format(VkFormat format)
@@ -870,6 +786,9 @@ QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice devi
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             indices.GraphicsFamily = i;
 
+        if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            indices.TransferFamily = i;
+        
         if (indices.is_complete())
             break;
 

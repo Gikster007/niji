@@ -59,8 +59,6 @@ struct Texture
 {
     Texture() = default;
 
-    // void cleanup() const;
-
     VkImage Image {};
     VkImageView FullView {}; // Used For All Images
     VmaAllocation Allocation {};

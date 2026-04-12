@@ -28,9 +28,9 @@ void ResourceBank::init()
     }
 
     // Initialize the Resource Pools
-    m_textures.init(m_max_textures);
-    m_samplers.init(m_max_samplers);
-    m_buffers.init(m_max_buffers);
+    m_textures.init(m_maxTextures);
+    m_samplers.init(m_maxSamplers);
+    m_buffers.init(m_maxBuffers);
 
     // Create Bindless Descriptor Set (Supports Sampled/Storage Images and Samplers)
     // For Buffers, We Use BufferDeviceAddress So No Binding is Necessary
@@ -75,10 +75,10 @@ void ResourceBank::init()
         layoutInfo.bindingCount = static_cast<uint32_t>(sizeof(bindings) / sizeof(VkDescriptorSetLayoutBinding));
         layoutInfo.pBindings = bindings;
 
-        if (vkCreateDescriptorSetLayout(context.m_device, &layoutInfo, nullptr, &m_bindless_set_layout) != VK_SUCCESS)
+        if (vkCreateDescriptorSetLayout(context.m_device, &layoutInfo, nullptr, &m_bindlessSetLayout) != VK_SUCCESS)
             assert(!"[ResourceBank] Failed to Create Bindless Descriptor Set Layout");
 
-        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, m_bindless_set_layout,
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, m_bindlessSetLayout,
                       "Bindless Descriptor Set Layout");
 
         // Create Descriptor Pool
@@ -94,22 +94,55 @@ void ResourceBank::init()
         poolInfo.poolSizeCount = static_cast<uint32_t>(sizeof(poolSizes) / sizeof(VkDescriptorPoolSize));
         poolInfo.pPoolSizes = poolSizes;
 
-        if (vkCreateDescriptorPool(context.m_device, &poolInfo, nullptr, &m_bindless_pool) != VK_SUCCESS)
+        if (vkCreateDescriptorPool(context.m_device, &poolInfo, nullptr, &m_bindlessPool) != VK_SUCCESS)
             assert(!"[ResourceBank] Failed to Create Bindless Descriptor Pool");
 
-        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_POOL, m_bindless_pool, "Bindless Pool");
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_POOL, m_bindlessPool, "Bindless Pool");
 
         // Create Descriptor Set
         VkDescriptorSetAllocateInfo allocInfo {};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_bindless_pool;
+        allocInfo.descriptorPool = m_bindlessPool;
         allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &m_bindless_set_layout;
+        allocInfo.pSetLayouts = &m_bindlessSetLayout;
 
-        if (vkAllocateDescriptorSets(context.m_device, &allocInfo, &m_bindless_set) != VK_SUCCESS)
+        if (vkAllocateDescriptorSets(context.m_device, &allocInfo, &m_bindlessSet) != VK_SUCCESS)
             assert(!"[ResourceBank] Failed to Create Bindless Descriptor Set");
 
-        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, m_bindless_set, "Bindless Set");
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, m_bindlessSet, "Bindless Set");
+    }
+
+    // Create Upload Pool, Commandbuffer and Fence
+    {
+        // Command Pool Creation Info
+        VkCommandPoolCreateInfo poolInfo {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = context.m_queueIndices.TransferFamily.value();
+
+        // Create Ccommand Pool for Upload Command Buffer
+        if (vkCreateCommandPool(context.m_device, &poolInfo, nullptr, &m_uploadCmdPool) != VK_SUCCESS)
+            assert(!"[Resource Bank] Failed to Create Upload Command Pool");
+
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL, m_uploadCmdPool, "Upload Command Pool");
+
+        // Allocate Upload Command Buffer
+        VkCommandBufferAllocateInfo cmdAllocInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        cmdAllocInfo.commandPool = m_uploadCmdPool;
+        cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdAllocInfo.commandBufferCount = 1u;
+
+        if (vkAllocateCommandBuffers(context.m_device, &cmdAllocInfo, &m_uploadCmd) != VK_SUCCESS)
+            assert(!"[Resource Bank] Failed to Create Upload Command Buffer");
+
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, m_uploadCmd, "Upload Command Buffer");
+
+        // Create the Upload Fence
+        VkFenceCreateInfo fenceInfo {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+
+        if (vkCreateFence(context.m_device, &fenceInfo, nullptr, &m_uploadFence) != VK_SUCCESS)
+            assert(!"[Resource Bank] Failed to Create Upload Fence");
+
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_FENCE, m_uploadFence, "Upload Fence");
     }
 }
 
@@ -165,7 +198,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
         VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        write.dstSet = m_bindless_set;
+        write.dstSet = m_bindlessSet;
         write.dstBinding = BINDLESS_SAMPLED_IMAGES_BINDING;
         write.dstArrayElement = texture.Handle.Index - 1u;
         write.descriptorCount = 1;
@@ -201,7 +234,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
             VkWriteDescriptorSet write {};
             write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write.dstSet = m_bindless_set;
+            write.dstSet = m_bindlessSet;
             write.dstBinding = BINDLESS_STORAGE_IMAGES_BINDING;
             write.dstArrayElement = (texture.Handle.Index - 1u) * MAX_MIPS + mip;
             write.descriptorCount = 1;
@@ -245,7 +278,7 @@ SamplerHandle ResourceBank::create_sampler(SamplerDesc desc)
 
     VkWriteDescriptorSet write {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = m_bindless_set;
+    write.dstSet = m_bindlessSet;
     write.dstBinding = BINDLESS_SAMPLERS_BINDING;
     write.dstArrayElement = sampler.Handle.Index - 1u;
     write.descriptorCount = 1;
@@ -299,14 +332,79 @@ BufferHandle ResourceBank::create_buffer(BufferDesc desc)
     return buffer.Handle;
 }
 
-VkDeviceAddress ResourceBank::get_buffer_address(BufferHandle buffer) const
+void ResourceBank::upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size)
 {
-    return m_buffers.get(buffer).Address;
+    if (size < 1u)
+        assert(!"[Resource Bank] Cannot Upload to Buffer if Size is 0");
+
+    // Get BufferResource and Check if we can Upload to it
+    Buffer& buffer = m_buffers.get(handle);
+    if (has_flag(buffer.Desc.Usage, BufferUsage::TransferDst) == false)
+        assert(!"[Resource Bank] Cannot Upload to Buffer if Usage Flag 'TransferDst' is not set");
+
+    // Create Staging Buffer
+    VkBufferCreateInfo stagingBufferInfo {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferInfo.size = size;
+    stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    // Staging Memory Allocation Info
+    VmaAllocationCreateInfo allocInfo {};
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    // Create the Staging Buffer and Allocate it Using VMA
+    VkBuffer stagingBuffer {};
+    VmaAllocation alloc {};
+    if (vmaCreateBuffer(m_allocator, &stagingBufferInfo, &allocInfo, &stagingBuffer, &alloc, nullptr) != VK_SUCCESS)
+        assert(!"[Resource Bank] Failed to Create Staging Buffer");
+
+    // Copy Data Into the Staging Buffer
+    vmaCopyMemoryToAllocation(m_allocator, data, alloc, 0u, size);
+
+    VkBufferCopy copy {};
+    copy.srcOffset = 0u;
+    copy.dstOffset = dstOffset;
+    copy.size = size;
+
+    if (begin_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to Begin Upload Command Buffer"); // Begin recording commands
+
+    vkCmdCopyBuffer(m_uploadCmd, stagingBuffer, buffer.Object, 1u, &copy);
+
+    if (end_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to End Upload Command Buffer"); // End Recording Commands
+
+    // Destroy Staging Buffer
+    vmaDestroyBuffer(m_allocator, stagingBuffer, alloc);
+}
+
+uint64_t ResourceBank::get_buffer_address(BufferHandle buffer) const
+{
+    return (uint64_t)m_buffers.get(buffer).Address;
 }
 
 uint32_t ResourceBank::get_storage_tex_index(TextureHandle texture, uint32_t mip) const
 {
     return texture.Index * MAX_MIPS + mip;
+}
+
+void ResourceBank::destroy(ResourceHandle& handle)
+{
+    switch (handle.Type)
+    {
+    case ResourceType::Invalid:
+        assert(!"[Resource Bank] Failed to Destroy Resource. Resource Type is Invalid");
+    case ResourceType::Texture:
+        destroy_texture((TextureHandle&)handle);
+        break;
+    case ResourceType::Sampler:
+        destroy_sampler((SamplerHandle&)handle);
+        break;
+    case ResourceType::Buffer:
+        destroy_buffer((BufferHandle&)handle);
+        break;
+    }
 }
 
 VkImageView ResourceBank::create_image_view(VkImage image, ImageViewDesc desc)
@@ -330,6 +428,79 @@ VkImageView ResourceBank::create_image_view(VkImage image, ImageViewDesc desc)
         assert(!"[ResourceBank] Failed to Create Image View");
 
     return view;
+}
+
+bool ResourceBank::begin_upload_cmd() const
+{
+    VkCommandBufferBeginInfo begin_info {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    return vkBeginCommandBuffer(m_uploadCmd, &begin_info) == VK_SUCCESS;
+}
+
+bool ResourceBank::end_upload_cmd() const
+{
+    // End the Upload Command Buffer
+    vkEndCommandBuffer(m_uploadCmd);
+
+    // Submit the Upload Commands to the Queue
+    const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkSubmitInfo submit {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit.pWaitDstStageMask = &wait_stage;
+    submit.commandBufferCount = 1u;
+    submit.pCommandBuffers = &m_uploadCmd;
+
+    const Context& context = nijiEngine.m_context;
+
+    if (vkQueueSubmit(context.m_transferQueue, 1u, &submit, m_uploadFence) != VK_SUCCESS)
+        return false;
+
+    // Wait for the Upload Commands to Complete
+    if (vkWaitForFences(context.m_device, 1u, &m_uploadFence, true, UINT64_MAX) != VK_SUCCESS)
+        return false;
+    if (vkResetFences(context.m_device, 1u, &m_uploadFence) != VK_SUCCESS)
+        return false;
+
+    return true;
+}
+
+void ResourceBank::destroy_texture(TextureHandle& handle)
+{
+    // Reset TextureHandle and Destroy VkImage Object
+    Texture& texture = m_textures.push(handle);
+    vmaDestroyImage(m_allocator, texture.Image, texture.Allocation);
+
+    const Context& context = nijiEngine.m_context;
+
+    // Destroy Image Views
+    vkDestroyImageView(context.m_device, texture.FullView, nullptr);
+    for (VkImageView& view : texture.MippedViews)
+        vkDestroyImageView(context.m_device, view, nullptr);
+
+    // Reset Texture Resource to Clean State
+    texture = {};
+}
+
+void ResourceBank::destroy_sampler(SamplerHandle& handle)
+{
+    const Context& context = nijiEngine.m_context;
+
+    // Reset SamplerHandle and Destroy VkSampler Object
+    Sampler& sampler = m_samplers.push(handle);
+    vkDestroySampler(context.m_device, sampler.Object, nullptr);
+
+    // Reset Sampler Resource to Clean State
+    sampler = {};
+}
+
+void ResourceBank::destroy_buffer(BufferHandle& handle)
+{
+    // Reset BufferHandle and Destroy VkBuffer Object
+    Buffer& buffer = m_buffers.push(handle);
+    vmaDestroyBuffer(m_allocator, buffer.Object, buffer.Allocation);
+
+    // Reset Buffer Resource to Clean State
+    buffer = {};
 }
 
 } // namespace niji

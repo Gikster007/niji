@@ -43,8 +43,6 @@ struct Sampler
 {
     Sampler() = default;
 
-    //void cleanup() const;
-
     VkSampler Object = {};
 };
 

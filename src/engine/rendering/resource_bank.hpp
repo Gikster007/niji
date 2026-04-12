@@ -35,17 +35,17 @@ class ResourceBank
 
     inline void set_max_textures(const uint32_t count)
     {
-        m_max_textures = count;
+        m_maxTextures = count;
     }
 
     inline void set_max_samplers(const uint32_t count)
     {
-        m_max_samplers = count;
+        m_maxSamplers = count;
     }
 
     inline void set_max_buffers(const uint32_t count)
     {
-        m_max_buffers = count;
+        m_maxBuffers = count;
     }
 
     // Create Texture Resource
@@ -55,34 +55,59 @@ class ResourceBank
     // Create Buffer Resource
     BufferHandle create_buffer(BufferDesc desc);
 
+    // Upload to a Texture Resource
+    void upload_texture(TextureHandle handle);
+    // Upload to a Buffer Resource
+    void upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size);
+
     // Returns the Memory Address of the Given Buffer
     // Can be Directly Accessed on the GPU (hint: pass via Push Constants)
-    VkDeviceAddress get_buffer_address(BufferHandle buffer) const;
+    uint64_t get_buffer_address(BufferHandle buffer) const;
 
     // Returns the Bindless Index of the Given Texture
     // Used for passing to the Shader (supports individual storage mips)
     uint32_t get_storage_tex_index(TextureHandle texture, uint32_t mip = 0u) const;
 
+    void destroy(ResourceHandle& handle);
+
   private:
+    // Creates a VkImageView given a VkImage and a ImageViewDesc
     VkImageView create_image_view(VkImage image, ImageViewDesc desc);
+
+    // Prepare Upload Command Buffer for Uploading
+    bool begin_upload_cmd() const;
+    // End Upload Command Buffer, Submit it and Wait on the Upload Fence
+    bool end_upload_cmd() const;
+
+    // Cleans up and Destroys a Texture
+    void destroy_texture(TextureHandle& handle);
+    // Cleans up and Destroys a Sampler
+    void destroy_sampler(SamplerHandle& handle);
+    // Cleans up and Destroys a Buffer
+    void destroy_buffer(BufferHandle& handle);
 
   private:
     // VMA Allocator
     VmaAllocator m_allocator = {};
 
     // Bindless Descriptor
-    VkDescriptorSetLayout m_bindless_set_layout {};
-    VkDescriptorPool m_bindless_pool {};
-    VkDescriptorSet m_bindless_set {};
+    VkDescriptorSetLayout m_bindlessSetLayout {};
+    VkDescriptorPool m_bindlessPool {};
+    VkDescriptorSet m_bindlessSet {};
+
+    // Upload
+    VkCommandPool m_uploadCmdPool {};
+    VkCommandBuffer m_uploadCmd {};
+    VkFence m_uploadFence {};
 
     // Resource Pools
     Pool<Texture, TextureHandle, ResourceType::Texture> m_textures {};
     Pool<Sampler, SamplerHandle, ResourceType::Sampler> m_samplers {};
     Pool<Buffer, BufferHandle, ResourceType::Buffer> m_buffers {};
 
-    uint32_t m_max_textures = 8u;
-    uint32_t m_max_samplers = 8u;
-    uint32_t m_max_buffers = 8u;
+    uint32_t m_maxTextures = 8u;
+    uint32_t m_maxSamplers = 8u;
+    uint32_t m_maxBuffers = 8u;
 };
 
 } // namespace niji

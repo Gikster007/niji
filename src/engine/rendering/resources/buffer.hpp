@@ -34,8 +34,6 @@ struct Buffer
 {
     Buffer() = default;
 
-    // void cleanup();
-
     VkBuffer Object = {};
     VmaAllocation Allocation = {};
 

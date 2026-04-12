@@ -23,11 +23,12 @@ namespace niji
 struct QueueFamilyIndices
 {
     std::optional<uint32_t> GraphicsFamily = {};
+    std::optional<uint32_t> TransferFamily = {};
     std::optional<uint32_t> PresentFamily = {};
 
     bool is_complete() const
     {
-        return GraphicsFamily.has_value() && PresentFamily.has_value();
+        return GraphicsFamily.has_value() && TransferFamily.has_value() && PresentFamily.has_value();
     }
     static QueueFamilyIndices find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface);
 };
@@ -78,18 +79,6 @@ class Context
 
     void end_single_time_commands(VkCommandBuffer commandBuffer) const;
 
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage,
-                       VkBuffer& buffer, VmaAllocation& allocation, bool persistent = false) const;
-
-    void copy_buffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
-    void create_texture_image_view(Texture& texture);
-    void create_image(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t arrayLayers,
-                      VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-                      VmaMemoryUsage memoryUsage, VkImageCreateFlags flags, VkImage& image,
-                      VmaAllocation& allocation) const;
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
-                                  uint32_t mipLevels, uint32_t layerCount) const;
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout oldLayout,
                                  VkImageLayout newLayout, uint32_t mipLevels, uint32_t layerCount);
     void copy_buffer_to_image(VkBuffer srcBuffer, VkImage dstImage, uint32_t width, uint32_t height,
@@ -109,7 +98,9 @@ class Context
 
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};
+    QueueFamilyIndices m_queueIndices = {};
     VkQueue m_graphicsQueue = {};
+    VkQueue m_transferQueue = {};
     VkQueue m_presentQueue = {};
     VkCommandPool m_commandPool = {};
 
