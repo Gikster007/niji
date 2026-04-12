@@ -54,17 +54,26 @@ struct TextureDesc
     Size3D Size {};
 };
 
+// Image View Wrapper
+struct ImageView
+{
+    VkImageView View {};
+    VkImageSubresourceRange SubRange {};
+};
+
 // Texture Resource
 struct Texture
 {
     Texture() = default;
 
-    VkImage Image {};
-    VkImageView FullView {}; // Used For All Images
     VmaAllocation Allocation {};
+    VkImage Image {};
+    ImageView FullView {}; // Used For All Images
 
     TextureDesc Desc {};
-    std::vector<VkImageView> MippedViews {}; // Used For Storage Images (we can write to individual mips of a Storage Image)
+    std::vector<ImageView> MippedViews {}; // Used For Storage Images (we can write to individual mips of a Storage Image)
+
+    VkImageLayout Layout = VK_IMAGE_LAYOUT_UNDEFINED;
 };
 
 } // namespace niji

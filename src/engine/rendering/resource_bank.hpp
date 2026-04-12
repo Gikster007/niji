@@ -56,7 +56,7 @@ class ResourceBank
     BufferHandle create_buffer(BufferDesc desc);
 
     // Upload to a Texture Resource
-    void upload_texture(TextureHandle handle);
+    void upload_texture(TextureHandle handle, const void* data, uint64_t size);
     // Upload to a Buffer Resource
     void upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size);
 
@@ -71,8 +71,11 @@ class ResourceBank
     void destroy(ResourceHandle& handle);
 
   private:
-    // Creates a VkImageView given a VkImage and a ImageViewDesc
-    VkImageView create_image_view(VkImage image, ImageViewDesc desc);
+    // Creates the VkImageView and Subresource Range given a VkImage and a ImageViewDesc
+    void create_image_view(ImageView& imageView, VkImage image, ImageViewDesc desc);
+
+    // Generates Mip Chain for the Given Texture
+    void generate_mips(TextureHandle handle);
 
     // Prepare Upload Command Buffer for Uploading
     bool begin_upload_cmd() const;

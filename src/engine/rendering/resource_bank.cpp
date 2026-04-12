@@ -183,10 +183,13 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
     SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_IMAGE, texture.Data.Image, desc.Name.c_str());
 
+    // Set Initial Layout to Undefined
+    texture.Data.Layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
     // Create Full Image View
     ImageViewDesc viewDesc {};
     viewDesc.Format = desc.Format;
-    texture.Data.FullView = create_image_view(texture.Data.Image, viewDesc);
+    create_image_view(texture.Data.FullView, texture.Data.Image, viewDesc);
 
     SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, texture.Data.FullView, (desc.Name + " [Full View]").c_str());
 
@@ -194,7 +197,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     if (has_flag(desc.Usage, TextureUsage::Sampled))
     {
         VkDescriptorImageInfo imageInfo {};
-        imageInfo.imageView = texture.Data.FullView;
+        imageInfo.imageView = texture.Data.FullView.View;
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
         VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -216,20 +219,20 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
         for (uint32_t mip = 0; mip < texture.Data.MippedViews.size(); mip++)
         {
-            VkImageView& imageView = texture.Data.MippedViews[mip];
+            ImageView& imageView = texture.Data.MippedViews[mip];
 
             viewDesc = {};
             viewDesc.Format = desc.Format;
             viewDesc.BaseMip = mip;
             viewDesc.Mips = 1;
 
-            imageView = create_image_view(texture.Data.Image, viewDesc);
+            create_image_view(imageView, texture.Data.Image, viewDesc);
 
             SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, imageView,
                           (desc.Name + " [Storage Mip " + std::to_string(mip) + "]").c_str());
 
             VkDescriptorImageInfo imageInfo {};
-            imageInfo.imageView = imageView;
+            imageInfo.imageView = imageView.View;
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
             VkWriteDescriptorSet write {};
@@ -332,6 +335,81 @@ BufferHandle ResourceBank::create_buffer(BufferDesc desc)
     return buffer.Handle;
 }
 
+void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64_t size)
+{
+    if (size < 1u)
+        assert(!"[Resource Bank] Cannot Upload to Texture if Size is 0");
+
+    // Get TextureResource and Check if we can Upload to it
+    Texture& texture = m_textures.get(handle);
+    if (has_flag(texture.Desc.Usage, TextureUsage::TransferDst) == false)
+        assert(!"[Resource Bank] Cannot Upload to Texture if Usage Flag 'TransferDst' is not set");
+
+    // Staging Buffer Creation Info
+    VkBufferCreateInfo stagingBufferInfo {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    stagingBufferInfo.size = size;
+    stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    // Staging Memory Allocation Info
+    VmaAllocationCreateInfo allocInfo {};
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    // Create the Staging Buffer and Allocate it using VMA
+    VkBuffer stagingBuffer {};
+    VmaAllocation alloc {};
+    if (vmaCreateBuffer(m_allocator, &stagingBufferInfo, &allocInfo, &stagingBuffer, &alloc, nullptr) != VK_SUCCESS)
+        assert(!"[Resource Bank] Failed to Create Staging Buffer");
+
+    // Copy Data into the Staging Buffer
+    vmaCopyMemoryToAllocation(m_allocator, data, alloc, 0u, size);
+
+    // Create Buffer to Image Copy Info
+    VkBufferImageCopy copy {};
+    copy.imageSubresource.aspectMask = texture.FullView.SubRange.aspectMask;
+    copy.imageSubresource.mipLevel = texture.FullView.SubRange.baseMipLevel;
+    copy.imageSubresource.baseArrayLayer = texture.FullView.SubRange.baseArrayLayer;
+    copy.imageSubresource.layerCount = texture.FullView.SubRange.layerCount;
+    copy.imageExtent =
+        VkExtent3D {std::max(texture.Desc.Size.X, 1u), std::max(texture.Desc.Size.Y, 1u), std::max(texture.Desc.Size.Z, 1u)};
+
+    // Create an Image Layout Transition Barrier
+    VkImageMemoryBarrier2 imageBarrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    imageBarrier.srcAccessMask = VK_ACCESS_2_NONE;
+    imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    // Layout is set to Undefined at First
+    // Transition to General is needed even with Unified Layouts Extension
+    imageBarrier.oldLayout = texture.Layout;
+    imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageBarrier.image = texture.Image;
+    imageBarrier.subresourceRange = texture.FullView.SubRange;
+    texture.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
+
+    // Image Dependency Info
+    VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    depInfo.imageMemoryBarrierCount = 1u;
+    depInfo.pImageMemoryBarriers = &imageBarrier;
+
+    if (begin_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to Begin Upload Command Buffer"); // Begin Recording Commands
+
+    vkCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+    vkCmdCopyBufferToImage(m_uploadCmd, stagingBuffer, texture.Image, imageBarrier.newLayout, 1u, &copy);
+
+    if (end_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to End Upload Command Buffer"); // End Recording Commands
+
+    // Destroy Staging Buffer
+    vmaDestroyBuffer(m_allocator, stagingBuffer, alloc);
+
+    // Generate Mips if Needed
+    if (texture.Desc.Mips > 1)
+        generate_mips(handle);
+}
+
 void ResourceBank::upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size)
 {
     if (size < 1u)
@@ -386,7 +464,7 @@ uint64_t ResourceBank::get_buffer_address(BufferHandle buffer) const
 
 uint32_t ResourceBank::get_storage_tex_index(TextureHandle texture, uint32_t mip) const
 {
-    return texture.Index * MAX_MIPS + mip;
+    return (texture.Index - 1u) * MAX_MIPS + mip;
 }
 
 void ResourceBank::destroy(ResourceHandle& handle)
@@ -407,7 +485,7 @@ void ResourceBank::destroy(ResourceHandle& handle)
     }
 }
 
-VkImageView ResourceBank::create_image_view(VkImage image, ImageViewDesc desc)
+void ResourceBank::create_image_view(ImageView& imageView, VkImage image, ImageViewDesc desc)
 {
     const Context& context = nijiEngine.m_context;
 
@@ -422,12 +500,89 @@ VkImageView ResourceBank::create_image_view(VkImage image, ImageViewDesc desc)
     viewInfo.subresourceRange.levelCount = desc.Mips;
     viewInfo.subresourceRange.baseArrayLayer = desc.BaseLayer;
     viewInfo.subresourceRange.layerCount = desc.Layers;
+    imageView.SubRange = viewInfo.subresourceRange;
 
-    VkImageView view = VK_NULL_HANDLE;
-    if (vkCreateImageView(context.m_device, &viewInfo, nullptr, &view) != VK_SUCCESS)
+    if (vkCreateImageView(context.m_device, &viewInfo, nullptr, &imageView.View) != VK_SUCCESS)
         assert(!"[ResourceBank] Failed to Create Image View");
+}
 
-    return view;
+void ResourceBank::generate_mips(TextureHandle handle)
+{
+    Texture& texture = m_textures.get(handle);
+
+    if (texture.Desc.Mips <= 1)
+        return;
+
+    if (!has_flag(texture.Desc.Usage, TextureUsage::TransferSrc))
+        assert(!"[ResourceBank] Cannot Generate Mips Without TransferSrc Usage");
+
+    if (!has_flag(texture.Desc.Usage, TextureUsage::TransferDst))
+        assert(!"[ResourceBank] Cannot Generate Mips Without TransferDst Usage");
+
+    if (begin_upload_cmd() == false)
+        assert(!"[ResourceBank] Failed to Begin Upload Command Buffer");
+
+    int32_t mipWidth = static_cast<int32_t>(texture.Desc.Size.X);
+    int32_t mipHeight = static_cast<int32_t>(texture.Desc.Size.Y);
+
+    for (uint32_t mip = 1; mip < texture.Desc.Mips; ++mip)
+    {
+        int32_t nextWidth = std::max(mipWidth / 2, 1);
+        int32_t nextHeight = std::max(mipHeight / 2, 1);
+
+        // Blit from previous mip to current mip
+        VkImageBlit2 blit {VK_STRUCTURE_TYPE_IMAGE_BLIT_2};
+        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.mipLevel = mip - 1;
+        blit.srcSubresource.baseArrayLayer = 0;
+        blit.srcSubresource.layerCount = texture.Desc.Layers;
+        blit.srcOffsets[0] = {0, 0, 0};
+        blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+
+        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.mipLevel = mip;
+        blit.dstSubresource.baseArrayLayer = 0;
+        blit.dstSubresource.layerCount = texture.Desc.Layers;
+        blit.dstOffsets[0] = {0, 0, 0};
+        blit.dstOffsets[1] = {nextWidth, nextHeight, 1};
+
+        VkBlitImageInfo2 blitInfo {VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2};
+        blitInfo.srcImage = texture.Image;
+        blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        blitInfo.dstImage = texture.Image;
+        blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        blitInfo.regionCount = 1;
+        blitInfo.pRegions = &blit;
+        blitInfo.filter = VK_FILTER_LINEAR;
+
+        // Barrier: Previous Mip's Write Must be Visible Before we Read From It
+        VkImageMemoryBarrier2 barrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT;
+        barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.image = texture.Image;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = mip - 1;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = texture.Desc.Layers;
+
+        VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+        depInfo.imageMemoryBarrierCount = 1;
+        depInfo.pImageMemoryBarriers = &barrier;
+
+        vkCmdPipelineBarrier2(m_uploadCmd, &depInfo);
+        vkCmdBlitImage2(m_uploadCmd, &blitInfo);
+
+        mipWidth = nextWidth;
+        mipHeight = nextHeight;
+    }
+
+    if (end_upload_cmd() == false)
+        assert(!"[ResourceBank] Failed to End Upload Command Buffer");
 }
 
 bool ResourceBank::begin_upload_cmd() const
@@ -473,9 +628,9 @@ void ResourceBank::destroy_texture(TextureHandle& handle)
     const Context& context = nijiEngine.m_context;
 
     // Destroy Image Views
-    vkDestroyImageView(context.m_device, texture.FullView, nullptr);
-    for (VkImageView& view : texture.MippedViews)
-        vkDestroyImageView(context.m_device, view, nullptr);
+    vkDestroyImageView(context.m_device, texture.FullView.View, nullptr);
+    for (ImageView& view : texture.MippedViews)
+        vkDestroyImageView(context.m_device, view.View, nullptr);
 
     // Reset Texture Resource to Clean State
     texture = {};
