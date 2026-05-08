@@ -115,7 +115,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::
         TextureDesc desc = {};
         desc.Size = {(uint32_t)width, (uint32_t)height, 0u};
         desc.Format = isLinear ? TextureFormat::RGBA8Unorm : TextureFormat::RGBA8Srgb;
-        desc.Usage = TextureUsage::TransferDst | TextureUsage::Sampled;
+        desc.Usage = TextureUsage::Sampled | TextureUsage::TransferDst | TextureUsage::TransferSrc;
+        desc.GenerateMips = true;
 
         TextureHandle finalTexture = nijiEngine.m_renderer.m_resourceBank.create_texture(desc);
         nijiEngine.m_renderer.m_resourceBank.upload_texture(finalTexture, imageData, width * height *4u);

@@ -49,11 +49,12 @@ struct TextureDesc
     TextureFormat Format = TextureFormat::Invalid;
     TextureUsage Usage = TextureUsage::Invalid;
 
-    uint32_t Mips = 1u;
+    uint32_t Mips = 1u; // Set to desired amount of mips (
     uint32_t Layers = 1u;
 
     Size3D Size {};
 
+    bool GenerateMips = false;
     bool ShowInImGui = false;
 };
 

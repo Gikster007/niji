@@ -337,6 +337,14 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
     const VkFormat format = translate::texture_format(desc.Format);
 
+    // Resolve mip count if auto-mip is requested
+    if (desc.GenerateMips)
+    {
+        const uint32_t largest = std::max({desc.Size.X, desc.Size.Y, desc.Size.Z, 1u});
+        const uint32_t computed = static_cast<uint32_t>(std::floor(std::log2(largest))) + 1u;
+        desc.Mips = std::min(computed, MAX_MIPS);
+    }
+
     // Get New Resource and Handle
     PoolPair texture = m_textures.pop();
     texture.Data.Desc = desc; // Set Texture Info on Texture Resource
@@ -446,18 +454,18 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     imageBarrier.subresourceRange = texture.Data.FullView.SubRange;
     texture.Data.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
 
-    // Image Dependency Info
-    VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    depInfo.imageMemoryBarrierCount = 1u;
-    depInfo.pImageMemoryBarriers = &imageBarrier;
+    //// Image Dependency Info
+    //VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    //depInfo.imageMemoryBarrierCount = 1u;
+    //depInfo.pImageMemoryBarriers = &imageBarrier;
 
-    if (begin_upload_cmd() == false)
-        assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
+    //if (begin_upload_cmd() == false)
+    //    assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
 
-    VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+    //VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
 
-    if (end_upload_cmd() == false)
-        assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
+    //if (end_upload_cmd() == false)
+    //    assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
 
     if (desc.ShowInImGui)
     {
@@ -630,9 +638,9 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     // Destroy Staging Buffer
     vmaDestroyBuffer(m_allocator, stagingBuffer, alloc);
 
-    // Generate Mips if Needed
-    if (texture.Desc.Mips > 1)
-        generate_mips(handle);
+    //// Generate Mips if Needed
+    //if (texture.Desc.GenerateMips)
+    //    generate_mips(handle);
 }
 
 void ResourceBank::upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size)

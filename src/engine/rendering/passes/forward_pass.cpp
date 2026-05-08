@@ -264,7 +264,6 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     info.DepthLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     info.DepthClearValue.depthStencil = {1.0f, 0}; 
     info.HasDepth = true;
-    info.TargetClearValue.color = {{1.0f, 0.0f, 0.0f, 1.0f}};
 
     {
         TransitionInfo before = {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
