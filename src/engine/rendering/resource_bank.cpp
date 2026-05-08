@@ -565,6 +565,11 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     if (has_flag(texture.Desc.Usage, TextureUsage::TransferDst) == false)
         assert(!"[Resource Bank] Cannot Upload to Texture if Usage Flag 'TransferDst' is not set");
 
+    // Resolve concrete subresource values (Desc fields may be 0)
+    const VkImageAspectFlags aspect = translate::aspect_from_format(texture.Desc.Format);
+    const uint32_t mipCount = std::max(1u, texture.Desc.Mips);
+    const uint32_t layerCount = std::max(1u, texture.Desc.Layers);
+
     // Staging Buffer Creation Info
     VkBufferCreateInfo stagingBufferInfo {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     stagingBufferInfo.size = size;
@@ -587,10 +592,10 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
 
     // Create Buffer to Image Copy Info
     VkBufferImageCopy copy {};
-    copy.imageSubresource.aspectMask = texture.FullView.SubRange.aspectMask;
-    copy.imageSubresource.mipLevel = texture.FullView.SubRange.baseMipLevel;
-    copy.imageSubresource.baseArrayLayer = texture.FullView.SubRange.baseArrayLayer;
-    copy.imageSubresource.layerCount = texture.FullView.SubRange.layerCount;
+    copy.imageSubresource.aspectMask = aspect;
+    copy.imageSubresource.mipLevel = 0u;
+    copy.imageSubresource.baseArrayLayer = 0u;
+    copy.imageSubresource.layerCount = layerCount;
     copy.imageExtent =
         VkExtent3D {std::max(texture.Desc.Size.X, 1u), std::max(texture.Desc.Size.Y, 1u), std::max(texture.Desc.Size.Z, 1u)};
 
@@ -605,7 +610,7 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     imageBarrier.oldLayout = texture.Layout;
     imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     imageBarrier.image = texture.Image;
-    imageBarrier.subresourceRange = texture.FullView.SubRange;
+    imageBarrier.subresourceRange = VkImageSubresourceRange {aspect, 0u, mipCount, 0u, layerCount};
     texture.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
 
     // Image Dependency Info
@@ -746,6 +751,8 @@ void ResourceBank::generate_mips(TextureHandle handle)
     int32_t mipWidth = static_cast<int32_t>(texture.Desc.Size.X);
     int32_t mipHeight = static_cast<int32_t>(texture.Desc.Size.Y);
 
+    const uint32_t layerCount = std::max(1u, texture.Desc.Layers);
+
     for (uint32_t mip = 1; mip < texture.Desc.Mips; ++mip)
     {
         int32_t nextWidth = std::max(mipWidth / 2, 1);
@@ -756,14 +763,14 @@ void ResourceBank::generate_mips(TextureHandle handle)
         blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blit.srcSubresource.mipLevel = mip - 1;
         blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = texture.Desc.Layers;
+        blit.srcSubresource.layerCount = layerCount;
         blit.srcOffsets[0] = {0, 0, 0};
         blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
 
         blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blit.dstSubresource.mipLevel = mip;
         blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = texture.Desc.Layers;
+        blit.dstSubresource.layerCount = layerCount;
         blit.dstOffsets[0] = {0, 0, 0};
         blit.dstOffsets[1] = {nextWidth, nextHeight, 1};
 
@@ -789,7 +796,7 @@ void ResourceBank::generate_mips(TextureHandle handle)
         barrier.subresourceRange.baseMipLevel = mip - 1;
         barrier.subresourceRange.levelCount = 1;
         barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = texture.Desc.Layers;
+        barrier.subresourceRange.layerCount = layerCount;
 
         VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
         depInfo.imageMemoryBarrierCount = 1;

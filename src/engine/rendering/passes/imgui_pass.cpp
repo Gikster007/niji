@@ -132,20 +132,18 @@ void ImGuiPass::init(Descriptor& globalDescriptor)
                                              {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
                                              {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
 
-        VkDescriptorPoolCreateInfo pool_info{};
+        VkDescriptorPoolCreateInfo pool_info {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
         pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
         pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
         pool_info.pPoolSizes = pool_sizes;
 
-        vkCreateDescriptorPool(nijiEngine.m_context.m_device, &pool_info, nullptr,
-                               &m_imguiDescriptorPool);
+        vkCreateDescriptorPool(nijiEngine.m_context.m_device, &pool_info, nullptr, &m_imguiDescriptorPool);
     }
 
     QueueFamilyIndices indices =
-        niji::QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice,
-                                                      nijiEngine.m_context.m_surface);
+        niji::QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
 
     RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(nijiEngine.m_renderer.m_renderInfo.RenderTarget);
 
@@ -180,7 +178,7 @@ void ImGuiPass::init(Descriptor& globalDescriptor)
 void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 {
     // Draw Editor
-    nijiEngine.m_editor.render(renderer);
+    // nijiEngine.m_editor.render(renderer);
 }
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
@@ -194,38 +192,43 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     info.DepthLoadOp = VK_ATTACHMENT_LOAD_OP_NONE_KHR;
 
     {
-        //TransitionInfo before;
-        //if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
-        //    before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
-        //else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-        //    before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+        // TransitionInfo before;
+        // if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+        //     before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
+        // else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+        //     before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
         //
-        //TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        //                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        //                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        // TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        //                         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        //                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
         //
-        //VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        // VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         //
-        //cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
+        // cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
     }
 
     {
-        //TransitionInfo before;
-        //if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-        //    before = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        //              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        //              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        // TransitionInfo before;
+        // if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        //     before = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        //               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        //               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
         //
-        //TransitionInfo after = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        //                        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
-        //                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        // TransitionInfo after = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        //                         VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+        //                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         //
-        //VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        // VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         //
-        //cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
+        // cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
     }
 
     Texture& viewport = renderer.m_resourceBank.m_textures.get(renderer.m_renderInfo.ViewportTexture);
+
+    cmd.transition_image_layout(viewport.Image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+                                VkImageSubresourceRange {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u});
 
     ImGui::Begin("Viewport");
     auto& size = ImGui::GetContentRegionAvail();

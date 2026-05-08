@@ -24,11 +24,11 @@ void CameraSystem::render()
 
 void CameraSystem::UpdateFlyCamera(GLFWwindow* window, float deltaTime)
 {
-    if (!m_isInsideViewport)
-    {
-        m_checkViewportBounds = true;
-        return;
-    }
+    //if (!m_isInsideViewport)
+    //{
+    //    m_checkViewportBounds = true;
+    //    return;
+    //}
 
     bool enableMouseLook = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
 
