@@ -176,7 +176,7 @@ void Renderer::init()
         viewportDesc.Name = "Viewport Texture";
         viewportDesc.Format = TextureFormat::RGBA8Unorm;
         viewportDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
-        viewportDesc.Usage = TextureUsage::ColorAttachment;
+        viewportDesc.Usage = TextureUsage::ColorAttachment | TextureUsage::Sampled;
         viewportDesc.ShowInImGui = true;
         m_renderInfo.ViewportTexture = m_resourceBank.create_texture(viewportDesc);
 
