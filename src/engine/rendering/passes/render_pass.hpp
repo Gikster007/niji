@@ -4,15 +4,15 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include <array>
 
-#include "../../core/commandlist.hpp"
-#include "../../core/descriptor.hpp"
-#include "../../core/common.hpp"
+#include "core/commandlist.hpp"
+#include "core/descriptor.hpp"
+#include "core/common.hpp"
 
-#include "../swapchain.hpp"
+#include "rendering/swapchain.hpp"
 
 #include "rendering/resources/shader.hpp"
+#include "rendering/resources/resource_handle.hpp"
 
 namespace fs = std::filesystem;
 
@@ -47,7 +47,7 @@ class ShaderWatcher
 class RenderPass
 {
   public:
-    virtual void init(Swapchain& swapchain, Descriptor& globalDescriptor) = 0;
+    virtual void init(Descriptor& globalDescriptor) = 0;
     void update(Renderer& renderer, CommandList& cmd);
     virtual void record(Renderer& renderer, CommandList& cmd, RenderInfo& info) = 0;
     virtual void cleanup() = 0;
@@ -73,7 +73,7 @@ class RenderPass
     friend class Editor;
 
     std::unordered_map<std::string, Pipeline> m_pipelines = {};
-    std::vector<Buffer> m_passBuffer = {};
+    BufferHandle m_passBuffer = {};
     std::string m_name = "Unnamed Pass";
 
     Descriptor m_passDescriptor = {};

@@ -4,6 +4,12 @@
 
 #include <glm/gtc/constants.hpp>
 
+#include "rendering/renderer.hpp"
+#include "core/editor/editor.hpp"
+#include "core/context.hpp"
+#include "core/logger.hpp"
+#include "core/ecs.hpp"
+
 using namespace niji;
 
 void Engine::run()
@@ -12,7 +18,7 @@ void Engine::run()
 }
 
 Engine::Engine()
-    : ecs(*new ECS()), m_context(*new Context()), m_editor(*new Editor()), m_logger(*new Logger())
+    : ecs(*new ECS()), m_context(*new Context()), m_editor(*new Editor()), m_logger(*new Logger()), m_renderer(*new Renderer())
 {
 }
 
@@ -26,6 +32,7 @@ Engine::~Engine()
 void Engine::init()
 {
     m_context.init();
+    m_renderer.init();
 }
 
 void Engine::update()
@@ -41,8 +48,12 @@ void Engine::update()
             (float)((double)std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() /
                     1000000.0);
 
+        m_renderer.update(dt);
+
         ecs.systems_update(dt);
         ecs.remove_deleted();
+
+        m_renderer.render();
 
         ecs.systems_render();
 
@@ -55,6 +66,7 @@ void Engine::cleanup()
 {
     ecs.systems_cleanup();
     m_context.cleanup();
+    m_renderer.cleanup();
 }
 
 void Engine::add_line(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& color)

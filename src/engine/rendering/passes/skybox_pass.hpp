@@ -11,7 +11,7 @@ class SkyboxPass final : public RenderPass
     {
     }
 
-    void init(Swapchain& swapchain, Descriptor& globalDescriptor);
+    void init(Descriptor& globalDescriptor);
     void update_impl(Renderer& renderer, CommandList& cmd);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();

@@ -26,7 +26,7 @@ static glm::vec3 get_rand_color()
 
 App::App()
 {
-    auto& renderer = nijiEngine.ecs.register_system<niji::Renderer>();
+    //auto& renderer = nijiEngine.ecs.register_system<niji::Renderer>();
 
     auto entity = nijiEngine.ecs.create_entity();
     auto& t = nijiEngine.ecs.add_component<niji::Transform>(entity);
@@ -40,8 +40,8 @@ App::App()
     // entity));
     m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
 
-    m_envmap = niji::Envmap("assets/environments/footprint_court");
-    renderer.set_envmap(m_envmap);
+    //m_envmap = niji::Envmap("assets/environments/footprint_court");
+    //renderer.set_envmap(m_envmap);
 
     for (const auto& model : m_models)
     {
@@ -339,5 +339,5 @@ void App::cleanup()
         // Hacky af but if it works, it works
         model->~Model();
     }
-    m_envmap.cleanup();
+    //m_envmap.cleanup();
 }

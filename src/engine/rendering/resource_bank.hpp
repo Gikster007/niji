@@ -31,6 +31,8 @@ struct ImageViewDesc
 class ResourceBank
 {
   public:
+    ResourceBank() = default;
+
     void init();
 
     inline void set_max_textures(const uint32_t count)
@@ -48,6 +50,8 @@ class ResourceBank
         m_maxBuffers = count;
     }
 
+    // Create Render Target
+    RenderTargetHandle create_render_target(uint32_t width, uint32_t height);
     // Create Texture Resource
     TextureHandle create_texture(TextureDesc desc);
     // Create Sampler Resource
@@ -82,6 +86,8 @@ class ResourceBank
     // End Upload Command Buffer, Submit it and Wait on the Upload Fence
     bool end_upload_cmd() const;
 
+    // Cleans up and Destroys a Render Target
+    void destroy_render_target(RenderTargetHandle& handle);
     // Cleans up and Destroys a Texture
     void destroy_texture(TextureHandle& handle);
     // Cleans up and Destroys a Sampler
@@ -89,7 +95,8 @@ class ResourceBank
     // Cleans up and Destroys a Buffer
     void destroy_buffer(BufferHandle& handle);
 
-  private:
+    // TODO: Make this private (so that they will only be accessed from the Render Graph)
+  public:
     // VMA Allocator
     VmaAllocator m_allocator = {};
 
@@ -104,10 +111,12 @@ class ResourceBank
     VkFence m_uploadFence {};
 
     // Resource Pools
+    Pool<RenderTarget, RenderTargetHandle, ResourceType::RenderTarget> m_renderTargets {};
     Pool<Texture, TextureHandle, ResourceType::Texture> m_textures {};
     Pool<Sampler, SamplerHandle, ResourceType::Sampler> m_samplers {};
     Pool<Buffer, BufferHandle, ResourceType::Buffer> m_buffers {};
 
+    uint32_t m_maxRenderTargets = 2u;
     uint32_t m_maxTextures = 8u;
     uint32_t m_maxSamplers = 8u;
     uint32_t m_maxBuffers = 8u;

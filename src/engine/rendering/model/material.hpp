@@ -10,18 +10,17 @@ namespace niji
 
 struct MaterialData
 {
-    std::optional<Texture> NormalTexture = {};
-    std::optional<Texture> OcclusionTexture = {};
-    std::optional<Texture> RoughMetallic = {};
-    std::optional<Texture> Emissive = {};
-    std::optional<Texture> BaseColor = {};
+    std::optional<TextureHandle> NormalTexture = {};
+    std::optional<TextureHandle> OcclusionTexture = {};
+    std::optional<TextureHandle> RoughMetallic = {};
+    std::optional<TextureHandle> Emissive = {};
+    std::optional<TextureHandle> BaseColor = {};
 };
 
 class Material
 {
   public:
-    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
-             std::filesystem::path gltfPath);
+    Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::filesystem::path gltfPath);
 
     void cleanup();
 
@@ -32,9 +31,10 @@ class Material
 
     MaterialData m_materialData = {};
     MaterialInfo m_materialInfo = {};
-    std::array<Buffer, MAX_FRAMES_IN_FLIGHT> m_data = {};
 
-    Sampler m_sampler = {};
+    BufferHandle m_data = {};
+
+    SamplerHandle m_sampler = {};
 };
 
 } // namespace niji

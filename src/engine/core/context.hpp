@@ -47,7 +47,7 @@ class Context
 
     void get_window_size(int& width, int& height);
 
-  private:
+  public:
     //void init_allocator();
     void create_instance();
     bool check_validation_layer_support();
@@ -74,7 +74,7 @@ class Context
     VkFormat find_depth_format();
     bool has_stencil_component(VkFormat format);
 
-  private:
+  public:
     VkCommandBuffer begin_single_time_commands() const;
 
     void end_single_time_commands(VkCommandBuffer commandBuffer) const;

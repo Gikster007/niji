@@ -3,7 +3,12 @@
 #include <stdexcept>
 
 #include "vulkan-functions.hpp"
-#include "../engine.hpp"
+#include "engine.hpp"
+#include "context.hpp"
+
+#include "rendering/renderer.hpp"
+#include "rendering/resources/resource_handle.hpp"
+#include "rendering/resource_bank.hpp"
 
 using namespace niji;
 
@@ -49,37 +54,51 @@ void CommandList::begin_rendering(const RenderInfo& info, const std::string& pas
 
     VKCmdBeginDebugUtilsLabelEXT(m_commandBuffer, &labelInfo);
 
-    RenderTarget* target = nullptr;
+    Texture* viewport = nullptr;
+    Texture& depthTexture = nijiEngine.m_renderer.m_resourceBank.m_textures.get(info.DepthTexture);
+    RenderTarget* renderTarget = nullptr;
+
+    VkImageView imageView {};
+    VkImageLayout imageLayout {};
+
     if (renderToViewport)
-        target = info.ViewportTarget;
+    {
+        viewport = &nijiEngine.m_renderer.m_resourceBank.m_textures.get(info.ViewportTexture);
+        imageView = viewport->FullView.View;
+        imageLayout = viewport->Layout;
+    }
     else
-        target = info.ColorAttachment;
+    {
+        renderTarget = &nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(info.RenderTarget);
+        imageView = renderTarget->ImageViews[nijiEngine.m_renderer.m_imageIndex];
+        imageLayout = renderTarget->Layouts[nijiEngine.m_renderer.m_imageIndex];
+    }
 
     VkRenderingAttachmentInfoKHR colorAttachment = {};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-    colorAttachment.imageView = target->ImageView;
-    colorAttachment.imageLayout = target->CurrentLayout;
-    colorAttachment.loadOp = target->LoadOp;
-    colorAttachment.storeOp = target->StoreOp;
-    colorAttachment.clearValue = target->ClearValue;
+    colorAttachment.imageView = imageView;
+    colorAttachment.imageLayout = imageLayout;
+    colorAttachment.loadOp = info.TargetLoadOp;
+    colorAttachment.storeOp = info.TargetStoreOp;
+    colorAttachment.clearValue = info.TargetClearValue;
     VkRenderingAttachmentInfoKHR depthAttachment = {};
     if (info.HasDepth)
     {
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        depthAttachment.imageView = info.DepthAttachment->ImageView;
-        depthAttachment.imageLayout = info.DepthAttachment->CurrentLayout;
-        depthAttachment.loadOp = info.DepthAttachment->LoadOp;
-        depthAttachment.storeOp = info.DepthAttachment->StoreOp;
-        depthAttachment.clearValue = info.DepthAttachment->ClearValue;
+        depthAttachment.imageView = depthTexture.FullView.View;
+        depthAttachment.imageLayout = depthTexture.Layout;
+        depthAttachment.loadOp = info.DepthLoadOp;
+        depthAttachment.storeOp = info.DepthStoreOp;
+        depthAttachment.clearValue = info.DepthClearValue;
     }
 
     VkRenderingInfoKHR renderingInfo = {};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
     renderingInfo.renderArea = info.RenderArea;
     renderingInfo.layerCount = info.LayerCount;
-    renderingInfo.colorAttachmentCount = target->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? 1 : 0;
+    renderingInfo.colorAttachmentCount = info.TargetLoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? 1 : 0;
     renderingInfo.pColorAttachments =
-        target->LoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment : nullptr;
+        info.TargetLoadOp != VK_ATTACHMENT_LOAD_OP_DONT_CARE ? &colorAttachment : nullptr;
     renderingInfo.pDepthAttachment = info.HasDepth ? &depthAttachment : nullptr;
 
     VKCmdBeginRenderingKHR(m_commandBuffer, &renderingInfo);
@@ -170,13 +189,13 @@ void CommandList::end_rendering(const RenderInfo& info) const
 {
     VKCmdEndRenderingKHR(m_commandBuffer);
 
-    if (info.PrepareForPresent)
-    {
-        auto& rt = info.ColorAttachment;
-        transition_image(rt->Image, rt->Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
-        rt->CurrentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    }
+    //if (info.PrepareForPresent)
+    //{
+    //    auto& rt = info.ColorAttachment;
+    //    transition_image(rt->Image, rt->Format, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    //                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, TransitionType::Present);
+    //    rt->CurrentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    //}
 
     VKCmdEndDebugUtilsLabelEXT(m_commandBuffer);
 }
@@ -202,37 +221,37 @@ void CommandList::cleanup()
     }
 }
 
-void CommandList::transition_image_explicit(RenderTarget& rt, TransitionInfo before,
-                                            TransitionInfo after, VkImageAspectFlags aspectMask,
-                                            uint32_t mipLevels, uint32_t layerCount) const
-{
-    if (before.Layout == after.Layout)
-        return; // No transition needed
-
-    rt.CurrentLayout = after.Layout;
-
-    VkImageMemoryBarrier2 barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.srcStageMask = before.Stage;
-    barrier.srcAccessMask = before.Access;
-    barrier.dstStageMask = after.Stage;
-    barrier.dstAccessMask = after.Access;
-    barrier.oldLayout = before.Layout;
-    barrier.newLayout = after.Layout;
-    barrier.image = rt.Image;
-    barrier.subresourceRange.aspectMask = aspectMask;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mipLevels;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = layerCount;
-
-    VkDependencyInfo dependencyInfo{};
-    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependencyInfo.imageMemoryBarrierCount = 1;
-    dependencyInfo.pImageMemoryBarriers = &barrier;
-
-    VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
-}
+//void CommandList::transition_image_explicit(RenderTarget& rt, TransitionInfo before,
+//                                            TransitionInfo after, VkImageAspectFlags aspectMask,
+//                                            uint32_t mipLevels, uint32_t layerCount) const
+//{
+//    if (before.Layout == after.Layout)
+//        return; // No transition needed
+//
+//    rt.CurrentLayout = after.Layout;
+//
+//    VkImageMemoryBarrier2 barrier{};
+//    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+//    barrier.srcStageMask = before.Stage;
+//    barrier.srcAccessMask = before.Access;
+//    barrier.dstStageMask = after.Stage;
+//    barrier.dstAccessMask = after.Access;
+//    barrier.oldLayout = before.Layout;
+//    barrier.newLayout = after.Layout;
+//    barrier.image = rt.Image;
+//    barrier.subresourceRange.aspectMask = aspectMask;
+//    barrier.subresourceRange.baseMipLevel = 0;
+//    barrier.subresourceRange.levelCount = mipLevels;
+//    barrier.subresourceRange.baseArrayLayer = 0;
+//    barrier.subresourceRange.layerCount = layerCount;
+//
+//    VkDependencyInfo dependencyInfo{};
+//    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+//    dependencyInfo.imageMemoryBarrierCount = 1;
+//    dependencyInfo.pImageMemoryBarriers = &barrier;
+//
+//    VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
+//}
 
 void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                    VkAccessFlags srcAccess, VkAccessFlags dstAccess,

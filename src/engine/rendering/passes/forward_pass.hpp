@@ -12,7 +12,7 @@ class ForwardPass final : public RenderPass
     {
     }
 
-    void init(Swapchain& swapchain, Descriptor& globalDescriptor);
+    void init(Descriptor& globalDescriptor);
     void update_impl(Renderer& renderer, CommandList& cmd);
     void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
     void cleanup();
@@ -20,9 +20,9 @@ class ForwardPass final : public RenderPass
     void debug_panel();
   private:
     DebugSettings m_debugSettings = {};
-    std::vector<Buffer> m_pointLightBuffer = {};
-    Texture m_depthTexture = {};
-    Sampler m_pointSampler = {};
+
+    BufferHandle m_pointLightBuffer = {};
+    SamplerHandle m_pointSampler = {};
 };
 
 } // namespace niji

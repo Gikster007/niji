@@ -2,13 +2,15 @@
 
 #include "core/common.hpp"
 
-#include "core/editor/editor.hpp"
-#include "core/context.hpp"
-#include "core/logger.hpp"
-#include "core/ecs.hpp"
-
 namespace niji
 {
+
+class ECS;
+class Context;
+class Editor;
+class Logger;
+class Renderer;
+
 class Engine
 {
   public:
@@ -31,6 +33,7 @@ class Engine
     Context& m_context;
     Editor& m_editor;
     Logger& m_logger;
+    Renderer& m_renderer;
 
   private:
     friend class LineRenderPass;

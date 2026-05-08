@@ -22,7 +22,7 @@ struct MaterialInfo
     int _padding[4];
 }
 
-// Set = 1, Binding = 3
+// Set = 1, Binding = 2
 [[vk::binding(2, 1)]]
 cbuffer ModelData
 {
@@ -80,39 +80,39 @@ struct PointLight
     float _pad3;
 }
 
-// Set = 1, Binding = 2
+// Set = 1, Binding = 1
 [[vk::binding(1, 1)]]
 StructuredBuffer<PointLight> pointLights;
 
-// Set = 1, Binding = 4
+// Set = 1, Binding = 3
 [[vk::binding(3, 1)]]
 SamplerState linearSampler;
 // Set = 1, Binding = 5
-[[vk::binding(4, 1)]]
-SamplerState iblSampler;
+//[[vk::binding(4, 1)]]
+//SamplerState iblSampler;
 
 // Set = 1, Binding = 6..10
-[[vk::binding(5, 1)]]
+[[vk::binding(4, 1)]]
 Texture2D baseColor;
-[[vk::binding(6, 1)]]
+[[vk::binding(5, 1)]]
 Texture2D normalMap;
-[[vk::binding(7, 1)]]
+[[vk::binding(6, 1)]]
 Texture2D occlusionMap;
-[[vk::binding(8, 1)]]
+[[vk::binding(7, 1)]]
 Texture2D roughMetalMap;
-[[vk::binding(9, 1)]]
+[[vk::binding(8, 1)]]
 Texture2D emissiveMap;
 
-// Set = 1, Binding = 11..13
-[[vk::binding(10, 1)]]
-TextureCube<float4> specularCubemap;
-[[vk::binding(11, 1)]]
-TextureCube<float4> diffuseCubemap;
-[[vk::binding(12, 1)]]
-Texture2D<float4> brdfLUT;
+//// Set = 1, Binding = 11..13
+//[[vk::binding(10, 1)]]
+//TextureCube<float4> specularCubemap;
+//[[vk::binding(11, 1)]]
+//TextureCube<float4> diffuseCubemap;
+//[[vk::binding(12, 1)]]
+//Texture2D<float4> brdfLUT;
 
 // Set = 13, Binding = 1
-[[vk::binding(13, 1)]]
+[[vk::binding(9, 1)]]
 cbuffer SceneInfo
 {
     DirectionalLight dirLight;
@@ -129,7 +129,7 @@ cbuffer SceneInfo
 //StructuredBuffer<uint> lightIndexList;
 
 // Set = 1, Binding = 16
-[[vk::binding(16, 1)]]
+[[vk::binding(10, 1)]]
 SamplerState pointSampler;
 
 struct VertexInput
@@ -352,21 +352,21 @@ float4 fragment_main(VertexOutput input) : SV_Target
 
         // float3 ambient = 0.4f * albedo.rgb;
 
-        // Environment Lighting
-        float3 R = reflect(-V, normal);
-        float3 Ks = CalculateFRough(F0, ndotv, roughness);
-        float3 Kd = 1.0f - Ks;
-        Kd *= 1.0f - metallic;
+        //// Environment Lighting
+        //float3 R = reflect(-V, normal);
+        //float3 Ks = CalculateFRough(F0, ndotv, roughness);
+        //float3 Kd = 1.0f - Ks;
+        //Kd *= 1.0f - metallic;
+        //
+        //float3 prefilteredColor =
+        //    pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1.0f / 2.2f);
+        //float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1.0f / 2.2f);
+        //float2 brdf = brdfLUT.Sample(iblSampler, float2(ndotv, roughness)).rg;
+        //float3 specularIBL = prefilteredColor * Ks; //* (F * brdf.x + brdf.y);
+        //float3 diffuse = albedo.rgb * irradiance.rgb;
+        //float3 ambient = (Kd * diffuse + specularIBL);
 
-        float3 prefilteredColor =
-            pow(specularCubemap.SampleLevel(iblSampler, R, roughness * 6.0f).rgb, 1.0f / 2.2f);
-        float4 irradiance = pow(diffuseCubemap.Sample(iblSampler, normal), 1.0f / 2.2f);
-        float2 brdf = brdfLUT.Sample(iblSampler, float2(ndotv, roughness)).rg;
-        float3 specularIBL = prefilteredColor * Ks; //* (F * brdf.x + brdf.y);
-        float3 diffuse = albedo.rgb * irradiance.rgb;
-        float3 ambient = (Kd * diffuse + specularIBL);
-
-        final = float4(lightOut + ambient + emissive.rgb, albedo.a);
+        final = float4(lightOut /*+ ambient */ + emissive.rgb, albedo.a);
 
         //float heat = saturate(lightCount / 1.0f);      // Normalize to [0,1] range
         //float4 heatMap = float4(heat, 0, 1 - heat, 1); // Heatmap: blue = low, red = high

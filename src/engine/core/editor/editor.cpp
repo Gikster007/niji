@@ -6,6 +6,7 @@
 #include "rendering/renderer.hpp"
 #include "core/common.hpp"
 #include "engine.hpp"
+#include "core/logger.hpp"
 
 using namespace niji;
 

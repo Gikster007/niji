@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <fstream>
 #include <chrono>
+#include <iostream>
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -23,6 +24,9 @@ using namespace niji;
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
 #include "core/vulkan-functions.hpp"
+#include "core/logger.hpp"
+
+#include "resource_bank.hpp"
 
 #include "passes/line_render_pass.hpp"
 #include "passes/light_culling.hpp"
@@ -36,12 +40,11 @@ using namespace niji;
 
 #include "swapchain.hpp"
 #include "engine.hpp"
-#include <iostream>
 
-Renderer::Renderer()
+
+Renderer::Renderer() : m_resourceBank(*new ResourceBank())
 {
     m_context = &nijiEngine.m_context;
-    init();
 }
 
 Renderer::~Renderer()
@@ -73,65 +76,74 @@ inline static void CreateCube(std::vector<glm::vec3>& vertices, std::vector<uint
 
 void Renderer::init()
 {
+    // Init Resource Bank
+    m_resourceBank.set_max_textures(1024u);
+    m_resourceBank.set_max_buffers(1024u);
+    m_resourceBank.set_max_samplers(1024u);
+    m_resourceBank.init();
+
+    // Init Render Info
+    {
+        int w, h;
+        nijiEngine.m_context.get_window_size(w, h);
+        m_renderInfo.RenderTarget = m_resourceBank.create_render_target((uint32_t)w, (uint32_t)h);
+
+        TextureDesc viewportDesc {};
+        viewportDesc.Name = "Viewport Texture";
+        viewportDesc.Format = TextureFormat::RGBA8Unorm;
+        viewportDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
+        viewportDesc.Usage = TextureUsage::ColorAttachment;
+        m_renderInfo.ViewportTexture = m_resourceBank.create_texture(viewportDesc);
+
+        TextureDesc depthDesc {};
+        depthDesc.Name = "Depth Texture";
+        depthDesc.Format = TextureFormat::D32SFloat;
+        depthDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
+        depthDesc.Usage = TextureUsage::DepthStencil;
+        m_renderInfo.DepthTexture = m_resourceBank.create_texture(depthDesc);
+
+    }
+
     // Global Descriptor
     {
         // Camera Data
         {
-            m_cameraData.resize(MAX_FRAMES_IN_FLIGHT);
-            for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            {
-                CameraData ubo = {};
-                BufferDesc bufferDesc = {};
-                bufferDesc.IsPersistent = true;
-                bufferDesc.Name = "Camera UBO";
-                bufferDesc.Size = sizeof(CameraData);
-                bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
-                m_cameraData[i] = Buffer(bufferDesc, &ubo);
-            }
+            BufferDesc bufferDesc = {};
+            bufferDesc.Name = "Camera UBO";
+            bufferDesc.Size = sizeof(CameraData);
+            bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
+            m_cameraData = m_resourceBank.create_buffer(bufferDesc);
         }
 
         // Point Lights (Sphere Data Only)
         {
             // Create Point Light Buffer
             {
-                VkDeviceSize bufferSize = sizeof(Sphere);
-                m_spheres.resize(MAX_FRAMES_IN_FLIGHT);
-                for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-                {
-                    std::array<Sphere, MAX_POINT_LIGHTS> buffer = {};
-                    BufferDesc bufferDesc = {};
-                    bufferDesc.IsPersistent = true;
-                    bufferDesc.Name = "Point Lights (Sphere) Data";
-                    bufferDesc.Size = sizeof(Sphere) * MAX_POINT_LIGHTS;
-                    bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
-                    m_spheres[i] = Buffer(bufferDesc, nullptr);
-                }
+                BufferDesc bufferDesc = {};
+                bufferDesc.Name = "Point Lights (Sphere) Data";
+                bufferDesc.Size = sizeof(Sphere) * MAX_POINT_LIGHTS;
+                bufferDesc.Usage = BufferUsage::Storage | BufferUsage::TransferDst; // TODO: Why is it a Storage buffer?
+                m_spheres = m_resourceBank.create_buffer(bufferDesc);
             }
         }
 
         // Create Scene Info Buffer
         {
-            VkDeviceSize bufferSize = sizeof(SceneInfo);
-            m_sceneInfoBuffer.resize(MAX_FRAMES_IN_FLIGHT);
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            {
-                SceneInfo ubo = {};
-                BufferDesc bufferDesc = {};
-                bufferDesc.IsPersistent = true;
-                bufferDesc.Name = "Scene Info Data";
-                bufferDesc.Size = sizeof(SceneInfo);
-                bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
-                m_sceneInfoBuffer[i] = Buffer(bufferDesc, &ubo);
-            }
+            BufferDesc bufferDesc = {};
+            bufferDesc.Name = "Scene Info Data";
+            bufferDesc.Size = sizeof(SceneInfo);
+            bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
+            m_sceneInfoBuffer = m_resourceBank.create_buffer(bufferDesc);
         }
 
-        DescriptorInfo info = {};
         DescriptorBinding binding = {};
         binding.Type = DescriptorBinding::BindType::UBO;
         binding.Count = 1;
         binding.Stage = DescriptorBinding::BindStage::ALL_GRAPHICS;
         binding.Sampler = nullptr;
-        binding.Resource = &m_cameraData;
+        binding.Resource = &m_resourceBank.m_buffers.get(m_cameraData);
+
+        DescriptorInfo info = {};
         info.Bindings.push_back(binding);
         info.Name = "Global Descriptor";
 
@@ -140,17 +152,17 @@ void Renderer::init()
 
     // Render Passes
     {
-        m_renderPasses.push_back(std::make_unique<SkyboxPass>());
-        m_renderPasses.push_back(std::make_unique<DepthPass>());
-        //m_renderPasses.push_back(std::make_unique<LightCullingPass>());
+        //m_renderPasses.push_back(std::make_unique<SkyboxPass>());
+        //m_renderPasses.push_back(std::make_unique<DepthPass>());
+        // m_renderPasses.push_back(std::make_unique<LightCullingPass>());
         m_renderPasses.push_back(std::make_unique<ForwardPass>());
-        m_renderPasses.push_back(std::make_unique<LineRenderPass>());
+        //m_renderPasses.push_back(std::make_unique<LineRenderPass>());
         m_renderPasses.push_back(std::make_unique<ImGuiPass>());
     }
     {
         for (auto& pass : m_renderPasses)
         {
-            pass->init(m_swapchain, m_globalDescriptor);
+            pass->init(m_globalDescriptor);
         }
     }
 
@@ -166,18 +178,13 @@ void Renderer::init()
             printf("[Renderer] Failed to load Fallback Texture");
         }
 
-        TextureDesc desc = {};
-        desc.Width = width;
-        desc.Height = height;
-        desc.Channels = 4;
-        desc.Data = imageData;
-        desc.IsMipMapped = true;
-        desc.Format = VK_FORMAT_R8G8B8A8_SRGB;
-        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        desc.ShowInImGui = true;
+        TextureDesc texDesc = {};
+        texDesc.Size = {(uint32_t)width, (uint32_t)height, 0u};
+        texDesc.Format = TextureFormat::RGBA8Unorm;
+        texDesc.Usage = TextureUsage::TransferDst | TextureUsage::Sampled;
+        texDesc.Name = "Fallback Texture";
 
-        m_fallbackTexture = Texture(desc);
+        m_fallbackTexture = m_resourceBank.create_texture(texDesc);
     }
 
     // Create Cube
@@ -189,46 +196,46 @@ void Renderer::init()
         m_cube = Mesh(vertices, indices);
     }
 
-    int width = 0, height = 0;
-    nijiEngine.m_context.get_window_size(width, height);
+    //int width = 0, height = 0;
+    //nijiEngine.m_context.get_window_size(width, height);
 
-    uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
-    uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
-    glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
-    // Create Light Grid RWTexture
-    {
+    //uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
+    //uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
+    //glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
+    //// Create Light Grid RWTexture
+    //{
 
-        TextureDesc desc = {};
-        desc.Width = totalThreads.x;
-        desc.Height = totalThreads.y;
-        desc.Channels = 2;
-        desc.IsMipMapped = false;
-        desc.Data = nullptr;
-        desc.Format = VK_FORMAT_R32G32_UINT;
-        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        desc.Usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        desc.IsReadWrite = true;
-        desc.ShowInImGui = true;
-        m_lightGridTexture = Texture(desc);
-    }
+    //    TextureDesc desc = {};
+    //    desc.Width = totalThreads.x;
+    //    desc.Height = totalThreads.y;
+    //    desc.Channels = 2;
+    //    desc.IsMipMapped = false;
+    //    desc.Data = nullptr;
+    //    desc.Format = VK_FORMAT_R32G32_UINT;
+    //    desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+    //    desc.Usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    //    desc.IsReadWrite = true;
+    //    desc.ShowInImGui = true;
+    //    m_lightGridTexture = Texture(desc);
+    //}
 
-    // Create Light Index List Buffer
-    {
-        VkDeviceSize bufferSize = sizeof(LightIndexList);
-        m_lightIndexList.resize(MAX_FRAMES_IN_FLIGHT);
-        const uint32_t totalTiles = totalThreads.x * totalThreads.y;
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            LightIndexList buffer = {};
-            buffer.counter = 0;
-            BufferDesc bufferDesc = {};
-            bufferDesc.IsPersistent = true;
-            bufferDesc.Name = "Light Index List Buffer";
-            bufferDesc.Size = sizeof(LightIndexList) * totalTiles * MAX_LIGHTS_PER_TILE;
-            bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
-            m_lightIndexList[i] = Buffer(bufferDesc, &buffer);
-        }
-    }
+    //// Create Light Index List Buffer
+    //{
+    //    VkDeviceSize bufferSize = sizeof(LightIndexList);
+    //    m_lightIndexList.resize(MAX_FRAMES_IN_FLIGHT);
+    //    const uint32_t totalTiles = totalThreads.x * totalThreads.y;
+    //    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    //    {
+    //        LightIndexList buffer = {};
+    //        buffer.counter = 0;
+    //        BufferDesc bufferDesc = {};
+    //        bufferDesc.IsPersistent = true;
+    //        bufferDesc.Name = "Light Index List Buffer";
+    //        bufferDesc.Size = sizeof(LightIndexList) * totalTiles * MAX_LIGHTS_PER_TILE;
+    //        bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
+    //        m_lightIndexList[i] = Buffer(bufferDesc, &buffer);
+    //    }
+    //}
 
     // Create Command Buffers
     m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -240,37 +247,6 @@ void Renderer::init()
     }
 
     create_sync_objects();
-
-    // Render Targets and Render Info
-    {
-        m_colorAttachments[0] = {m_swapchain.m_images[0], m_swapchain.m_imageViews[0]};
-        m_colorAttachments[0].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-        m_colorAttachments[0].Name = "Color Target 0";
-        m_colorAttachments[1] = {m_swapchain.m_images[1], m_swapchain.m_imageViews[1]};
-        m_colorAttachments[1].ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-        m_colorAttachments[1].Name = "Color Target 1";
-
-        VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-        m_depthAttachment = {m_swapchain.m_depthImage, m_swapchain.m_depthImageView, depthFormat};
-        m_depthAttachment.ClearValue = {1.0f, 0.0f};
-        m_depthAttachment.Name = "Depth Target";
-
-        RenderTargetDesc desc = {};
-        desc.ClearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-        desc.Format = m_swapchain.m_format;
-        desc.Width = m_swapchain.m_extent.width;
-        desc.Height = m_swapchain.m_extent.height;
-        desc.ShowInImGui = true;
-        desc.Name = "Viewport Target 0";
-        m_viewportTargets[0] = RenderTarget(desc);
-        desc.Name = "Viewport Target 1";
-        m_viewportTargets[1] = RenderTarget(desc);
-
-        m_renderInfo = RenderInfo(m_swapchain.m_extent);
-        m_renderInfo.ColorAttachment = &m_colorAttachments[0];
-        m_renderInfo.DepthAttachment = &m_depthAttachment;
-        m_renderInfo.ViewportTarget = &m_viewportTargets[0];
-    }
 
     nijiEngine.m_logger.log_info("Info Test");
     nijiEngine.m_logger.log_warning("Warning Test");
@@ -305,12 +281,14 @@ void Renderer::render()
 {
     VkSemaphore acquireSemaphore = m_imageAvailableSemaphores[m_currentFrame];
 
-    VkResult result = vkAcquireNextImageKHR(m_context->m_device, m_swapchain.m_object, UINT64_MAX,
-                                            acquireSemaphore, VK_NULL_HANDLE, &m_imageIndex);
+    RenderTarget& rt = m_resourceBank.m_renderTargets.get(m_renderInfo.RenderTarget);
+
+    VkResult result = vkAcquireNextImageKHR(m_context->m_device, rt.Handle, UINT64_MAX, acquireSemaphore,
+                                            VK_NULL_HANDLE, &m_imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        m_swapchain.recreate();
+        //m_swapchain.recreate();
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -320,18 +298,18 @@ void Renderer::render()
 
     auto& cmd = m_commandBuffers[m_currentFrame];
 
-    m_colorAttachments[m_imageIndex].Image = m_swapchain.m_images[m_imageIndex];
-    m_colorAttachments[m_imageIndex].ImageView = m_swapchain.m_imageViews[m_imageIndex];
+    //m_colorAttachments[m_imageIndex].Image = m_swapchain.m_images[m_imageIndex];
+    //m_colorAttachments[m_imageIndex].ImageView = m_swapchain.m_imageViews[m_imageIndex];
 
-    VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    m_depthAttachment.Image = m_swapchain.m_depthImage;
-    m_depthAttachment.ImageView = m_swapchain.m_depthImageView;
-    m_depthAttachment.ClearValue = {1.0f, 0.0f};
+    //VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
+    //m_depthAttachment.Image = m_swapchain.m_depthImage;
+    //m_depthAttachment.ImageView = m_swapchain.m_depthImageView;
+    //m_depthAttachment.ClearValue = {1.0f, 0.0f};
 
-    m_renderInfo.ColorAttachment = &m_colorAttachments[m_imageIndex];
-    m_renderInfo.HasDepth = true;
-    m_renderInfo.ViewportTarget = &m_viewportTargets[m_imageIndex];
-    m_renderInfo.RenderArea.extent = m_swapchain.m_extent;
+    //m_renderInfo.ColorAttachment = &m_colorAttachments[m_imageIndex];
+    //m_renderInfo.HasDepth = true;
+    //m_renderInfo.ViewportTarget = &m_viewportTargets[m_imageIndex];
+    //m_renderInfo.RenderArea.extent = m_swapchain.m_extent;
 
     int i = 0;
     for (auto& pass : m_renderPasses)
@@ -359,8 +337,7 @@ void Renderer::render()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &submitSemaphore;
 
-    if (vkQueueSubmit(m_context->m_graphicsQueue, 1, &submitInfo,
-                      m_inFlightFences[m_currentFrame]) != VK_SUCCESS)
+    if (vkQueueSubmit(m_context->m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS)
         throw std::runtime_error("Failed to Submit Draw Command Buffer!");
 
     VkPresentInfoKHR presentInfo = {};
@@ -368,7 +345,7 @@ void Renderer::render()
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &submitSemaphore;
 
-    VkSwapchainKHR swapChains[] = {m_swapchain.m_object};
+    VkSwapchainKHR swapChains[] = {rt.Handle};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &m_imageIndex;
@@ -376,10 +353,9 @@ void Renderer::render()
 
     result = vkQueuePresentKHR(m_context->m_presentQueue, &presentInfo);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-        m_context->m_framebufferResized)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_context->m_framebufferResized)
     {
-        m_swapchain.recreate();
+        //m_swapchain.recreate();
         m_context->m_framebufferResized = false;
     }
     else if (result != VK_SUCCESS)
@@ -390,31 +366,20 @@ void Renderer::render()
 
 void Renderer::cleanup()
 {
-    m_swapchain.cleanup();
+    //m_swapchain.cleanup();
+    m_resourceBank.destroy(m_renderInfo.RenderTarget);
 
-    m_fallbackTexture.cleanup();
+    m_resourceBank.destroy(m_fallbackTexture);
+    m_resourceBank.destroy(m_cameraData);
+    m_resourceBank.destroy(m_spheres);
+    m_resourceBank.destroy(m_sceneInfoBuffer);
 
-    m_lightGridTexture.cleanup();
+    //m_lightGridTexture.cleanup();
 
-    for (int i = 0; i < m_lightIndexList.size(); i++)
-    {
-        m_lightIndexList[i].cleanup();
-    }
-
-    for (int i = 0; i < m_cameraData.size(); i++)
-    {
-        m_cameraData[i].cleanup();
-    }
-
-    for (int i = 0; i < m_spheres.size(); i++)
-    {
-        m_spheres[i].cleanup();
-    }
-
-    for (int i = 0; i < m_sceneInfoBuffer.size(); i++)
-    {
-        m_sceneInfoBuffer[i].cleanup();
-    }
+    //for (int i = 0; i < m_lightIndexList.size(); i++)
+    //{
+    //    m_lightIndexList[i].cleanup();
+    //}
 
     for (auto& pass : m_renderPasses)
     {
@@ -423,10 +388,10 @@ void Renderer::cleanup()
     }
     m_renderPasses.clear();
 
-    for (int i = 0; i < m_viewportTargets.size(); i++)
-    {
-        m_viewportTargets[i].cleanup();
-    }
+    //for (int i = 0; i < m_viewportTargets.size(); i++)
+    //{
+    //    m_viewportTargets[i].cleanup();
+    //}
 
     m_cube.cleanup();
 
@@ -455,30 +420,24 @@ void Renderer::create_sync_objects()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        if (vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr,
-                              &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr,
-                              &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(m_context->m_device, &fenceInfo, nullptr, &m_inFlightFences[i]) !=
-                VK_SUCCESS)
+        if (vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(m_context->m_device, &fenceInfo, nullptr, &m_inFlightFences[i]) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to Create Semaphores and Fences!");
         }
 
         std::string imageAvailableName = "Image Available Semaphore ";
         imageAvailableName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_imageAvailableSemaphores[i],
-                      imageAvailableName.c_str());
+        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_imageAvailableSemaphores[i], imageAvailableName.c_str());
 
         std::string renderFinishedName = "Render Finished Semaphore ";
         renderFinishedName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_renderFinishedSemaphores[i],
-                      renderFinishedName.c_str());
+        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_renderFinishedSemaphores[i], renderFinishedName.c_str());
 
         std::string inFlightFenceName = "In-Flight Fence ";
         inFlightFenceName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_FENCE, m_inFlightFences[i],
-                      inFlightFenceName.c_str());
+        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_FENCE, m_inFlightFences[i], inFlightFenceName.c_str());
     }
 }
 
@@ -487,8 +446,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float time =
-        std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
     auto& camera = cameraSystem.m_camera;
@@ -500,9 +458,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
         ubo.Pos = camera.Position;
 
         ubo.Proj[1][1] *= -1;
-
-        vkCmdUpdateBuffer(m_commandBuffers[currentImage].m_commandBuffer,
-                          m_cameraData[currentImage].Handle, 0, sizeof(ubo), &ubo);
+        m_resourceBank.upload_buffer(m_cameraData, &ubo, 0u, sizeof(CameraData));
     }
 
     {
@@ -522,33 +478,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
                     pointLightsArray.push_back(s);
                 }
             }
-            vkCmdUpdateBuffer(m_commandBuffers[currentImage].m_commandBuffer,
-                              m_spheres[currentImage].Handle, 0,
-                              sizeof(Sphere) * pointLightsArray.size(), pointLightsArray.data());
-
-            // size_t dataSize = sizeof(Sphere) * pointLightsArray.size();
-
-            // void* data = nullptr;
-            // VkResult result = vmaMapMemory(m_context->m_allocator,
-            //                                m_spheres[currentImage].BufferAllocation, &data);
-            // if (result != VK_SUCCESS)
-            //{
-            //     throw std::runtime_error("Failed to map memory for spheres buffer.");
-            // }
-
-            // memcpy(data, pointLightsArray.data(), dataSize);
-
-            ////// If not using VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, flush manually
-            //// VkMappedMemoryRange range{};
-            //// range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-            //// range.memory = m_spheres[currentImage].Memory;
-            //// range.offset = 0;
-            //// range.size = dataSize;
-
-            //// vkFlushMappedMemoryRanges(m_context->m_device, 1, &range);
-
-            //// Unmap if buffer is not persistently mapped (optional)
-            // vmaUnmapMemory(m_context->m_allocator, m_spheres[currentImage].BufferAllocation);
+            m_resourceBank.upload_buffer(m_spheres, pointLightsArray.data(), 0u, sizeof(Sphere) * pointLightsArray.size());
         }
 
         auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
@@ -558,9 +488,7 @@ void Renderer::update_uniform_buffer(uint32_t currentImage)
             sceneInfo.DirLight = dirLight;
             sceneInfo.PointLightCount = pointLightsArray.size();
 
-            vkCmdUpdateBuffer(m_commandBuffers[currentImage].m_commandBuffer,
-                              m_sceneInfoBuffer[currentImage].Handle, 0, sizeof(SceneInfo),
-                              &sceneInfo);
+            m_resourceBank.upload_buffer(m_sceneInfoBuffer, &sceneInfo, 0u, sizeof(SceneInfo));
         }
     }
 }

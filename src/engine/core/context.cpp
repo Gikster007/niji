@@ -60,19 +60,19 @@ Context::Context()
 
 void Context::init()
 {
-    // Init Global Sampler
-    {
-        SamplerDesc desc = {};
-        desc.MagFilter = SamplerDesc::Filter::LINEAR;
-        desc.MinFilter = SamplerDesc::Filter::LINEAR;
-        desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
-        desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
-        desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
-        desc.EnableAnisotropy = true;
-        desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
+    //// Init Global Sampler
+    //{
+    //    SamplerDesc desc = {};
+    //    desc.MagFilter = SamplerDesc::Filter::LINEAR;
+    //    desc.MinFilter = SamplerDesc::Filter::LINEAR;
+    //    desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
+    //    desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
+    //    desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
+    //    desc.EnableAnisotropy = true;
+    //    desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
 
-        m_globalSampler = Sampler(desc);
-    }
+    //    m_globalSampler = engine;
+    //}
 }
 
 void Context::init_window()
@@ -92,7 +92,7 @@ void Context::init_window()
 
 void Context::cleanup()
 {
-    m_globalSampler.cleanup();
+    // m_globalSampler.cleanup();
 
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 
@@ -103,7 +103,7 @@ void Context::cleanup()
     vmaFreeStatsString(m_allocator, statsString);
 #endif // DEBUG_ALLOCATIONS
 
-    vmaDestroyAllocator(m_allocator);
+    // vmaDestroyAllocator(m_allocator);
 
     vkDestroyDevice(m_device, nullptr);
 
@@ -329,8 +329,30 @@ bool Context::is_device_suitable(VkPhysicalDevice device)
     bool swapChainAdequate = false;
     if (extensionsSupported)
     {
-        SwapChainSupportDetails swapChainSupport = SwapChainSupportDetails::query_swap_chain_support(device, m_surface);
-        swapChainAdequate = !swapChainSupport.Formats.empty() && !swapChainSupport.PresentModes.empty();
+        VkSurfaceCapabilitiesKHR capabilities {};
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surface, &capabilities);
+
+        uint32_t formatCount = 0;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount, nullptr);
+
+        std::vector<VkSurfaceFormatKHR> formats {};
+        if (formatCount != 0)
+        {
+            formats.resize(formatCount);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount, formats.data());
+        }
+
+        uint32_t presentModeCount = 0;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surface, &presentModeCount, nullptr);
+
+        std::vector<VkPresentModeKHR> presentModes {};
+        if (presentModeCount != 0)
+        {
+            presentModes.resize(presentModeCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surface, &presentModeCount, presentModes.data());
+        }
+
+        swapChainAdequate = !formats.empty() && !presentModes.empty();
     }
 
     VkPhysicalDeviceFeatures supportedFeatures = {};
@@ -345,7 +367,8 @@ void Context::create_logical_device()
     QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(m_physicalDevice, m_surface);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.GraphicsFamily.value(), indices.PresentFamily.value()};
+    std::set<uint32_t> uniqueQueueFamilies = {indices.GraphicsFamily.value(), indices.TransferFamily.value(),
+                                              indices.PresentFamily.value()};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -788,7 +811,7 @@ QueueFamilyIndices QueueFamilyIndices::find_queue_families(VkPhysicalDevice devi
 
         if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
             indices.TransferFamily = i;
-        
+
         if (indices.is_complete())
             break;
 

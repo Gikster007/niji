@@ -38,5 +38,5 @@ class App : public niji::System
     std::vector<LightSet> m_lightSets = {};
     int m_selectedLightSet = 0;
 
-    niji::Envmap m_envmap = {};
+    //niji::Envmap m_envmap = {};
 };

@@ -2,10 +2,11 @@
 
 #include "common.hpp"
 
-#include "rendering/resources/render_target.hpp"
-
 namespace niji
 {
+
+struct RenderInfo;
+
 class CommandList
 {
   public:
@@ -54,9 +55,9 @@ class CommandList
     void transition_image(VkImage image, VkFormat format, VkImageLayout oldLayout,
                          VkImageLayout newLayout, TransitionType usage,
                          uint32_t mipLevels = 1, uint32_t layerCount = 1) const;
-    void transition_image_explicit(RenderTarget& rt, TransitionInfo before,
-                                   TransitionInfo after, VkImageAspectFlags aspectMask,
-                                   uint32_t mipLevels, uint32_t layerCount) const;
+    //void transition_image_explicit(RenderTarget& rt, TransitionInfo before,
+    //                               TransitionInfo after, VkImageAspectFlags aspectMask,
+    //                               uint32_t mipLevels, uint32_t layerCount) const;
 
   private:
     friend class Renderer;

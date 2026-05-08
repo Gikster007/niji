@@ -7,6 +7,8 @@
 
 #include "engine.hpp"
 #include "core/context.hpp"
+#include "rendering/renderer.hpp"
+#include "rendering/resource_bank.hpp"
 
 #include "tangent_space_wrapper.hpp"
 
@@ -14,8 +16,8 @@ using namespace niji;
 
 void Mesh::cleanup()
 {
-    m_vertexBuffer.cleanup();
-    m_indexBuffer.cleanup();
+    nijiEngine.m_renderer.m_resourceBank.destroy(m_vertexBuffer);
+    nijiEngine.m_renderer.m_resourceBank.destroy(m_indexBuffer);
 }
 
 Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
@@ -173,18 +175,16 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
     // Create Vertex Buffer
     {
         BufferDesc desc = {};
-        desc.IsPersistent = false;
-        desc.Size = sizeof(vertices[0]) * vertices.size();
-        desc.Usage = BufferDesc::BufferUsage::Vertex;
+        desc.Size = sizeof(Vertex) * vertices.size();
+        desc.Usage = BufferUsage::Vertex;
         desc.Name = "Vertex Buffer";
-        m_vertexBuffer = Buffer(desc, vertices.data());
+        m_vertexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
     }
 
     // Create Index Buffer
     {
         BufferDesc desc = {};
-        desc.IsPersistent = false;
-        desc.Usage = BufferDesc::BufferUsage::Index;
+        desc.Usage = BufferUsage::Index;
         desc.Name = "Index Buffer";
 
         void* data = nullptr;
@@ -192,17 +192,13 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
         if (m_ushortIndices) // Unsigned Short
         {
             desc.Size = sizeof(ushortIndices[0]) * ushortIndices.size();
-            
-            data = ushortIndices.data();
         }
         else // Unsigned Int
         {
             desc.Size = sizeof(uintIndices[0]) * uintIndices.size();
-
-            data = uintIndices.data();
         }
 
-        m_indexBuffer = Buffer(desc, data);
+        m_indexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
     }
 }
 
@@ -210,27 +206,24 @@ Mesh::Mesh(std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices)
 {
     m_indexCount = indices.size();
     m_ushortIndices = false;
-    // m_vertexStride = sizeof(VertexType);
 
     // Vertex Buffer
     {
         BufferDesc desc = {};
-        desc.IsPersistent = false;
         desc.Size = sizeof(glm::vec3) * vertices.size();
-        desc.Usage = BufferDesc::BufferUsage::Vertex;
+        desc.Usage = BufferUsage::Vertex;
         desc.Name = "Custom Vertex Buffer";
 
-        m_vertexBuffer = Buffer(desc, vertices.data());
+        m_vertexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
     }
 
     // Index Buffer
     {
         BufferDesc desc = {};
-        desc.IsPersistent = false;
         desc.Size = sizeof(uint32_t) * indices.size();
-        desc.Usage = BufferDesc::BufferUsage::Index;
+        desc.Usage = BufferUsage::Index;
         desc.Name = "Custom Index Buffer";
 
-        m_indexBuffer = Buffer(desc, indices.data());
+        m_indexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
     }
 }

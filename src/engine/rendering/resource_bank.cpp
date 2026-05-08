@@ -1,14 +1,53 @@
 #include "resource_bank.hpp"
 
+#include <algorithm>
+#include <stdexcept>
+
 #include <vk_mem_alloc.h>
 
 #include "engine.hpp"
 #include "core/context.hpp"
+#include "core/vulkan-functions.hpp"
 
 #include "utils/translate.hpp"
 
 namespace niji
 {
+
+struct SwapchainSupportDetails
+{
+    VkSurfaceCapabilitiesKHR Capabilities = {};
+    std::vector<VkSurfaceFormatKHR> Formats = {};
+    std::vector<VkPresentModeKHR> PresentModes = {};
+
+    static SwapchainSupportDetails query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface);
+};
+
+SwapchainSupportDetails SwapchainSupportDetails::query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
+{
+    SwapchainSupportDetails details = {};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.Capabilities);
+
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+
+    if (formatCount != 0)
+    {
+        details.Formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.Formats.data());
+    }
+
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+
+    if (presentModeCount != 0)
+    {
+        details.PresentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.PresentModes.data());
+    }
+
+    return details;
+}
 
 void ResourceBank::init()
 {
@@ -28,6 +67,7 @@ void ResourceBank::init()
     }
 
     // Initialize the Resource Pools
+    m_renderTargets.init(m_maxRenderTargets);
     m_textures.init(m_maxTextures);
     m_samplers.init(m_maxSamplers);
     m_buffers.init(m_maxBuffers);
@@ -146,6 +186,148 @@ void ResourceBank::init()
     }
 }
 
+RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t height)
+{
+    PoolPair renderTarget = m_renderTargets.pop();
+
+    // Get Swapchain Info
+    const SwapchainSupportDetails swapchainSupport =
+        SwapchainSupportDetails::query_swapchain_support(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
+
+    // Set Image Count
+    renderTarget.Data.ImageCount = swapchainSupport.Capabilities.minImageCount;
+    if (swapchainSupport.Capabilities.maxImageCount > 0 &&
+        renderTarget.Data.ImageCount > swapchainSupport.Capabilities.maxImageCount)
+        renderTarget.Data.ImageCount = swapchainSupport.Capabilities.maxImageCount;
+    uint32_t& imageCount = renderTarget.Data.ImageCount;
+
+    // Set Extent
+    if (swapchainSupport.Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
+    {
+        renderTarget.Data.Extent = swapchainSupport.Capabilities.currentExtent;
+    }
+    else
+    {
+        VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+
+        actualExtent.width = std::clamp(actualExtent.width, swapchainSupport.Capabilities.minImageExtent.width,
+                                        swapchainSupport.Capabilities.maxImageExtent.width);
+        actualExtent.height = std::clamp(actualExtent.height, swapchainSupport.Capabilities.minImageExtent.height,
+                                         swapchainSupport.Capabilities.maxImageExtent.height);
+        renderTarget.Data.Extent = actualExtent;
+    }
+
+    // Set Present Mode (Prefer VK_PRESENT_MODE_IMMEDIATE_KHR)
+    for (const auto& availablePresentMode : swapchainSupport.PresentModes)
+    {
+        if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+        {
+            renderTarget.Data.PresentMode = availablePresentMode;
+            break;
+        }
+        else
+            renderTarget.Data.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    const Context& context = nijiEngine.m_context;
+
+    // Get Available Surface Formats
+    uint32_t formatCount = 0u;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(context.m_physicalDevice, context.m_surface, &formatCount, nullptr);
+    VkSurfaceFormatKHR* formats = new VkSurfaceFormatKHR[formatCount] {};
+    vkGetPhysicalDeviceSurfaceFormatsKHR(context.m_physicalDevice, context.m_surface, &formatCount, formats);
+
+    // Find an RGBA8 UNORM Format
+    for (uint32_t i = 0u; i < formatCount; ++i)
+    {
+        if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM)
+        {
+            renderTarget.Data.SurfaceFormat = formats[i].format;
+            renderTarget.Data.ColorSpace = formats[i].colorSpace;
+            break;
+        }
+    }
+    delete[] formats; // Free the Formats
+
+    VkSwapchainCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    createInfo.surface = nijiEngine.m_context.m_surface;
+    createInfo.minImageCount = imageCount;
+    createInfo.imageFormat = renderTarget.Data.SurfaceFormat;
+    createInfo.imageColorSpace = renderTarget.Data.ColorSpace;
+    createInfo.imageExtent = renderTarget.Data.Extent;
+    createInfo.imageArrayLayers = 1;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    const QueueFamilyIndices indices =
+        QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
+    const uint32_t queueFamilyIndices[] = {indices.GraphicsFamily.value(), indices.PresentFamily.value()};
+
+    if (indices.GraphicsFamily != indices.PresentFamily)
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    }
+    else
+    {
+        createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 0;
+        createInfo.pQueueFamilyIndices = nullptr;
+    }
+    createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = renderTarget.Data.PresentMode;
+    createInfo.clipped = VK_TRUE;
+    createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(nijiEngine.m_context.m_device, &createInfo, nullptr, &renderTarget.Data.Handle) != VK_SUCCESS)
+        throw std::runtime_error("Failed to Create Swap Chain!");
+
+    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, renderTarget.Data.Handle, &imageCount, nullptr);
+    renderTarget.Data.Images.resize(imageCount);
+    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, renderTarget.Data.Handle, &imageCount,
+                            renderTarget.Data.Images.data());
+
+    // Create Image Views
+    const VkSemaphoreCreateInfo semaphoreInfo {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+
+    renderTarget.Data.ImageViews.resize(imageCount);
+    renderTarget.Data.Layouts.resize(imageCount);
+    renderTarget.Data.Semaphores.resize(imageCount);
+    for (size_t i = 0; i < imageCount; i++)
+    {
+        // Image View Creation Info
+        VkImageViewCreateInfo viewInfo {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        viewInfo.image = renderTarget.Data.Images[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = renderTarget.Data.SurfaceFormat;
+        viewInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u};
+        renderTarget.Data.Layouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        // Create Image View
+        if (vkCreateImageView(nijiEngine.m_context.m_device, &viewInfo, nullptr, &renderTarget.Data.ImageViews[i]) != VK_SUCCESS)
+        {
+            assert(!"[Swapchain] Failed to Create Image View for the Swapchain Render Target");
+        }
+        const std::string imageViewName = "Swapchain Image View #" + std::to_string(i);
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, renderTarget.Data.ImageViews[i],
+                      imageViewName.c_str());
+
+        // Create Image Presentation Semaphore
+        if (vkCreateSemaphore(nijiEngine.m_context.m_device, &semaphoreInfo, nullptr, &renderTarget.Data.Semaphores[i]) !=
+            VK_SUCCESS)
+        {
+            assert(!"[Swapchain] Failed to Create Semaphore for Swapchain Render Target");
+        }
+        const std::string semaphoreName = "Swapchain Image Semaphore #" + std::to_string(i);
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_SEMAPHORE, renderTarget.Data.Semaphores[i],
+                      semaphoreName.c_str());
+    }
+
+    return renderTarget.Handle;
+}
+
 TextureHandle ResourceBank::create_texture(TextureDesc desc)
 {
     if (desc.Format == TextureFormat::Invalid)
@@ -191,7 +373,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     viewDesc.Format = desc.Format;
     create_image_view(texture.Data.FullView, texture.Data.Image, viewDesc);
 
-    SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, texture.Data.FullView, (desc.Name + " [Full View]").c_str());
+    SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, texture.Data.FullView.View, (desc.Name + " [Full View]").c_str());
 
     // Write Sampled Images to Bindless Descriptor Set
     if (has_flag(desc.Usage, TextureUsage::Sampled))
@@ -228,7 +410,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
             create_image_view(imageView, texture.Data.Image, viewDesc);
 
-            SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, imageView,
+            SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, imageView.View,
                           (desc.Name + " [Storage Mip " + std::to_string(mip) + "]").c_str());
 
             VkDescriptorImageInfo imageInfo {};
@@ -396,7 +578,7 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     if (begin_upload_cmd() == false)
         assert(!"[Resource Bank] Failed to Begin Upload Command Buffer"); // Begin Recording Commands
 
-    vkCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+    VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
     vkCmdCopyBufferToImage(m_uploadCmd, stagingBuffer, texture.Image, imageBarrier.newLayout, 1u, &copy);
 
     if (end_upload_cmd() == false)
@@ -473,6 +655,7 @@ void ResourceBank::destroy(ResourceHandle& handle)
     {
     case ResourceType::Invalid:
         assert(!"[Resource Bank] Failed to Destroy Resource. Resource Type is Invalid");
+        break;
     case ResourceType::Texture:
         destroy_texture((TextureHandle&)handle);
         break;
@@ -617,6 +800,26 @@ bool ResourceBank::end_upload_cmd() const
         return false;
 
     return true;
+}
+
+void ResourceBank::destroy_render_target(RenderTargetHandle& handle)
+{
+    // Reset RenderTargetHandle
+    RenderTarget& texture = m_renderTargets.push(handle);
+
+    const Context& context = nijiEngine.m_context;
+
+    texture.Images.clear();
+    texture.Layouts.clear();
+    for (uint32_t i = 0u; i < texture.ImageCount; i++)
+    {
+        vkDestroyImageView(nijiEngine.m_context.m_device, texture.ImageViews[i], nullptr);
+        vkDestroySemaphore(nijiEngine.m_context.m_device, texture.Semaphores[i], nullptr);
+    }
+    texture.ImageViews.clear();
+    texture.Semaphores.clear();
+
+    vkDestroySwapchainKHR(nijiEngine.m_context.m_device, texture.Handle, nullptr);
 }
 
 void ResourceBank::destroy_texture(TextureHandle& handle)

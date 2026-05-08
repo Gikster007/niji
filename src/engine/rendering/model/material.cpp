@@ -6,6 +6,8 @@
 #include "core/context.hpp"
 
 #include "engine.hpp"
+#include "rendering/renderer.hpp"
+#include "rendering/resource_bank.hpp"
 
 using namespace niji;
 
@@ -19,22 +21,14 @@ inline static glm::vec4 ToGLM(const fastgltf::math::nvec4& v)
     return glm::vec4(v[0], v[1], v[2], v[3]);
 }
 
-Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
-                   std::filesystem::path gltfPath)
+Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::filesystem::path gltfPath)
 {
     // Create Material Data Buffer
-    VkDeviceSize bufferSize = sizeof(ModelData);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        ModelData ubo = {};
-        BufferDesc bufferDesc = {};
-        bufferDesc.IsPersistent = true;
-        bufferDesc.Name = "Model Data";
-        bufferDesc.Size = sizeof(ModelData);
-        bufferDesc.Usage = BufferDesc::BufferUsage::Uniform;
-        m_data[i] = Buffer(bufferDesc, &ubo);
-    }
+    BufferDesc bufferDesc = {};
+    bufferDesc.Name = "Model Data";
+    bufferDesc.Size = sizeof(ModelData);
+    bufferDesc.Usage = BufferUsage::Uniform;
+    m_data = nijiEngine.m_renderer.m_resourceBank.create_buffer(bufferDesc);
 
     if (!primitive.materialIndex.has_value())
     {
@@ -45,7 +39,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
     int largestWidth = 1, largestHeight = 1;
 
-    auto loadTexture = [&](const auto& textureInfo, bool isLinear) -> std::optional<Texture> {
+    auto loadTexture = [&](const auto& textureInfo, bool isLinear) -> std::optional<TextureHandle> {
         size_t textureIndex = {};
 
         // Base Color, RM, Emissive Textures
@@ -53,13 +47,11 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         {
             textureIndex = textureInfo.textureIndex;
         }
-        else if constexpr (std::is_same_v<decltype(textureInfo),
-                                          const fastgltf::NormalTextureInfo&>)
+        else if constexpr (std::is_same_v<decltype(textureInfo), const fastgltf::NormalTextureInfo&>)
         {
             textureIndex = textureInfo.textureIndex;
         }
-        else if constexpr (std::is_same_v<decltype(textureInfo),
-                                          const fastgltf::OcclusionTextureInfo&>)
+        else if constexpr (std::is_same_v<decltype(textureInfo), const fastgltf::OcclusionTextureInfo&>)
         {
             textureIndex = textureInfo.textureIndex;
         }
@@ -88,17 +80,15 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
             auto& uri = std::get<fastgltf::sources::URI>(image.data);
             std::filesystem::path fullTexturePath = baseDir / uri.uri.fspath();
 
-            imageData = stbi_load(fullTexturePath.string().c_str(), &width, &height, &channels,
-                                  STBI_rgb_alpha);
+            imageData = stbi_load(fullTexturePath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
         }
         else if (std::holds_alternative<fastgltf::sources::Vector>(image.data))
         {
             // Image is embedded as raw bytes
             auto& bufferData = std::get<fastgltf::sources::Vector>(image.data);
 
-            imageData =
-                stbi_load_from_memory((stbi_uc*)bufferData.bytes.data(), bufferData.bytes.size(),
-                                      &width, &height, &channels, STBI_rgb_alpha);
+            imageData = stbi_load_from_memory((stbi_uc*)bufferData.bytes.data(), bufferData.bytes.size(), &width, &height,
+                                              &channels, STBI_rgb_alpha);
         }
         else if (std::holds_alternative<fastgltf::sources::BufferView>(image.data))
         {
@@ -109,10 +99,8 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
             auto& bufferBytes = std::get<fastgltf::sources::Array>(buffer.data);
 
-            imageData =
-                stbi_load_from_memory((stbi_uc*)bufferBytes.bytes.data() + bufferView.byteOffset,
-                                      bufferView.byteLength, &width, &height, &channels,
-                                      STBI_rgb_alpha);
+            imageData = stbi_load_from_memory((stbi_uc*)bufferBytes.bytes.data() + bufferView.byteOffset, bufferView.byteLength,
+                                              &width, &height, &channels, STBI_rgb_alpha);
         }
 
         if (!imageData)
@@ -125,16 +113,11 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         largestHeight = height > largestHeight ? height : largestHeight;
 
         TextureDesc desc = {};
-        desc.Width = width;
-        desc.Height = height;
-        desc.Channels = 4;
-        desc.IsMipMapped = true;
-        desc.Data = imageData;
-        desc.Format = isLinear ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
-        desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        desc.Usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        desc.Size = {(uint32_t)width, (uint32_t)height, 0u};
+        desc.Format = isLinear ? TextureFormat::RGBA8Unorm : TextureFormat::RGBA8Srgb;
+        desc.Usage = TextureUsage::TransferDst | TextureUsage::Sampled;
 
-        Texture finalTexture = Texture(desc);
+        TextureHandle finalTexture = nijiEngine.m_renderer.m_resourceBank.create_texture(desc);
         return finalTexture;
     };
 
@@ -149,8 +132,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         m_materialData.OcclusionTexture = loadTexture(material.occlusionTexture.value(), true);
 
     if (material.pbrData.metallicRoughnessTexture.has_value())
-        m_materialData.RoughMetallic =
-            loadTexture(material.pbrData.metallicRoughnessTexture.value(), true);
+        m_materialData.RoughMetallic = loadTexture(material.pbrData.metallicRoughnessTexture.value(), true);
 
     if (material.emissiveTexture.has_value())
         m_materialData.Emissive = loadTexture(material.emissiveTexture.value(), false);
@@ -164,17 +146,14 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
         desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
         desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
         desc.EnableAnisotropy = true;
-        desc.MaxMips =
-            static_cast<uint32_t>(std::floor(std::log2(std::max(largestWidth, largestHeight)))) + 1;
+        desc.MaxMips = static_cast<uint32_t>(std::floor(std::log2(std::max(largestWidth, largestHeight)))) + 1;
         desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
-        
-        m_sampler = Sampler(desc);
+
+        m_sampler = nijiEngine.m_renderer.m_resourceBank.create_sampler(desc);
     }
 
-    std::array<std::optional<Texture>*, 5> textures = {&m_materialData.BaseColor,
-                                                       &m_materialData.NormalTexture,
-                                                       &m_materialData.OcclusionTexture,
-                                                       &m_materialData.RoughMetallic,
+    std::array<std::optional<TextureHandle>*, 5> textures = {&m_materialData.BaseColor, &m_materialData.NormalTexture,
+                                                       &m_materialData.OcclusionTexture, &m_materialData.RoughMetallic,
                                                        &m_materialData.Emissive};
 
     m_materialInfo.HasEmissiveMap = m_materialData.Emissive.has_value();
@@ -190,21 +169,18 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive,
 
 void Material::cleanup()
 {
-    m_sampler.cleanup();
+    nijiEngine.m_renderer.m_resourceBank.destroy(m_sampler);
 
     if (m_materialData.BaseColor.has_value())
-        m_materialData.BaseColor->cleanup();
+        nijiEngine.m_renderer.m_resourceBank.destroy(m_materialData.BaseColor.value());
     if (m_materialData.Emissive.has_value())
-        m_materialData.Emissive->cleanup();
+        nijiEngine.m_renderer.m_resourceBank.destroy(m_materialData.Emissive.value());
     if (m_materialData.NormalTexture.has_value())
-        m_materialData.NormalTexture->cleanup();
+        nijiEngine.m_renderer.m_resourceBank.destroy(m_materialData.NormalTexture.value());
     if (m_materialData.OcclusionTexture.has_value())
-        m_materialData.OcclusionTexture->cleanup();
+        nijiEngine.m_renderer.m_resourceBank.destroy(m_materialData.OcclusionTexture.value());
     if (m_materialData.RoughMetallic.has_value())
-        m_materialData.RoughMetallic->cleanup();
+        nijiEngine.m_renderer.m_resourceBank.destroy(m_materialData.RoughMetallic.value());
 
-    for (int i = 0; i < m_data.size(); i++)
-    {
-        m_data[i].cleanup();
-    }
+    nijiEngine.m_renderer.m_resourceBank.destroy(m_data);
 }

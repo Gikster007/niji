@@ -5,8 +5,11 @@
 #include <imgui.h>
 
 #include "../app/camera_system.hpp"
-#include "../../engine.hpp"
-#include "../renderer.hpp"
+
+#include "engine.hpp"
+#include "core/editor/editor.hpp"
+#include "rendering/renderer.hpp"
+#include "rendering/resource_bank.hpp"
 
 using namespace niji;
 
@@ -95,7 +98,7 @@ static void setImGuiTheme()
     style.TabRounding = 4;
 }
 
-void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
+void ImGuiPass::init(Descriptor& globalDescriptor)
 {
     m_name = "ImGui Pass";
 
@@ -143,12 +146,15 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     QueueFamilyIndices indices =
         niji::QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice,
                                                       nijiEngine.m_context.m_surface);
+
+    RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(nijiEngine.m_renderer.m_renderInfo.RenderTarget);
+
     // 4. Init ImGui for Vulkan
     VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {};
     pipelineRenderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
     pipelineRenderingInfo.pNext = nullptr;
     pipelineRenderingInfo.colorAttachmentCount = 1;
-    VkFormat colorFormat = swapchain.m_format;
+    VkFormat colorFormat = rt.SurfaceFormat;
     pipelineRenderingInfo.pColorAttachmentFormats = &colorFormat;
     pipelineRenderingInfo.depthAttachmentFormat = nijiEngine.m_context.find_depth_format();
     pipelineRenderingInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
@@ -163,7 +169,7 @@ void ImGuiPass::init(Swapchain& swapchain, Descriptor& globalDescriptor)
     init_info.DescriptorPool = m_imguiDescriptorPool;
     init_info.RenderPass = VK_NULL_HANDLE;
     init_info.MinImageCount = 2;
-    init_info.ImageCount = swapchain.m_images.size();
+    init_info.ImageCount = rt.ImageCount;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.UseDynamicRendering = true;
     init_info.PipelineRenderingCreateInfo = pipelineRenderingInfo;
@@ -179,53 +185,55 @@ void ImGuiPass::update_impl(Renderer& renderer, CommandList& cmd)
 
 void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
 {
-    info.ColorAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.ColorAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(nijiEngine.m_renderer.m_renderInfo.RenderTarget);
 
-    info.DepthAttachment->StoreOp = VK_ATTACHMENT_STORE_OP_NONE;
-    info.DepthAttachment->LoadOp = VK_ATTACHMENT_LOAD_OP_NONE_KHR;
+    info.TargetStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.TargetLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+    info.DepthStoreOp = VK_ATTACHMENT_STORE_OP_NONE;
+    info.DepthLoadOp = VK_ATTACHMENT_LOAD_OP_NONE_KHR;
 
     {
-        TransitionInfo before;
-        if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
-            before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
-        else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-            before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
-
-        TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-
-        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-
-        cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
+        //TransitionInfo before;
+        //if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+        //    before = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, VK_IMAGE_LAYOUT_UNDEFINED};
+        //else if (info.ColorAttachment->CurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+        //    before = {VK_PIPELINE_STAGE_NONE, 0, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
+        //
+        //TransitionInfo after = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        //                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        //                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        //
+        //VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        //
+        //cmd.transition_image_explicit(*info.ColorAttachment, before, after, aspect, 1, 1);
     }
 
     {
-        TransitionInfo before;
-        if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-            before = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
-
-        TransitionInfo after = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-
-        VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-
-        cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
+        //TransitionInfo before;
+        //if (info.ViewportTarget->CurrentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        //    before = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        //              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        //              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        //
+        //TransitionInfo after = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        //                        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+        //                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        //
+        //VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        //
+        //cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
     }
 
-    auto& viewportRT = renderer.m_viewportTargets[renderer.m_imageIndex];
+    //auto& viewportRT = renderer.m_viewportTargets[renderer.m_imageIndex];
 
-    ImGui::Begin("Viewport");
-    auto& size = ImGui::GetContentRegionAvail();
-    ImGui::Image(viewportRT.ImGuiHandle, size);
-    auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
-    if (cameraSystem.m_checkViewportBounds)
-        cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
-    ImGui::End();
+    //ImGui::Begin("Viewport");
+    //auto& size = ImGui::GetContentRegionAvail();
+    //ImGui::Image(viewportRT.ImGuiHandle, size);
+    //auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+    //if (cameraSystem.m_checkViewportBounds)
+    //    cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
+    //ImGui::End();
 
     cmd.begin_rendering(info, m_name, false);
 

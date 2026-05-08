@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 #include "resource_handle.hpp"
 
 namespace niji
@@ -60,7 +62,7 @@ class Pool
         const Handle handle = m_stack[m_ptr];
         m_ptr++; // update pointer to next available handle in the stack
 
-        Resource& resource = m_pool[handle.index - 1u];
+        Resource& resource = m_pool[handle.Index - 1u];
 
         return PoolPair(handle, resource);
     }
@@ -73,7 +75,7 @@ class Pool
 
         m_ptr--; // update pointer to free slot in the stack
         m_stack[m_ptr] = handle;
-        Resource& resource = m_pool[handle.index - 1u];
+        Resource& resource = m_pool[handle.Index - 1u];
 
         handle = Handle(); // reset handle
 
@@ -93,15 +95,15 @@ class Pool
     }
 
     // Get Resource From Handle
-    Resource& get(ResourceHandle handle)
+    Resource& get(Handle handle)
     {
-        return m_pool[handle.index - 1u];
+        return m_pool[handle.Index - 1u];
     }
 
     // Get Resource From Handle
-    const Resource& get(ResourceHandle handle) const
+    const Resource& get(Handle handle) const
     {
-        return m_pool[handle.index - 1u];
+        return m_pool[handle.Index - 1u];
     }
 
     const uint32_t capacity() const

@@ -26,6 +26,7 @@ enum class TextureFormat : uint32_t
 {
     Invalid = 0u,
     RGBA8Unorm,
+    RGBA8Srgb,
     RGBA16SFloat,
     D32SFloat
 };

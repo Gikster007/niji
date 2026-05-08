@@ -4,8 +4,10 @@ using namespace niji;
 
 #include <iostream>
 
+#include "engine.hpp"
+
 #include "rendering/renderer.hpp"
-#include "../../engine.hpp"
+#include "rendering/resource_bank.hpp"
 
 void RenderPass::update(Renderer& renderer, CommandList& cmd)
 {
@@ -65,10 +67,8 @@ void RenderPass::base_cleanup()
         pipeline.cleanup();
     }
 
-    for (int i = 0; i < m_passBuffer.size(); i++)
-    {
-        m_passBuffer[i].cleanup();
-    }
+    nijiEngine.m_renderer.m_resourceBank.destroy(m_passBuffer);
+
 
     m_passDescriptor.cleanup();
 }

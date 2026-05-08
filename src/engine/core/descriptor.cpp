@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "engine.hpp"
+#include "context.hpp"
 
 using namespace niji;
 
@@ -77,16 +78,14 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
         layoutInfo.bindingCount = static_cast<uint32_t>(info.Bindings.size());
         layoutInfo.pBindings = bindings.data();
 
-        if (vkCreateDescriptorSetLayout(nijiEngine.m_context.m_device, &layoutInfo, nullptr,
-                                        &m_setLayout) != VK_SUCCESS)
+        if (vkCreateDescriptorSetLayout(nijiEngine.m_context.m_device, &layoutInfo, nullptr, &m_setLayout) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create descriptor set layout.");
         }
 
         std::string setLayoutName = name + " Layout";
 
-        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
-                      m_setLayout, setLayoutName.c_str());
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, m_setLayout, setLayoutName.c_str());
     }
 
     if (!info.IsPushDescriptor)
@@ -102,16 +101,14 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
         poolInfo.pPoolSizes = &poolSize;
         poolInfo.maxSets = MAX_FRAMES_IN_FLIGHT;
 
-        if (vkCreateDescriptorPool(nijiEngine.m_context.m_device, &poolInfo, nullptr, &m_pool) !=
-            VK_SUCCESS)
+        if (vkCreateDescriptorPool(nijiEngine.m_context.m_device, &poolInfo, nullptr, &m_pool) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create descriptor pool.");
         }
 
         std::string poolName = name + " Pool";
 
-        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL,
-                      m_pool, poolName.c_str());
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL, m_pool, poolName.c_str());
 
         for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
@@ -122,16 +119,14 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts = &m_setLayout;
 
-            if (vkAllocateDescriptorSets(nijiEngine.m_context.m_device, &allocInfo, &m_set[i]) !=
-                VK_SUCCESS)
+            if (vkAllocateDescriptorSets(nijiEngine.m_context.m_device, &allocInfo, &m_set[i]) != VK_SUCCESS)
             {
                 throw std::runtime_error("Failed to allocate descriptor set.");
             }
 
             std::string setName = name + " Set " + std::to_string(i);
 
-            SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET, m_set[i],
-                          setName.c_str());
+            SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_DESCRIPTOR_SET, m_set[i], setName.c_str());
 
             // 4. Write to descriptor set
             std::vector<VkWriteDescriptorSet> writes = {};
@@ -153,7 +148,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 std::vector<Buffer>& arr = *res;
                                 for (const auto& buffer : arr)
                                 {
-                                    bufferInfo.buffer = buffer.Handle;
+                                    bufferInfo.buffer = buffer.Object;
                                     bufferInfo.offset = 0;
                                     bufferInfo.range = buffer.Desc.Size;
 
@@ -180,7 +175,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 Sampler& sampler = *res;
 
                                 VkDescriptorImageInfo samplerInfo = {};
-                                samplerInfo.sampler = sampler.Handle;
+                                samplerInfo.sampler = sampler.Object;
                                 samplerInfo.imageView = VK_NULL_HANDLE;
                                 samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -216,10 +211,20 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 write.dstBinding = j;
                                 write.dstArrayElement = 0;
                                 write.descriptorCount = binding.Count;
-                                write.descriptorType = !texture.Desc.IsReadWrite
-                                                           ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
-                                                           : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                                write.pImageInfo = &texture.ImageInfo;
+                                // write.descriptorType = !texture.Desc.IsReadWrite
+                                //                            ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+                                //                            : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+                                if (texture.Desc.Usage == TextureUsage::Sampled)
+                                    write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                                if (texture.Desc.Usage == TextureUsage::Storage)
+                                    write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+                                VkDescriptorImageInfo info {};
+                                info.imageLayout = texture.Layout;
+                                info.imageView = texture.FullView.View;
+                                info.sampler = VK_NULL_HANDLE;
+                                write.pImageInfo = &info;
                                 write.pBufferInfo = nullptr;
                                 write.pTexelBufferView = nullptr;
                                 writes.push_back(write);
@@ -236,7 +241,7 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                 std::vector<Buffer>& arr = *res;
                                 for (const auto& buffer : arr)
                                 {
-                                    bufferInfo.buffer = buffer.Handle;
+                                    bufferInfo.buffer = buffer.Object;
                                     bufferInfo.offset = 0;
                                     bufferInfo.range = buffer.Desc.Size;
 
@@ -260,8 +265,8 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                 }
             }
 
-            vkUpdateDescriptorSets(nijiEngine.m_context.m_device,
-                                   static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(nijiEngine.m_context.m_device, static_cast<uint32_t>(writes.size()), writes.data(), 0,
+                                   nullptr);
         }
     }
 }
@@ -287,7 +292,7 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
             auto* buffer = std::get<Buffer*>(binding.Resource);
 
             VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = buffer ? buffer->Handle : VK_NULL_HANDLE;
+            bufferInfo.buffer = buffer ? buffer->Object : VK_NULL_HANDLE;
             bufferInfo.offset = 0;
             bufferInfo.range = buffer ? buffer->Desc.Size : 0;
 
@@ -301,9 +306,9 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
             auto* sampler = std::get<Sampler*>(binding.Resource);
 
             VkDescriptorImageInfo samplerInfo = {};
-            samplerInfo.sampler = sampler ? sampler->Handle : VK_NULL_HANDLE;
+            samplerInfo.sampler = sampler ? sampler->Object : VK_NULL_HANDLE;
             samplerInfo.imageView = VK_NULL_HANDLE;
-            samplerInfo.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            samplerInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
             imageInfos.push_back(samplerInfo);
 
@@ -316,9 +321,8 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
 
             VkDescriptorImageInfo textureInfo = {};
             textureInfo.sampler = VK_NULL_HANDLE;
-            textureInfo.imageView = texture ? texture->ImageInfo.imageView : VK_NULL_HANDLE;
-            textureInfo.imageLayout =
-                texture ? texture->ImageInfo.imageLayout : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            textureInfo.imageView = texture ? texture->FullView.View : VK_NULL_HANDLE;
+            textureInfo.imageLayout = texture ? texture->Layout : VK_IMAGE_LAYOUT_GENERAL;
 
             imageInfos.push_back(textureInfo);
 
@@ -330,7 +334,7 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
             auto* buffer = std::get<Buffer*>(binding.Resource);
 
             VkDescriptorBufferInfo bufferInfo = {};
-            bufferInfo.buffer = buffer ? buffer->Handle : VK_NULL_HANDLE;
+            bufferInfo.buffer = buffer ? buffer->Object : VK_NULL_HANDLE;
             bufferInfo.offset = 0;
             bufferInfo.range = buffer ? buffer->Desc.Size : 0;
 
@@ -345,9 +349,8 @@ void Descriptor::push_descriptor_writes(std::vector<VkWriteDescriptorSet>& write
 
             VkDescriptorImageInfo textureInfo = {};
             textureInfo.sampler = VK_NULL_HANDLE;
-            textureInfo.imageView = texture ? texture->ImageInfo.imageView : VK_NULL_HANDLE;
-            textureInfo.imageLayout =
-                texture ? texture->ImageInfo.imageLayout : VK_IMAGE_LAYOUT_GENERAL;
+            textureInfo.imageView = texture ? texture->FullView.View : VK_NULL_HANDLE;
+            textureInfo.imageLayout = texture ? texture->Layout : VK_IMAGE_LAYOUT_GENERAL;
 
             imageInfos.push_back(textureInfo);
 

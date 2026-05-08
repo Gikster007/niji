@@ -16,7 +16,7 @@ enum class BufferUsage
     Vertex = 1u << 3u,      // Vertex Buffer
     Index = 1u << 4u,       // Index Buffer
     Uniform = 1u << 5u,     // Uniform Buffer
-    Storage = 1u << 6u      // Storage BUffer
+    Storage = 1u << 6u      // Storage Buffer
 };
 
 struct BufferDesc

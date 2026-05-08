@@ -3,7 +3,7 @@
 #include <fastgltf/types.hpp>
 #include <glm/fwd.hpp>
 
-#include "rendering/resources/buffer.hpp"
+#include "rendering/resources/resource_handle.hpp"
 
 namespace niji
 {
@@ -24,8 +24,8 @@ class Mesh
     friend class SkyboxPass;
     friend class DepthPass;
 
-    Buffer m_vertexBuffer = {};
-    Buffer m_indexBuffer = {};
+    BufferHandle m_vertexBuffer = {};
+    BufferHandle m_indexBuffer = {};
 
     uint64_t m_indexCount = 0;
     bool m_ushortIndices = false;

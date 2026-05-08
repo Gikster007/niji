@@ -9,6 +9,7 @@
 #include <stb_image.h>
 
 #include "engine.hpp"
+#include "context.hpp"
 
 namespace fs = std::filesystem;
 

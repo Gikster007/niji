@@ -13,6 +13,8 @@ VkFormat texture_format(TextureFormat format)
     {
     case TextureFormat::RGBA8Unorm:
         return VK_FORMAT_R8G8B8A8_UNORM;
+    case TextureFormat::RGBA8Srgb:
+        return VK_FORMAT_R8G8B8A8_SRGB;
     case TextureFormat::RGBA16SFloat:
         return VK_FORMAT_R16G16B16A16_SFLOAT;
     case TextureFormat::D32SFloat:
@@ -57,14 +59,13 @@ VkFilter sampler_filter(SamplerDesc::Filter filter)
     {
     case niji::SamplerDesc::Filter::NONE:
         assert(!"Invalid Sampler Filter Mode!");
-        break;
+        return VK_FILTER_MAX_ENUM;
     case niji::SamplerDesc::Filter::NEAREST:
         return VK_FILTER_NEAREST;
-        break;
     case niji::SamplerDesc::Filter::LINEAR:
         return VK_FILTER_LINEAR;
-        break;
     }
+    return VK_FILTER_MAX_ENUM;
 }
 
 VkSamplerAddressMode sampler_address_mode(SamplerDesc::AddressMode addressMode)
@@ -73,23 +74,19 @@ VkSamplerAddressMode sampler_address_mode(SamplerDesc::AddressMode addressMode)
     {
     case niji::SamplerDesc::AddressMode::NONE:
         assert(!"Invalid Sampler Address Mode!");
-        break;
+        return VK_SAMPLER_ADDRESS_MODE_MAX_ENUM;
     case niji::SamplerDesc::AddressMode::REPEAT:
         return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        break;
     case niji::SamplerDesc::AddressMode::MIRRORED_REPEAT:
         return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        break;
     case niji::SamplerDesc::AddressMode::EDGE_CLAMP:
         return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        break;
     case niji::SamplerDesc::AddressMode::BORDER_CLAMP:
         return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        break;
     case niji::SamplerDesc::AddressMode::MIRRORED_EDGE_CLAMP:
         return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
-        break;
     }
+    return VK_SAMPLER_ADDRESS_MODE_MAX_ENUM;
 }
 
 VkSamplerMipmapMode sampler_mipmap_mode(SamplerDesc::MipMapMode mipmapMode)
@@ -98,14 +95,13 @@ VkSamplerMipmapMode sampler_mipmap_mode(SamplerDesc::MipMapMode mipmapMode)
     {
     case niji::SamplerDesc::MipMapMode::NONE:
         assert(!"Invalid Sampler Mip Map Mode!");
-        break;
+        return VK_SAMPLER_MIPMAP_MODE_MAX_ENUM;
     case niji::SamplerDesc::MipMapMode::NEAREST:
         return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
     case niji::SamplerDesc::MipMapMode::LINEAR:
         return VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        break;
     }
+    return VK_SAMPLER_MIPMAP_MODE_MAX_ENUM;
 }
 
 VkBufferUsageFlags buffer_usage(BufferUsage usage)
