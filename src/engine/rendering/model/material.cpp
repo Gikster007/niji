@@ -27,7 +27,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::
     BufferDesc bufferDesc = {};
     bufferDesc.Name = "Model Data";
     bufferDesc.Size = sizeof(ModelData);
-    bufferDesc.Usage = BufferUsage::Uniform;
+    bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
     m_data = nijiEngine.m_renderer.m_resourceBank.create_buffer(bufferDesc);
 
     if (!primitive.materialIndex.has_value())
@@ -118,6 +118,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::
         desc.Usage = TextureUsage::TransferDst | TextureUsage::Sampled;
 
         TextureHandle finalTexture = nijiEngine.m_renderer.m_resourceBank.create_texture(desc);
+        nijiEngine.m_renderer.m_resourceBank.upload_texture(finalTexture, imageData, width * height *4u);
         return finalTexture;
     };
 

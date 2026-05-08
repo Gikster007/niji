@@ -163,6 +163,26 @@ Descriptor::Descriptor(DescriptorInfo& info) : m_info(info)
                                     writes.push_back(write);
                                 }
                             }
+                            else if constexpr (std::is_same_v<T, Buffer*>)
+                            {
+                                Buffer* buffer = res;
+                                if (!buffer)
+                                    return;
+
+                                bufferInfo.buffer = buffer->Object;
+                                bufferInfo.offset = 0;
+                                bufferInfo.range = buffer->Desc.Size;
+
+                                VkWriteDescriptorSet write = {};
+                                write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                                write.dstSet = m_set[i];
+                                write.dstBinding = j;
+                                write.dstArrayElement = 0;
+                                write.descriptorCount = binding.Count;
+                                write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                                write.pBufferInfo = &bufferInfo;
+                                writes.push_back(write);
+                            }
                         },
                         binding.Resource);
                     break;

@@ -225,15 +225,15 @@ void ImGuiPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
         //cmd.transition_image_explicit(*info.ViewportTarget, before, after, aspect, 1, 1);
     }
 
-    //auto& viewportRT = renderer.m_viewportTargets[renderer.m_imageIndex];
+    Texture& viewport = renderer.m_resourceBank.m_textures.get(renderer.m_renderInfo.ViewportTexture);
 
-    //ImGui::Begin("Viewport");
-    //auto& size = ImGui::GetContentRegionAvail();
-    //ImGui::Image(viewportRT.ImGuiHandle, size);
-    //auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
-    //if (cameraSystem.m_checkViewportBounds)
-    //    cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
-    //ImGui::End();
+    ImGui::Begin("Viewport");
+    auto& size = ImGui::GetContentRegionAvail();
+    ImGui::Image(viewport.ImGuiHandle, size);
+    auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+    if (cameraSystem.m_checkViewportBounds)
+        cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
+    ImGui::End();
 
     cmd.begin_rendering(info, m_name, false);
 

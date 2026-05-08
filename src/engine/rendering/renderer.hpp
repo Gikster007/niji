@@ -74,6 +74,7 @@ class Renderer
     //{
     //    m_envmap = &envmap;
     //}
+    SamplerHandle m_globalSampler = {};
 
   private:
     void create_sync_objects();

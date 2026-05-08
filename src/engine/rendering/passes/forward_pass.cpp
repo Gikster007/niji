@@ -153,7 +153,8 @@ void ForwardPass::init(Descriptor& globalDescriptor)
     pipelineDesc.VertexShader = m_vertFrag.Spirv[0];
     pipelineDesc.FragmentShader = m_vertFrag.Spirv[1];
 
-    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
+    // pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::NONE;
+    pipelineDesc.Rasterizer.CullMode = RasterizerState::CullingMode::BACK;
     pipelineDesc.Rasterizer.PolyMode = RasterizerState::PolygonMode::FILL;
     pipelineDesc.Rasterizer.RasterizerDiscardEnable = false;
     pipelineDesc.Rasterizer.DepthClampEnable = false;
@@ -171,8 +172,10 @@ void ForwardPass::init(Descriptor& globalDescriptor)
     pipelineDesc.Viewport.ScissorHeight = rt.Extent.height;
 
     pipelineDesc.DepthTestEnable = true;
-    pipelineDesc.DepthWriteEnable = false;
-    pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::LESS_OR_EQUAL;
+    // pipelineDesc.DepthWriteEnable = false;
+    pipelineDesc.DepthWriteEnable = true;
+    // pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::LESS_OR_EQUAL;
+    pipelineDesc.DepthCompareOperation = GraphicsPipelineDesc::DepthCompareOp::LESS;
 
     pipelineDesc.ColorAttachmentFormat = rt.SurfaceFormat;
 
@@ -230,6 +233,20 @@ void ForwardPass::update_impl(Renderer& renderer, CommandList& cmd)
         nijiEngine.m_renderer.m_resourceBank.upload_buffer(m_pointLightBuffer, pointLightsArray.data(), 0u,
                                                            sizeof(PointLight) * pointLightsArray.size());
     }
+
+    auto view = nijiEngine.ecs.m_registry.view<Transform, MeshComponent>();
+    for (auto&& [entity, trans, mesh] : view.each())
+    {
+        auto& model = mesh.Model;
+        auto& material = model->m_materials[mesh.MaterialID];
+
+        ModelData ubo {};
+        ubo.Model = trans.World();
+        ubo.InvModel = glm::transpose(glm::inverse(ubo.Model));
+        ubo.MaterialInfo = material.m_materialInfo;
+
+        renderer.m_resourceBank.upload_buffer(material.m_data, &ubo, 0u, sizeof(ModelData));
+    }
 }
 
 void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
@@ -241,10 +258,12 @@ void ForwardPass::record(Renderer& renderer, CommandList& cmd, RenderInfo& info)
     RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(nijiEngine.m_renderer.m_renderInfo.RenderTarget);
 
     info.TargetStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-    info.TargetLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.TargetLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
-    info.DepthStoreOp = VK_ATTACHMENT_STORE_OP_NONE;
-    info.DepthLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    info.DepthStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+    info.DepthLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    info.DepthClearValue.depthStencil = {1.0f, 0}; 
+    info.HasDepth = true;
 
     {
         TransitionInfo before = {VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,

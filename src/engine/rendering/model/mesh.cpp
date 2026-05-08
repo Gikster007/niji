@@ -176,15 +176,16 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
     {
         BufferDesc desc = {};
         desc.Size = sizeof(Vertex) * vertices.size();
-        desc.Usage = BufferUsage::Vertex;
+        desc.Usage = BufferUsage::Vertex | BufferUsage::TransferDst;
         desc.Name = "Vertex Buffer";
         m_vertexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
+        nijiEngine.m_renderer.m_resourceBank.upload_buffer(m_vertexBuffer, vertices.data(), 0u, desc.Size);
     }
 
     // Create Index Buffer
     {
         BufferDesc desc = {};
-        desc.Usage = BufferUsage::Index;
+        desc.Usage = BufferUsage::Index | BufferUsage::TransferDst;
         desc.Name = "Index Buffer";
 
         void* data = nullptr;
@@ -192,13 +193,16 @@ Mesh::Mesh(fastgltf::Asset& model, fastgltf::Primitive& primitive)
         if (m_ushortIndices) // Unsigned Short
         {
             desc.Size = sizeof(ushortIndices[0]) * ushortIndices.size();
+            data = ushortIndices.data();
         }
         else // Unsigned Int
         {
             desc.Size = sizeof(uintIndices[0]) * uintIndices.size();
+            data = uintIndices.data();
         }
 
         m_indexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
+        nijiEngine.m_renderer.m_resourceBank.upload_buffer(m_indexBuffer, data, 0u, desc.Size);
     }
 }
 
@@ -211,19 +215,21 @@ Mesh::Mesh(std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices)
     {
         BufferDesc desc = {};
         desc.Size = sizeof(glm::vec3) * vertices.size();
-        desc.Usage = BufferUsage::Vertex;
+        desc.Usage = BufferUsage::Vertex | BufferUsage::TransferDst;
         desc.Name = "Custom Vertex Buffer";
 
         m_vertexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
+        nijiEngine.m_renderer.m_resourceBank.upload_buffer(m_vertexBuffer, vertices.data(), 0u, desc.Size);
     }
 
     // Index Buffer
     {
         BufferDesc desc = {};
         desc.Size = sizeof(uint32_t) * indices.size();
-        desc.Usage = BufferUsage::Index;
+        desc.Usage = BufferUsage::Index | BufferUsage::TransferDst;
         desc.Name = "Custom Index Buffer";
 
         m_indexBuffer = nijiEngine.m_renderer.m_resourceBank.create_buffer(desc);
+        nijiEngine.m_renderer.m_resourceBank.upload_buffer(m_indexBuffer, indices.data(), 0u, desc.Size);
     }
 }

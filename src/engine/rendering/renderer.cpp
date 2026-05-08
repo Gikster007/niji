@@ -82,26 +82,19 @@ void Renderer::init()
     m_resourceBank.set_max_samplers(1024u);
     m_resourceBank.init();
 
-    // Init Render Info
+    // Global Sampler
     {
-        int w, h;
-        nijiEngine.m_context.get_window_size(w, h);
-        m_renderInfo.RenderTarget = m_resourceBank.create_render_target((uint32_t)w, (uint32_t)h);
+        SamplerDesc desc = {};
+        desc.MagFilter = SamplerDesc::Filter::NEAREST;
+        desc.MinFilter = SamplerDesc::Filter::NEAREST;
+        desc.AddressModeU = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.AddressModeV = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.AddressModeW = SamplerDesc::AddressMode::EDGE_CLAMP;
+        desc.EnableAnisotropy = true;
+        desc.MipmapMode = SamplerDesc::MipMapMode::NEAREST;
+        desc.Name = "Global Sampler";
 
-        TextureDesc viewportDesc {};
-        viewportDesc.Name = "Viewport Texture";
-        viewportDesc.Format = TextureFormat::RGBA8Unorm;
-        viewportDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
-        viewportDesc.Usage = TextureUsage::ColorAttachment;
-        m_renderInfo.ViewportTexture = m_resourceBank.create_texture(viewportDesc);
-
-        TextureDesc depthDesc {};
-        depthDesc.Name = "Depth Texture";
-        depthDesc.Format = TextureFormat::D32SFloat;
-        depthDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
-        depthDesc.Usage = TextureUsage::DepthStencil;
-        m_renderInfo.DepthTexture = m_resourceBank.create_texture(depthDesc);
-
+        m_globalSampler = nijiEngine.m_renderer.m_resourceBank.create_sampler(desc);
     }
 
     // Global Descriptor
@@ -150,6 +143,14 @@ void Renderer::init()
         m_globalDescriptor = Descriptor(info);
     }
 
+    // Init Render Target
+    {
+        int w, h;
+        nijiEngine.m_context.get_window_size(w, h);
+        m_renderInfo.RenderArea = {{0, 0}, {(uint32_t)w, (uint32_t)h}};
+        m_renderInfo.RenderTarget = m_resourceBank.create_render_target((uint32_t)w, (uint32_t)h);
+    }
+
     // Render Passes
     {
         //m_renderPasses.push_back(std::make_unique<SkyboxPass>());
@@ -164,6 +165,27 @@ void Renderer::init()
         {
             pass->init(m_globalDescriptor);
         }
+    }
+
+    // Init Render Info
+    {
+        int w, h;
+        nijiEngine.m_context.get_window_size(w, h);
+
+        TextureDesc viewportDesc {};
+        viewportDesc.Name = "Viewport Texture";
+        viewportDesc.Format = TextureFormat::RGBA8Unorm;
+        viewportDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
+        viewportDesc.Usage = TextureUsage::ColorAttachment;
+        viewportDesc.ShowInImGui = true;
+        m_renderInfo.ViewportTexture = m_resourceBank.create_texture(viewportDesc);
+
+        TextureDesc depthDesc {};
+        depthDesc.Name = "Depth Texture";
+        depthDesc.Format = TextureFormat::D32SFloat;
+        depthDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
+        depthDesc.Usage = TextureUsage::DepthStencil;
+        m_renderInfo.DepthTexture = m_resourceBank.create_texture(depthDesc);
     }
 
     // Fallback Texture
@@ -289,6 +311,7 @@ void Renderer::render()
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         //m_swapchain.recreate();
+        printf("[Renderer] acquire returned OUT_OF_DATE\n");
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -298,18 +321,13 @@ void Renderer::render()
 
     auto& cmd = m_commandBuffers[m_currentFrame];
 
-    //m_colorAttachments[m_imageIndex].Image = m_swapchain.m_images[m_imageIndex];
-    //m_colorAttachments[m_imageIndex].ImageView = m_swapchain.m_imageViews[m_imageIndex];
+    cmd.transition_image_layout(rt.Images[m_imageIndex],
+                                rt.Layouts[m_imageIndex], // UNDEFINED first time, PRESENT_SRC_KHR after
+                                VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                VkImageSubresourceRange {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u});
 
-    //VkFormat depthFormat = nijiEngine.m_context.find_depth_format();
-    //m_depthAttachment.Image = m_swapchain.m_depthImage;
-    //m_depthAttachment.ImageView = m_swapchain.m_depthImageView;
-    //m_depthAttachment.ClearValue = {1.0f, 0.0f};
-
-    //m_renderInfo.ColorAttachment = &m_colorAttachments[m_imageIndex];
-    //m_renderInfo.HasDepth = true;
-    //m_renderInfo.ViewportTarget = &m_viewportTargets[m_imageIndex];
-    //m_renderInfo.RenderArea.extent = m_swapchain.m_extent;
+    rt.Layouts[m_imageIndex] = VK_IMAGE_LAYOUT_GENERAL;
 
     int i = 0;
     for (auto& pass : m_renderPasses)
@@ -322,13 +340,20 @@ void Renderer::render()
         i++;
     }
 
+    cmd.transition_image_layout(rt.Images[m_imageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
+                                VkImageSubresourceRange {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u});
+
+    rt.Layouts[m_imageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
     cmd.end_list();
 
-    VkSemaphore submitSemaphore = m_renderFinishedSemaphores[m_imageIndex];
+    VkSemaphore submitSemaphore = m_renderFinishedSemaphores[m_currentFrame];
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_NONE};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &acquireSemaphore;
     submitInfo.pWaitDstStageMask = waitStages;

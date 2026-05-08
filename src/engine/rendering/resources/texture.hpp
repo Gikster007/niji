@@ -53,6 +53,8 @@ struct TextureDesc
     uint32_t Layers = 1u;
 
     Size3D Size {};
+
+    bool ShowInImGui = false;
 };
 
 // Image View Wrapper
@@ -75,6 +77,8 @@ struct Texture
     std::vector<ImageView> MippedViews {}; // Used For Storage Images (we can write to individual mips of a Storage Image)
 
     VkImageLayout Layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkDescriptorSet ImGuiHandle {};
 };
 
 } // namespace niji

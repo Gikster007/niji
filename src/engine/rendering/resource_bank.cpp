@@ -4,9 +4,11 @@
 #include <stdexcept>
 
 #include <vk_mem_alloc.h>
+#include <imgui_impl_vulkan.h>
 
 #include "engine.hpp"
 #include "core/context.hpp"
+#include "renderer.hpp"
 #include "core/vulkan-functions.hpp"
 
 #include "utils/translate.hpp"
@@ -429,6 +431,42 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
             vkUpdateDescriptorSets(context.m_device, 1, &write, 0, nullptr);
         }
     }
+
+    // Create an Image Layout Transition Barrier
+    VkImageMemoryBarrier2 imageBarrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    imageBarrier.srcAccessMask = VK_ACCESS_2_NONE;
+    imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    // Layout is set to Undefined at First
+    // Transition to General is needed even with Unified Layouts Extension
+    imageBarrier.oldLayout = texture.Data.Layout;
+    imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageBarrier.image = texture.Data.Image;
+    imageBarrier.subresourceRange = texture.Data.FullView.SubRange;
+    texture.Data.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
+
+    // Image Dependency Info
+    VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    depInfo.imageMemoryBarrierCount = 1u;
+    depInfo.pImageMemoryBarriers = &imageBarrier;
+
+    if (begin_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
+
+    VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+
+    if (end_upload_cmd() == false)
+        assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
+
+    if (desc.ShowInImGui)
+    {
+        Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
+
+        texture.Data.ImGuiHandle =
+            ImGui_ImplVulkan_AddTexture(sampler.Object, texture.Data.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
+    }
+
     return texture.Handle;
 }
 

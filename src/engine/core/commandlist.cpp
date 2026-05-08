@@ -221,122 +221,26 @@ void CommandList::cleanup()
     }
 }
 
-//void CommandList::transition_image_explicit(RenderTarget& rt, TransitionInfo before,
-//                                            TransitionInfo after, VkImageAspectFlags aspectMask,
-//                                            uint32_t mipLevels, uint32_t layerCount) const
-//{
-//    if (before.Layout == after.Layout)
-//        return; // No transition needed
-//
-//    rt.CurrentLayout = after.Layout;
-//
-//    VkImageMemoryBarrier2 barrier{};
-//    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-//    barrier.srcStageMask = before.Stage;
-//    barrier.srcAccessMask = before.Access;
-//    barrier.dstStageMask = after.Stage;
-//    barrier.dstAccessMask = after.Access;
-//    barrier.oldLayout = before.Layout;
-//    barrier.newLayout = after.Layout;
-//    barrier.image = rt.Image;
-//    barrier.subresourceRange.aspectMask = aspectMask;
-//    barrier.subresourceRange.baseMipLevel = 0;
-//    barrier.subresourceRange.levelCount = mipLevels;
-//    barrier.subresourceRange.baseArrayLayer = 0;
-//    barrier.subresourceRange.layerCount = layerCount;
-//
-//    VkDependencyInfo dependencyInfo{};
-//    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-//    dependencyInfo.imageMemoryBarrierCount = 1;
-//    dependencyInfo.pImageMemoryBarriers = &barrier;
-//
-//    VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
-//}
-
-void CommandList::transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                   VkAccessFlags srcAccess, VkAccessFlags dstAccess,
-                                   VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
-                                   VkImageAspectFlags aspectMask, uint32_t mipLevels,
-                                   uint32_t layerCount) const
+void CommandList::transition_image_layout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess,
+                                                VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess,
+                                                VkImageSubresourceRange subresource) const
 {
-    VkImageMemoryBarrier2 barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    VkImageMemoryBarrier2 barrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
     barrier.srcStageMask = srcStage;
     barrier.srcAccessMask = srcAccess;
     barrier.dstStageMask = dstStage;
     barrier.dstAccessMask = dstAccess;
     barrier.oldLayout = oldLayout;
     barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = aspectMask;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mipLevels;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = layerCount;
+    barrier.subresourceRange = subresource;
 
-    VkDependencyInfo dependencyInfo{};
-    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependencyInfo.imageMemoryBarrierCount = 1;
-    dependencyInfo.pImageMemoryBarriers = &barrier;
-    dependencyInfo.dependencyFlags = 0;
+    VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    depInfo.imageMemoryBarrierCount = 1u;
+    depInfo.pImageMemoryBarriers = &barrier;
 
-    VKCmdPipelineBarrier2KHR(m_commandBuffer, &dependencyInfo);
-}
-
-void CommandList::transition_image(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                                   VkImageLayout newLayout, TransitionType usage,
-                                   uint32_t mipLevels, uint32_t layerCount) const
-{
-    VkAccessFlags srcAccessMask = 0;
-    VkAccessFlags dstAccessMask = 0;
-    VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    VkImageAspectFlags aspectMask = 0;
-
-    switch (usage)
-    {
-    case TransitionType::ColorAttachment:
-        dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        break;
-
-    case TransitionType::DepthStencilAttachmentWrite:
-        dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        dstStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        if (nijiEngine.m_context.has_stencil_component(format))
-        {
-            aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-        break;
-
-    case TransitionType::Present:
-        srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dstStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT | VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        break;
-
-    case TransitionType::ShaderRead:
-        dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        break;
-
-    case TransitionType::TransferDst:
-        dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        break;
-
-    case TransitionType::TransferSrc:
-        dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        break;
-    }
-
-    transition_image(image, oldLayout, newLayout, srcAccessMask, dstAccessMask, srcStage, dstStage,
-                     aspectMask, mipLevels, layerCount);
+    VKCmdPipelineBarrier2KHR(m_commandBuffer, &depInfo);
 }

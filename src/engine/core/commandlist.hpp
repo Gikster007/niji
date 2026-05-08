@@ -18,26 +18,22 @@ class CommandList
     void bind_pipeline(const VkPipeline& pipeline, const bool isCompute = false) const;
     void bind_viewport(const VkExtent2D& extent) const;
     void bind_scissor(const VkExtent2D& extent) const;
-    
+
     void bind_vertex_buffer(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* buffers,
-                         const VkDeviceSize* offsets) const;
+                            const VkDeviceSize* offsets) const;
     void bind_index_buffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) const;
-    void bind_descriptor_sets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
-                            uint32_t firstSet, uint32_t descriptorSetCount,
-                            const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount = 0,
-                            const uint32_t* pDynamicOffsets = nullptr) const;
-    void push_descriptor_set(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout,
-                             uint32_t set, uint32_t descriptorWriteCount,
-                             const VkWriteDescriptorSet* pDescriptorWrites) const;
+    void bind_descriptor_sets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet,
+                              uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets,
+                              uint32_t dynamicOffsetCount = 0, const uint32_t* pDynamicOffsets = nullptr) const;
+    void push_descriptor_set(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set,
+                             uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites) const;
 
-    void draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
-                     int32_t vertexOffset, uint32_t firstInstance) const;
+    void draw_indexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset,
+                      uint32_t firstInstance) const;
 
-    void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
-              uint32_t firstInstance) const;
+    void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
 
-    void dispatch(const uint32_t groupCountX, const uint32_t groupCountY,
-                  const uint32_t groupCountZ) const;
+    void dispatch(const uint32_t groupCountX, const uint32_t groupCountY, const uint32_t groupCountZ) const;
 
     void end_rendering(const RenderInfo& info) const;
     void end_list() const;
@@ -47,17 +43,9 @@ class CommandList
     void cleanup();
 
     // Helpers
-    void transition_image(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                         VkAccessFlags srcAccess, VkAccessFlags dstAccess,
-                         VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
-                          VkImageAspectFlags aspectMask, uint32_t mipLevels,
-                          uint32_t layerCount) const;
-    void transition_image(VkImage image, VkFormat format, VkImageLayout oldLayout,
-                         VkImageLayout newLayout, TransitionType usage,
-                         uint32_t mipLevels = 1, uint32_t layerCount = 1) const;
-    //void transition_image_explicit(RenderTarget& rt, TransitionInfo before,
-    //                               TransitionInfo after, VkImageAspectFlags aspectMask,
-    //                               uint32_t mipLevels, uint32_t layerCount) const;
+    void transition_image_layout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStage,
+                                 VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess,
+                                 VkImageSubresourceRange subresource) const;
 
   private:
     friend class Renderer;
