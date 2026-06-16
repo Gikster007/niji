@@ -56,7 +56,6 @@ struct RenderInfo
     bool PrepareForPresent = false;
 };
 
-// TODO: The renderer shouldnt be a system!
 class Renderer
 {
   public:
