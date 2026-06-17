@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 namespace niji
 {
 
@@ -13,6 +15,8 @@ class RenderGraph
     ComputeNode& add_compute_node(std::string_view label, std::string_view shader_path);
 
     RasterNode& add_raster_node();
+
+    void execute();
 
 private:
 

@@ -20,6 +20,7 @@ namespace niji
 {
 
 class ResourceBank;
+class RenderGraph;
 
 struct Sphere
 {
@@ -92,8 +93,10 @@ class Renderer
     friend class LightCullingPass;
     friend class DepthPass;
     friend class Editor;
+    friend class PipelineCache;
     
     ResourceBank& m_resourceBank;
+    RenderGraph& m_renderGraph;
     //Swapchain m_swapchain = {};
 
     //std::vector<Buffer> m_cameraData = {};

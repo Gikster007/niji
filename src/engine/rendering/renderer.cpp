@@ -27,6 +27,8 @@ using namespace niji;
 #include "core/logger.hpp"
 
 #include "resource_bank.hpp"
+#include "rendergraph/rendergraph.hpp"
+#include "rendergraph/nodes/compute_node.hpp"
 
 #include "passes/line_render_pass.hpp"
 #include "passes/light_culling.hpp"
@@ -42,7 +44,7 @@ using namespace niji;
 #include "engine.hpp"
 
 
-Renderer::Renderer() : m_resourceBank(*new ResourceBank())
+Renderer::Renderer() : m_resourceBank(*new ResourceBank()), m_renderGraph(*new RenderGraph())
 {
     m_context = &nijiEngine.m_context;
 }
@@ -339,6 +341,12 @@ void Renderer::render()
 
         i++;
     }
+
+    m_renderGraph.add_compute_node("cow shader", "cow.cs")
+        .read(m_spheres)
+        .write(m_spheres)
+        .group_size(8u, 8u, 1u)
+        .work_size(1920u, 1080u, 1u);
 
     cmd.transition_image_layout(rt.Images[m_imageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,

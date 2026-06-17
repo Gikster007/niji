@@ -12,4 +12,39 @@ ComputeNode& RenderGraph::add_compute_node(std::string_view label, std::string_v
     return *node;
 }
 
+void RenderGraph::execute()
+{
+    // vkAcquireNextImage();
+
+    // vkBeginCommandBuffer();
+
+    /* for (node : nodes) 
+    {
+        for (dep : node.dependencies) 
+        {
+            create barriers
+        }
+
+        deploy all barriers at once
+        vkCmdPipelineBarrier();
+
+        get pipeline (create or fetch cached one)
+        vkCmdBindPipeline();
+
+        vkCmdDispatch();
+    }
+    */
+
+    // render target pipeline barrier (?)
+
+    // vkCmdEndCommandBuffer();
+
+    // reset in flight fence 
+    // vkResetFences();
+
+    // vkQueueSubmit();
+
+    // vkQueuePresent();
+}
+
 } // namespace niji

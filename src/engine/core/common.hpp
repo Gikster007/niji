@@ -245,23 +245,23 @@ struct ComputePipelineDesc
     VkDescriptorSetLayout PassDescriptorSetLayout = {};
 };
 
-struct Pipeline
-{
-    Pipeline() = default;
-    Pipeline(GraphicsPipelineDesc desc);
-    Pipeline(ComputePipelineDesc desc);
-
-    void cleanup();
-
-    VkPipeline PipelineObject = {};
-    VkPipelineLayout PipelineLayout = {};
-    char* Name = nullptr;
-
-    GraphicsPipelineDesc GraphicsDesc = {};
-    ComputePipelineDesc ComputeDesc = {};
-
-    bool IsGraphicsPipeline = true;
-};
+//struct Pipeline
+//{
+//    Pipeline() = default;
+//    Pipeline(GraphicsPipelineDesc desc);
+//    Pipeline(ComputePipelineDesc desc);
+//
+//    void cleanup();
+//
+//    VkPipeline PipelineObject = {};
+//    VkPipelineLayout PipelineLayout = {};
+//    char* Name = nullptr;
+//
+//    GraphicsPipelineDesc GraphicsDesc = {};
+//    ComputePipelineDesc ComputeDesc = {};
+//
+//    bool IsGraphicsPipeline = true;
+//};
 
 // TODO: Switch naming style to convention (All caps with "_" between words)
 enum class TransitionType
