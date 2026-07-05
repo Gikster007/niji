@@ -94,6 +94,7 @@ class Renderer
     friend class DepthPass;
     friend class Editor;
     friend class PipelineCache;
+    friend class RenderGraph;
     
     ResourceBank& m_resourceBank;
     RenderGraph& m_renderGraph;

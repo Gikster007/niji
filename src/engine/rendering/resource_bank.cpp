@@ -82,13 +82,13 @@ void ResourceBank::init()
         // Binding 0: Sampled Images
         bindings[BINDLESS_SAMPLED_IMAGES_BINDING].binding = 0;
         bindings[BINDLESS_SAMPLED_IMAGES_BINDING].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        bindings[BINDLESS_SAMPLED_IMAGES_BINDING].descriptorCount = m_textures.capacity();
+        bindings[BINDLESS_SAMPLED_IMAGES_BINDING].descriptorCount = m_textures.capacity() + MAX_SWAPCHAIN_IMAGES;
         bindings[BINDLESS_SAMPLED_IMAGES_BINDING].stageFlags = VK_SHADER_STAGE_ALL;
 
         // Binding 1: Storage Images
         bindings[BINDLESS_STORAGE_IMAGES_BINDING].binding = 1;
         bindings[BINDLESS_STORAGE_IMAGES_BINDING].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        bindings[BINDLESS_STORAGE_IMAGES_BINDING].descriptorCount = m_textures.capacity() * MAX_MIPS;
+        bindings[BINDLESS_STORAGE_IMAGES_BINDING].descriptorCount = m_textures.capacity() * MAX_MIPS + MAX_SWAPCHAIN_IMAGES;
         bindings[BINDLESS_STORAGE_IMAGES_BINDING].stageFlags = VK_SHADER_STAGE_ALL;
 
         // Binding 2: Samplers
@@ -125,8 +125,8 @@ void ResourceBank::init()
 
         // Create Descriptor Pool
         VkDescriptorPoolSize poolSizes[3] {};
-        poolSizes[BINDLESS_SAMPLED_IMAGES_BINDING] = {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, m_textures.capacity()};
-        poolSizes[BINDLESS_STORAGE_IMAGES_BINDING] = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_textures.capacity() * MAX_MIPS};
+        poolSizes[BINDLESS_SAMPLED_IMAGES_BINDING] = {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, m_textures.capacity() + MAX_SWAPCHAIN_IMAGES};
+        poolSizes[BINDLESS_STORAGE_IMAGES_BINDING] = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_textures.capacity() * MAX_MIPS + MAX_SWAPCHAIN_IMAGES};
         poolSizes[BINDLESS_SAMPLERS_BINDING] = {VK_DESCRIPTOR_TYPE_SAMPLER, m_samplers.capacity()};
 
         VkDescriptorPoolCreateInfo poolInfo {};
@@ -196,6 +196,11 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
     const SwapchainSupportDetails swapchainSupport =
         SwapchainSupportDetails::query_swapchain_support(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
 
+    const VkImageUsageFlags desiredUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+
+    if ((swapchainSupport.Capabilities.supportedUsageFlags & desiredUsage) != desiredUsage)
+        assert(!"[Swapchain] Surface does not support required image usage (storage/sampled)");
+
     // Set Image Count
     renderTarget.Data.ImageCount = swapchainSupport.Capabilities.minImageCount;
     if (swapchainSupport.Capabilities.maxImageCount > 0 &&
@@ -259,7 +264,7 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
     createInfo.imageColorSpace = renderTarget.Data.ColorSpace;
     createInfo.imageExtent = renderTarget.Data.Extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
     const QueueFamilyIndices indices =
         QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
@@ -315,6 +320,44 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
         const std::string imageViewName = "Swapchain Image View #" + std::to_string(i);
         SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, renderTarget.Data.ImageViews[i],
                       imageViewName.c_str());
+
+        // Register as sampled image (optional, if you want to sample the swapchain)
+        {
+            const uint32_t slot = m_textures.capacity() + (uint32_t)i;
+
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView = renderTarget.Data.ImageViews[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet = m_bindlessSet;
+            write.dstBinding = BINDLESS_SAMPLED_IMAGES_BINDING;
+            write.dstArrayElement = slot;
+            write.descriptorCount = 1;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            write.pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets(context.m_device, 1, &write, 0, nullptr);
+        }
+
+        // Register as Storage Image
+        {
+            const uint32_t slot = m_textures.capacity() * MAX_MIPS + (uint32_t)i;
+
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView = renderTarget.Data.ImageViews[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet = m_bindlessSet;
+            write.dstBinding = BINDLESS_STORAGE_IMAGES_BINDING;
+            write.dstArrayElement = slot;
+            write.descriptorCount = 1;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            write.pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets(context.m_device, 1, &write, 0, nullptr);
+        }
 
         // Create Image Presentation Semaphore
         if (vkCreateSemaphore(nijiEngine.m_context.m_device, &semaphoreInfo, nullptr, &renderTarget.Data.Semaphores[i]) !=
@@ -467,13 +510,14 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     //if (end_upload_cmd() == false)
     //    assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
 
-    if (desc.ShowInImGui)
-    {
-        Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
-
-        texture.Data.ImGuiHandle =
-            ImGui_ImplVulkan_AddTexture(sampler.Object, texture.Data.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
-    }
+    // TODO: RE ENABLE
+    //if (desc.ShowInImGui)
+    //{
+    //    Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
+    //
+    //    texture.Data.ImGuiHandle =
+    //        ImGui_ImplVulkan_AddTexture(sampler.Object, texture.Data.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
+    //}
 
     return texture.Handle;
 }

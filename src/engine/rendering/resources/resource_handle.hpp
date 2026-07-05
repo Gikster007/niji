@@ -15,14 +15,20 @@ enum class ResourceType : uint32_t
 };
 
 struct ResourceHandle
-{   
+{
     ResourceHandle() = default;
 
-    ResourceHandle(uint32_t index, ResourceType type) : Index(index), Type(type) {}
+    ResourceHandle(uint32_t index, ResourceType type) : Index(index), Type(type)
+    {
+    }
 
     inline bool is_valid() const
     {
         return Index != 0u && Type != ResourceType::Invalid;
+    }
+    inline uint32_t raw() const
+    {
+        return Index | (static_cast<uint32_t>(Type) << 28);
     }
 
     /* To access the constructor. */
@@ -33,9 +39,17 @@ struct ResourceHandle
     ResourceType Type : 4;
 };
 
-struct RenderTargetHandle : ResourceHandle {};
-struct BufferHandle       : ResourceHandle {};
-struct TextureHandle      : ResourceHandle {};
-struct SamplerHandle      : ResourceHandle {};
+struct RenderTargetHandle : ResourceHandle
+{
+};
+struct BufferHandle : ResourceHandle
+{
+};
+struct TextureHandle : ResourceHandle
+{
+};
+struct SamplerHandle : ResourceHandle
+{
+};
 
 } // namespace niji

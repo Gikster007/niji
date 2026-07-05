@@ -73,7 +73,7 @@ Pipeline PipelineCache::get_pipeline(const std::string_view path, const ComputeN
     pipeline.Name = node.m_label;
 
     // Create Shader Module
-    std::string filename = std::string(path) + std::string(node.m_computePath);
+    std::string filename = std::string(path) + std::string(node.m_computePath) + std::string(".spv");
     VkShaderModule shaderModule = create_shader_module(filename);
     const std::string shaderName = "Compute Shader (" + std::string(node.m_computePath) + ")";
     SetObjectName(nijiEngine.m_context.m_device, VkObjectType::VK_OBJECT_TYPE_SHADER_MODULE, shaderModule, shaderName.c_str());
@@ -81,10 +81,23 @@ Pipeline PipelineCache::get_pipeline(const std::string_view path, const ComputeN
     // Descriptor Layout??
     // pipeline.Descriptors = ...
 
+    VkPushConstantRange pcRange = {};
+    if (node.m_rangeSize != 0u)
+    {
+        pcRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        pcRange.offset = node.m_rangeOffset;
+        pcRange.size = node.m_rangeSize;
+    }
+
     // Create Pipeline Layout
     VkPipelineLayoutCreateInfo layoutInfo {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     layoutInfo.setLayoutCount = 1;
     layoutInfo.pSetLayouts = &nijiEngine.m_renderer.m_resourceBank.m_bindlessSetLayout;
+    if (node.m_rangeSize != 0)
+    {
+        layoutInfo.pushConstantRangeCount = 1;
+        layoutInfo.pPushConstantRanges = &pcRange;
+    }
 
     if (vkCreatePipelineLayout(nijiEngine.m_context.m_device, &layoutInfo, nullptr, &pipeline.Layout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create compute pipeline layout!");

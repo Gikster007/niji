@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "rendering/resources/resource_handle.hpp"
+#include "rendering/utils/enum_flags.hpp"
 
 namespace niji
 {
@@ -14,6 +15,7 @@ enum class DependencyStages : uint32_t
     Vertex = 1u << 1u,
     Pixel = 1u << 2u,
 };
+ENUM_CLASS_FLAGS(DependencyStages);
 
 enum class DependencyUsage : uint32_t
 {
@@ -48,6 +50,12 @@ class Node
   public:
     std::string_view m_label {};
     NodeType m_type = NodeType::Invalid;
+
+    // Push Constants
+    uint8_t m_pcData[128u] {};
+    uint32_t m_rangeOffset = 0u;
+    uint32_t m_rangeSize = 0u;
+    uint32_t m_rtInjectOffset = 0u; // Used to inject correct rt bindless offset
 
     std::vector<Dependency> m_dependencies {};
 

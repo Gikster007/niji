@@ -17,7 +17,8 @@ constexpr uint32_t BINDLESS_SAMPLED_IMAGES_BINDING = 0u;
 constexpr uint32_t BINDLESS_STORAGE_IMAGES_BINDING = 1u;
 constexpr uint32_t BINDLESS_SAMPLERS_BINDING = 2u;
 
-constexpr uint32_t MAX_MIPS = 13; // Supports Up To 4096x4096
+constexpr uint32_t MAX_MIPS = 13u; // Supports Up To 4096x4096
+constexpr uint32_t MAX_SWAPCHAIN_IMAGES = 8u;
 
 struct ImageViewDesc
 {

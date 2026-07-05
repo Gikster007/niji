@@ -43,10 +43,10 @@ using namespace niji;
 #include "swapchain.hpp"
 #include "engine.hpp"
 
-
 Renderer::Renderer() : m_resourceBank(*new ResourceBank()), m_renderGraph(*new RenderGraph())
 {
     m_context = &nijiEngine.m_context;
+    m_renderGraph.init();
 }
 
 Renderer::~Renderer()
@@ -155,18 +155,18 @@ void Renderer::init()
 
     // Render Passes
     {
-        //m_renderPasses.push_back(std::make_unique<SkyboxPass>());
-        //m_renderPasses.push_back(std::make_unique<DepthPass>());
-        // m_renderPasses.push_back(std::make_unique<LightCullingPass>());
-        m_renderPasses.push_back(std::make_unique<ForwardPass>());
-        //m_renderPasses.push_back(std::make_unique<LineRenderPass>());
-        m_renderPasses.push_back(std::make_unique<ImGuiPass>());
+        // m_renderPasses.push_back(std::make_unique<SkyboxPass>());
+        // m_renderPasses.push_back(std::make_unique<DepthPass>());
+        //  m_renderPasses.push_back(std::make_unique<LightCullingPass>());
+        // m_renderPasses.push_back(std::make_unique<ForwardPass>());
+        // m_renderPasses.push_back(std::make_unique<LineRenderPass>());
+        // m_renderPasses.push_back(std::make_unique<ImGuiPass>());
     }
     {
-        for (auto& pass : m_renderPasses)
-        {
-            pass->init(m_globalDescriptor);
-        }
+        // for (auto& pass : m_renderPasses)
+        //{
+        //     pass->init(m_globalDescriptor);
+        // }
     }
 
     // Init Render Info
@@ -178,7 +178,7 @@ void Renderer::init()
         viewportDesc.Name = "Viewport Texture";
         viewportDesc.Format = TextureFormat::RGBA8Unorm;
         viewportDesc.Size = {(uint32_t)w, (uint32_t)h, 0u};
-        viewportDesc.Usage = TextureUsage::ColorAttachment | TextureUsage::Sampled;
+        viewportDesc.Usage = TextureUsage::ColorAttachment | TextureUsage::Sampled | TextureUsage::Storage;
         viewportDesc.ShowInImGui = true;
         m_renderInfo.ViewportTexture = m_resourceBank.create_texture(viewportDesc);
 
@@ -220,12 +220,12 @@ void Renderer::init()
         m_cube = Mesh(vertices, indices);
     }
 
-    //int width = 0, height = 0;
-    //nijiEngine.m_context.get_window_size(width, height);
+    // int width = 0, height = 0;
+    // nijiEngine.m_context.get_window_size(width, height);
 
-    //uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
-    //uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
-    //glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
+    // uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
+    // uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
+    // glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
     //// Create Light Grid RWTexture
     //{
 
@@ -282,124 +282,50 @@ void Renderer::init()
 
 void Renderer::update(const float dt)
 {
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    // ImGui_ImplVulkan_NewFrame();
+    // ImGui_ImplGlfw_NewFrame();
+    // ImGui::NewFrame();
 
-    VkFence frameFence = m_inFlightFences[m_currentFrame];
-    vkWaitForFences(m_context->m_device, 1, &frameFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(m_context->m_device, 1, &frameFence);
+    // VkFence frameFence = m_inFlightFences[m_currentFrame];
+    // vkWaitForFences(m_context->m_device, 1, &frameFence, VK_TRUE, UINT64_MAX);
+    // vkResetFences(m_context->m_device, 1, &frameFence);
 
-    auto& cmd = m_commandBuffers[m_currentFrame];
-    cmd.begin_list("Frame Commmand Buffer");
+    // auto& cmd = m_commandBuffers[m_currentFrame];
+    // cmd.begin_list("Frame Commmand Buffer");
 
     update_uniform_buffer(m_currentFrame);
 
-    for (auto& pass : m_renderPasses)
-    {
-        pass->update(*this, cmd);
-    }
+    // for (auto& pass : m_renderPasses)
+    //{
+    //     pass->update(*this, cmd);
+    // }
 }
 
 void Renderer::render()
 {
-    VkSemaphore acquireSemaphore = m_imageAvailableSemaphores[m_currentFrame];
+    // Begin New Frame
+    m_renderGraph.new_frame();
 
-    RenderTarget& rt = m_resourceBank.m_renderTargets.get(m_renderInfo.RenderTarget);
+    m_renderGraph.set_render_target(m_renderInfo.RenderTarget);
 
-    VkResult result = vkAcquireNextImageKHR(m_context->m_device, rt.Handle, UINT64_MAX, acquireSemaphore,
-                                            VK_NULL_HANDLE, &m_imageIndex);
+    // clang-format off
+    // Record Passes
+    m_renderGraph.add_compute_node("cow shader", "cow_cs")
+                 .write(m_renderInfo.RenderTarget, 0u)
+                 .group_size(8u, 8u, 1u)
+                 .work_size(1920u, 1080u, 1u);
+    // clang-format on
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        //m_swapchain.recreate();
-        printf("[Renderer] acquire returned OUT_OF_DATE\n");
-        return;
-    }
-    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-    {
-        throw std::runtime_error("Failed to Acquire Swap Chain Image!");
-    }
+    // Topological Sort
+    // ...
 
-    auto& cmd = m_commandBuffers[m_currentFrame];
-
-    cmd.transition_image_layout(rt.Images[m_imageIndex],
-                                rt.Layouts[m_imageIndex], // UNDEFINED first time, PRESENT_SRC_KHR after
-                                VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                                VkImageSubresourceRange {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u});
-
-    rt.Layouts[m_imageIndex] = VK_IMAGE_LAYOUT_GENERAL;
-
-    int i = 0;
-    for (auto& pass : m_renderPasses)
-    {
-        // If we are on the last pass, tell the pass to prepare for present
-        m_renderInfo.PrepareForPresent = i == m_renderPasses.size() - 1 ? true : false;
-
-        pass->record(*this, cmd, m_renderInfo);
-
-        i++;
-    }
-
-    m_renderGraph.add_compute_node("cow shader", "cow.cs")
-        .read(m_spheres)
-        .write(m_spheres)
-        .group_size(8u, 8u, 1u)
-        .work_size(1920u, 1080u, 1u);
-
-    cmd.transition_image_layout(rt.Images[m_imageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                                VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_NONE,
-                                VkImageSubresourceRange {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u});
-
-    rt.Layouts[m_imageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    cmd.end_list();
-
-    VkSemaphore submitSemaphore = m_renderFinishedSemaphores[m_currentFrame];
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &acquireSemaphore;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[m_currentFrame].m_commandBuffer;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &submitSemaphore;
-
-    if (vkQueueSubmit(m_context->m_graphicsQueue, 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS)
-        throw std::runtime_error("Failed to Submit Draw Command Buffer!");
-
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &submitSemaphore;
-
-    VkSwapchainKHR swapChains[] = {rt.Handle};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &m_imageIndex;
-    presentInfo.pResults = nullptr;
-
-    result = vkQueuePresentKHR(m_context->m_presentQueue, &presentInfo);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_context->m_framebufferResized)
-    {
-        //m_swapchain.recreate();
-        m_context->m_framebufferResized = false;
-    }
-    else if (result != VK_SUCCESS)
-        throw std::runtime_error("Failed to Present Swap Chain Image!");
-
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    // Execute Render Graph
+    m_renderGraph.execute();
 }
 
 void Renderer::cleanup()
 {
-    //m_swapchain.cleanup();
+    // m_swapchain.cleanup();
     m_resourceBank.destroy(m_renderInfo.RenderTarget);
 
     m_resourceBank.destroy(m_fallbackTexture);
@@ -407,12 +333,12 @@ void Renderer::cleanup()
     m_resourceBank.destroy(m_spheres);
     m_resourceBank.destroy(m_sceneInfoBuffer);
 
-    //m_lightGridTexture.cleanup();
+    // m_lightGridTexture.cleanup();
 
-    //for (int i = 0; i < m_lightIndexList.size(); i++)
+    // for (int i = 0; i < m_lightIndexList.size(); i++)
     //{
-    //    m_lightIndexList[i].cleanup();
-    //}
+    //     m_lightIndexList[i].cleanup();
+    // }
 
     for (auto& pass : m_renderPasses)
     {
@@ -421,10 +347,10 @@ void Renderer::cleanup()
     }
     m_renderPasses.clear();
 
-    //for (int i = 0; i < m_viewportTargets.size(); i++)
+    // for (int i = 0; i < m_viewportTargets.size(); i++)
     //{
-    //    m_viewportTargets[i].cleanup();
-    //}
+    //     m_viewportTargets[i].cleanup();
+    // }
 
     m_cube.cleanup();
 

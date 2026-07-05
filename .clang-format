@@ -4,7 +4,7 @@ BasedOnStyle: Microsoft
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 130
+ColumnLimit: 192
 
 # DO NOT Sort includes!
 SortIncludes: false
@@ -19,3 +19,4 @@ PenaltyBreakBeforeFirstCallParameter: 100
 AlwaysBreakTemplateDeclarations: Yes
 
 SpaceBeforeCpp11BracedList: true
+Cpp11BracedListStyle: true

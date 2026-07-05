@@ -4,6 +4,8 @@
 #include "rendering/resources/sampler.hpp"
 #include "rendering/resources/buffer.hpp"
 
+#include "rendering/rendergraph/nodes/node.hpp"
+
 namespace niji
 {
 namespace translate
@@ -29,6 +31,12 @@ VkSamplerMipmapMode sampler_mipmap_mode(SamplerDesc::MipMapMode mipmapMode);
 
 // Convert From Agnostic Buffer Usage to Vulkan Buffer Usage
 VkBufferUsageFlags buffer_usage(BufferUsage usage);
+
+// Convert From Agnostic Dependecy Stages to Vulkan Pipeline Stages
+VkPipelineStageFlags2 to_vk_stages(DependencyStages stages);
+
+// Convert From Agnostic Dependency Stages to Vulkan Access Flags
+VkAccessFlags2 to_vk_access(DependencyUsage usage);
 
 }
 } // namespace niji

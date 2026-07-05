@@ -38,7 +38,7 @@ App::App()
 
     // m_models.emplace_back(std::make_shared<niji::Model>("assets/DamagedHelmet/DamagedHelmet.glb",
     // entity));
-    m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
+    //m_models.emplace_back(std::make_shared<niji::Model>("assets/Sponza/Sponza.gltf", entity));
 
     //m_envmap = niji::Envmap("assets/environments/footprint_court");
     //renderer.set_envmap(m_envmap);
@@ -237,7 +237,7 @@ void App::rotate_point_lights()
 
 void App::update(float deltaTime)
 {
-    draw_light_editor();
+    //draw_light_editor();
 
     rotate_point_lights();
 }

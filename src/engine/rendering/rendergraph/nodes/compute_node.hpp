@@ -7,16 +7,23 @@ namespace niji
 
 class ComputeNode : public Node
 {
-  public: 
+  public:
     ComputeNode() = default;
     ComputeNode(std::string_view label, std::string_view shader_path);
     ~ComputeNode();
 
-    // Add a Bindable Resource as an Output
-    ComputeNode& write(ResourceHandle resource);
+    // Add a Bindable Resource as an Output (pcOffset is defaulted to UINT32_MAX    -
+    // - because it should only be used when writing to a RenderTarget object. This -
+    // - way we can inject the correct bindless index when we execute the render graph)
+    ComputeNode& write(ResourceHandle resource, uint32_t pcOffset = UINT32_MAX);
 
-    // Add a Bindable Resource as an Input
-    ComputeNode& read(ResourceHandle resource);
+    // Add a Bindable Resource as an Input (pcOffset is defaulted to UINT32_MAX  -
+    // - because it should only be used when reading a RenderTarget object. This -
+    // - way we can inject the correct bindless index when we execute the render graph)
+    ComputeNode& read(ResourceHandle resource, uint32_t pcOffset = UINT32_MAX);
+
+    // Set Push Constants
+    ComputeNode& push_constants(void* data, uint32_t offset, uint32_t size);
 
     // Set the Thread Group Size for this Node
     inline ComputeNode& group_size(uint32_t x, uint32_t y = 1u, uint32_t z = 1u)
@@ -36,8 +43,8 @@ class ComputeNode : public Node
         return *this;
     }
 
-    public:
-    // Compute shader file path 
+  public:
+    // Compute shader file path
     std::string_view m_computePath {};
 
     // Thread group size

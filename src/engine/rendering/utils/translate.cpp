@@ -122,5 +122,30 @@ VkBufferUsageFlags buffer_usage(BufferUsage usage)
     return flags;
 }
 
+VkPipelineStageFlags2 to_vk_stages(DependencyStages stages)
+{
+    VkPipelineStageFlags2 result = VK_PIPELINE_STAGE_2_NONE;
+    if (has_flag(stages, DependencyStages::Compute))
+        result |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    if (has_flag(stages, DependencyStages::Vertex))
+        result |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+    if (has_flag(stages, DependencyStages::Pixel))
+        result |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    return result;
+}
+
+VkAccessFlags2 to_vk_access(DependencyUsage usage)
+{
+    switch (usage)
+    {
+    case DependencyUsage::Readonly:
+        return VK_ACCESS_2_SHADER_READ_BIT;
+    case DependencyUsage::ReadWrite:
+        return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+    default:
+        return VK_ACCESS_2_NONE;
+    }
+}
+
 } // namespace translate
 } // namespace niji

@@ -60,52 +60,52 @@ void Editor::render(Renderer& renderer)
     {
         // TODO: ADD TO INIT FUNCTION
         // Get All Render Passes
-        auto& passes = renderer.m_renderPasses;
-
-        // Get All Shaders
-        std::vector<std::shared_ptr<Shader>> shaders = {};
-        for (const auto& pass : passes)
-        {
-            if (pass->m_vertFrag.Type != ShaderType::NONE)
-                shaders.push_back(std::make_shared<Shader>(pass->m_vertFrag));
-
-            if (pass->m_compute.Type != ShaderType::NONE)
-                shaders.push_back(std::make_shared<Shader>(pass->m_compute));
-        }
-
-        // Display All Shaders
-        ImGui::Begin("Shaders");
-        for (const auto& shader : shaders)
-        {
-            if (ImGui::Selectable(shader->Source.c_str(), false))
-            {
-                buffer = read_file(shader->Source);
-                buffer.push_back('\0'); // Needed For ImGui
-                currentShader = shader->Source;
-            }
-        }
-
-        // Display Shader Editor Window
-        if (!buffer.empty())
-        {
-            ImGui::Begin("Shader Editor");
-            ImGuiInputTextFlags flags =
-                ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_AllowTabInput;
-            ImGui::InputTextMultiline("##source", buffer.data(), buffer.size(),
-                                      ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 40), flags,
-                                      InputTextCallback, (void*)&buffer);
-            if (ImGui::Button("Save Shader"))
-            {
-                FILE* f = fopen(currentShader.c_str(), "w");
-                if (f)
-                {
-                    fwrite(buffer.data(), 1, strlen(buffer.data()), f);
-                    fclose(f);
-                }
-            }
-
-            ImGui::End();
-        }
+        //auto& passes = renderer.m_renderPasses;
+        //
+        //// Get All Shaders
+        //std::vector<std::shared_ptr<Shader>> shaders = {};
+        //for (const auto& pass : passes)
+        //{
+        //    if (pass->m_vertFrag.Type != ShaderType::NONE)
+        //        shaders.push_back(std::make_shared<Shader>(pass->m_vertFrag));
+        //
+        //    if (pass->m_compute.Type != ShaderType::NONE)
+        //        shaders.push_back(std::make_shared<Shader>(pass->m_compute));
+        //}
+        //
+        //// Display All Shaders
+        //ImGui::Begin("Shaders");
+        //for (const auto& shader : shaders)
+        //{
+        //    if (ImGui::Selectable(shader->Source.c_str(), false))
+        //    {
+        //        buffer = read_file(shader->Source);
+        //        buffer.push_back('\0'); // Needed For ImGui
+        //        currentShader = shader->Source;
+        //    }
+        //}
+        //
+        //// Display Shader Editor Window
+        //if (!buffer.empty())
+        //{
+        //    ImGui::Begin("Shader Editor");
+        //    ImGuiInputTextFlags flags =
+        //        ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_AllowTabInput;
+        //    ImGui::InputTextMultiline("##source", buffer.data(), buffer.size(),
+        //                              ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 40), flags,
+        //                              InputTextCallback, (void*)&buffer);
+        //    if (ImGui::Button("Save Shader"))
+        //    {
+        //        FILE* f = fopen(currentShader.c_str(), "w");
+        //        if (f)
+        //        {
+        //            fwrite(buffer.data(), 1, strlen(buffer.data()), f);
+        //            fclose(f);
+        //        }
+        //    }
+        //
+        //    ImGui::End();
+        //}
 
         ImGui::End();
     }
