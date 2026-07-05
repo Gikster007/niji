@@ -17,10 +17,8 @@ class ComputeNode : public Node
     // - way we can inject the correct bindless index when we execute the render graph)
     ComputeNode& write(ResourceHandle resource, uint32_t pcOffset = UINT32_MAX);
 
-    // Add a Bindable Resource as an Input (pcOffset is defaulted to UINT32_MAX  -
-    // - because it should only be used when reading a RenderTarget object. This -
-    // - way we can inject the correct bindless index when we execute the render graph)
-    ComputeNode& read(ResourceHandle resource, uint32_t pcOffset = UINT32_MAX);
+    // Add a Bindable Resource as an Input
+    ComputeNode& read(ResourceHandle resource);
 
     // Set Push Constants
     ComputeNode& push_constants(void* data, uint32_t offset, uint32_t size);

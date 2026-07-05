@@ -55,7 +55,7 @@ class Node
     uint8_t m_pcData[128u] {};
     uint32_t m_rangeOffset = 0u;
     uint32_t m_rangeSize = 0u;
-    uint32_t m_rtInjectOffset = 0u; // Used to inject correct rt bindless offset
+    uint32_t m_rtInjectOffset = UINT32_MAX; // Used to inject correct rt bindless offset
 
     std::vector<Dependency> m_dependencies {};
 

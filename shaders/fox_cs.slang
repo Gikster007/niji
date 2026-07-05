@@ -19,6 +19,7 @@ Constants pc;
 [numthreads(8, 8, 1)]
 void compute_main(uint3 thread_id: SV_DispatchThreadID)
 {
-    float4 color = g_sampled_images[pc.viewport - 1][thread_id.xy];
-    g_storage_images[pc.rt][thread_id.xy] = float4(color);
+    float2 uvs = thread_id.xy / float2(1920.0f, 1080.0f);
+    // g_storage_images[pc.viewport - 1][thread_id.xy] = float4(uvs, 0.0f, 1.0f);
+    g_storage_images[pc.viewport - 1][thread_id.xy] = g_sampled_images[pc.tex - 1][thread_id.xy];
 }

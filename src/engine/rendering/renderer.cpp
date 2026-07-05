@@ -81,9 +81,9 @@ inline static void CreateCube(std::vector<glm::vec3>& vertices, std::vector<uint
 void Renderer::init()
 {
     // Init Resource Bank
-    m_resourceBank.set_max_textures(1024u);
-    m_resourceBank.set_max_buffers(1024u);
-    m_resourceBank.set_max_samplers(1024u);
+    m_resourceBank.set_max_textures(4);
+    m_resourceBank.set_max_buffers(6);
+    m_resourceBank.set_max_samplers(4);
     m_resourceBank.init();
 
     // Global Sampler
@@ -179,6 +179,9 @@ void Renderer::init()
         texDesc.Name = "Fallback Texture";
 
         m_fallbackTexture = m_resourceBank.create_texture(texDesc);
+        m_resourceBank.upload_texture(m_fallbackTexture, imageData, width * height * 4);
+
+        stbi_image_free(imageData);
     }
 
     // Create Cube
@@ -267,8 +270,29 @@ void Renderer::render()
 
     // clang-format off
     // Record Passes
+
+    struct Constants 
+    {
+        uint32_t tex {};
+        uint32_t viewport {};
+        uint32_t rt {};
+    } pc {};
+
+    pc.tex = m_fallbackTexture.Index;
+    pc.viewport = m_renderInfo.ViewportTexture.Index;
+    pc.rt = 0u;
+
+    m_renderGraph.add_compute_node("fox shader", "fox_cs")
+                 .read(m_fallbackTexture)
+                 .write(m_renderInfo.ViewportTexture)
+                 .push_constants(&pc, 0u, sizeof(Constants))
+                 .group_size(8u, 8u, 1u)
+                 .work_size(1920u, 1080u, 1u);
+    
     m_renderGraph.add_compute_node("cow shader", "cow_cs")
-                 .write(m_renderInfo.RenderTarget, 0u)
+                 .read(m_renderInfo.ViewportTexture)
+                 .write(m_renderInfo.RenderTarget, offsetof(Constants, rt))
+                 .push_constants(&pc, 0u, sizeof(Constants))
                  .group_size(8u, 8u, 1u)
                  .work_size(1920u, 1080u, 1u);
     // clang-format on

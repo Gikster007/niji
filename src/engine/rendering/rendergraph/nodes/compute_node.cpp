@@ -36,7 +36,7 @@ ComputeNode& ComputeNode::write(ResourceHandle resource, uint32_t pcOffset)
     return *this;
 }
 
-ComputeNode& ComputeNode::read(ResourceHandle resource, uint32_t pcOffset)
+ComputeNode& ComputeNode::read(ResourceHandle resource)
 {
     // Insert the Read Dependency
     m_dependencies.emplace_back(resource, DependencyUsage::Readonly, DependencyStages::Compute);
