@@ -251,7 +251,7 @@ struct ComputePipelineDesc
 //    Pipeline(GraphicsPipelineDesc desc);
 //    Pipeline(ComputePipelineDesc desc);
 //
-//    void cleanup();
+//    void deinit();
 //
 //    VkPipeline PipelineObject = {};
 //    VkPipelineLayout PipelineLayout = {};

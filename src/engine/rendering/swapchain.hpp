@@ -15,7 +15,7 @@
 //    void create();
 //    void create_image_views();
 //
-//    void cleanup();
+//    void deinit();
 //
 //    VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 //    VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& availablePresentModes);

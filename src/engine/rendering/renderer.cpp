@@ -51,6 +51,8 @@ Renderer::Renderer() : m_resourceBank(*new ResourceBank()), m_renderGraph(*new R
 
 Renderer::~Renderer()
 {
+    delete &m_resourceBank;
+    delete &m_renderGraph;
 }
 
 inline static void CreateCube(std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices)
@@ -99,50 +101,34 @@ void Renderer::init()
         m_globalSampler = nijiEngine.m_renderer.m_resourceBank.create_sampler(desc);
     }
 
-    // Global Descriptor
+    // Camera Data
     {
-        // Camera Data
+        BufferDesc bufferDesc = {};
+        bufferDesc.Name = "Camera UBO";
+        bufferDesc.Size = sizeof(CameraData);
+        bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
+        m_cameraData = m_resourceBank.create_buffer(bufferDesc);
+    }
+
+    // Point Lights (Sphere Data Only)
+    {
+        // Create Point Light Buffer
         {
             BufferDesc bufferDesc = {};
-            bufferDesc.Name = "Camera UBO";
-            bufferDesc.Size = sizeof(CameraData);
-            bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
-            m_cameraData = m_resourceBank.create_buffer(bufferDesc);
+            bufferDesc.Name = "Point Lights (Sphere) Data";
+            bufferDesc.Size = sizeof(Sphere) * MAX_POINT_LIGHTS;
+            bufferDesc.Usage = BufferUsage::Storage | BufferUsage::TransferDst; // TODO: Why is it a Storage buffer?
+            m_spheres = m_resourceBank.create_buffer(bufferDesc);
         }
+    }
 
-        // Point Lights (Sphere Data Only)
-        {
-            // Create Point Light Buffer
-            {
-                BufferDesc bufferDesc = {};
-                bufferDesc.Name = "Point Lights (Sphere) Data";
-                bufferDesc.Size = sizeof(Sphere) * MAX_POINT_LIGHTS;
-                bufferDesc.Usage = BufferUsage::Storage | BufferUsage::TransferDst; // TODO: Why is it a Storage buffer?
-                m_spheres = m_resourceBank.create_buffer(bufferDesc);
-            }
-        }
-
-        // Create Scene Info Buffer
-        {
-            BufferDesc bufferDesc = {};
-            bufferDesc.Name = "Scene Info Data";
-            bufferDesc.Size = sizeof(SceneInfo);
-            bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
-            m_sceneInfoBuffer = m_resourceBank.create_buffer(bufferDesc);
-        }
-
-        DescriptorBinding binding = {};
-        binding.Type = DescriptorBinding::BindType::UBO;
-        binding.Count = 1;
-        binding.Stage = DescriptorBinding::BindStage::ALL_GRAPHICS;
-        binding.Sampler = nullptr;
-        binding.Resource = &m_resourceBank.m_buffers.get(m_cameraData);
-
-        DescriptorInfo info = {};
-        info.Bindings.push_back(binding);
-        info.Name = "Global Descriptor";
-
-        m_globalDescriptor = Descriptor(info);
+    // Create Scene Info Buffer
+    {
+        BufferDesc bufferDesc = {};
+        bufferDesc.Name = "Scene Info Data";
+        bufferDesc.Size = sizeof(SceneInfo);
+        bufferDesc.Usage = BufferUsage::Uniform | BufferUsage::TransferDst;
+        m_sceneInfoBuffer = m_resourceBank.create_buffer(bufferDesc);
     }
 
     // Init Render Target
@@ -151,22 +137,6 @@ void Renderer::init()
         nijiEngine.m_context.get_window_size(w, h);
         m_renderInfo.RenderArea = {{0, 0}, {(uint32_t)w, (uint32_t)h}};
         m_renderInfo.RenderTarget = m_resourceBank.create_render_target((uint32_t)w, (uint32_t)h);
-    }
-
-    // Render Passes
-    {
-        // m_renderPasses.push_back(std::make_unique<SkyboxPass>());
-        // m_renderPasses.push_back(std::make_unique<DepthPass>());
-        //  m_renderPasses.push_back(std::make_unique<LightCullingPass>());
-        // m_renderPasses.push_back(std::make_unique<ForwardPass>());
-        // m_renderPasses.push_back(std::make_unique<LineRenderPass>());
-        // m_renderPasses.push_back(std::make_unique<ImGuiPass>());
-    }
-    {
-        // for (auto& pass : m_renderPasses)
-        //{
-        //     pass->init(m_globalDescriptor);
-        // }
     }
 
     // Init Render Info
@@ -261,17 +231,6 @@ void Renderer::init()
     //    }
     //}
 
-    // Create Command Buffers
-    m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    for (int i = 0; i < m_commandBuffers.size(); i++)
-    {
-        std::string name = "Command Buffer ";
-        name = name + std::to_string(i);
-        m_commandBuffers[i].m_name = const_cast<char*>(name.c_str());
-    }
-
-    create_sync_objects();
-
     nijiEngine.m_logger.log_info("Info Test");
     nijiEngine.m_logger.log_warning("Warning Test");
     nijiEngine.m_logger.log_error("Error Test");
@@ -292,8 +251,6 @@ void Renderer::update(const float dt)
 
     // auto& cmd = m_commandBuffers[m_currentFrame];
     // cmd.begin_list("Frame Commmand Buffer");
-
-    update_uniform_buffer(m_currentFrame);
 
     // for (auto& pass : m_renderPasses)
     //{
@@ -323,84 +280,25 @@ void Renderer::render()
     m_renderGraph.execute();
 }
 
-void Renderer::cleanup()
+void Renderer::deinit()
 {
-    // m_swapchain.cleanup();
     m_resourceBank.destroy(m_renderInfo.RenderTarget);
+    m_resourceBank.destroy(m_renderInfo.ViewportTexture);
+    m_resourceBank.destroy(m_renderInfo.DepthTexture);
 
     m_resourceBank.destroy(m_fallbackTexture);
     m_resourceBank.destroy(m_cameraData);
+    m_resourceBank.destroy(m_globalSampler);
     m_resourceBank.destroy(m_spheres);
     m_resourceBank.destroy(m_sceneInfoBuffer);
 
-    // m_lightGridTexture.cleanup();
+    m_cube.deinit();
 
-    // for (int i = 0; i < m_lightIndexList.size(); i++)
-    //{
-    //     m_lightIndexList[i].cleanup();
-    // }
-
-    for (auto& pass : m_renderPasses)
-    {
-        pass->cleanup();
-        pass.release();
-    }
-    m_renderPasses.clear();
-
-    // for (int i = 0; i < m_viewportTargets.size(); i++)
-    //{
-    //     m_viewportTargets[i].cleanup();
-    // }
-
-    m_cube.cleanup();
-
-    m_globalDescriptor.cleanup();
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        vkDestroySemaphore(m_context->m_device, m_renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(m_context->m_device, m_imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(m_context->m_device, m_inFlightFences[i], nullptr);
-    }
+    m_resourceBank.deinit();
+    m_renderGraph.deinit();
 }
 
-void Renderer::create_sync_objects()
-{
-    m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-
-    VkSemaphoreCreateInfo semaphoreInfo = {};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-        if (vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(m_context->m_device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(m_context->m_device, &fenceInfo, nullptr, &m_inFlightFences[i]) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to Create Semaphores and Fences!");
-        }
-
-        std::string imageAvailableName = "Image Available Semaphore ";
-        imageAvailableName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_imageAvailableSemaphores[i], imageAvailableName.c_str());
-
-        std::string renderFinishedName = "Render Finished Semaphore ";
-        renderFinishedName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_SEMAPHORE, m_renderFinishedSemaphores[i], renderFinishedName.c_str());
-
-        std::string inFlightFenceName = "In-Flight Fence ";
-        inFlightFenceName += std::to_string(i);
-        SetObjectName(m_context->m_device, VK_OBJECT_TYPE_FENCE, m_inFlightFences[i], inFlightFenceName.c_str());
-    }
-}
-
-void Renderer::update_uniform_buffer(uint32_t currentImage)
+void Renderer::update_uniform_buffer()
 {
     static auto startTime = std::chrono::high_resolution_clock::now();
 

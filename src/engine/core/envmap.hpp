@@ -12,7 +12,7 @@ class Envmap
     Envmap(const std::string& path);
     ~Envmap();
 
-    void cleanup();
+    void deinit();
 
   private:
     void LoadSpecular(const std::string& path, const int mips);

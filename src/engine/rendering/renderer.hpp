@@ -4,11 +4,8 @@
 
 #include <glm/glm.hpp>
 
-#include "core/descriptor.hpp"
 #include "core/context.hpp"
 #include "core/envmap.hpp"
-
-#include "core/commandlist.hpp"
 
 #include "model/mesh.hpp"
 
@@ -68,7 +65,7 @@ class Renderer
     void update(const float dt);
     void render();
 
-    void cleanup();
+    void deinit();
 
     //void set_envmap(Envmap& envmap)
     //{
@@ -77,9 +74,7 @@ class Renderer
     SamplerHandle m_globalSampler = {};
 
   private:
-    void create_sync_objects();
-
-    void update_uniform_buffer(uint32_t currentImage);
+    void update_uniform_buffer();
 
   private:
     friend class CommandList;
@@ -98,16 +93,10 @@ class Renderer
     
     ResourceBank& m_resourceBank;
     RenderGraph& m_renderGraph;
-    //Swapchain m_swapchain = {};
 
-    //std::vector<Buffer> m_cameraData = {};
-    //std::vector<Buffer> m_spheres = {};
-    //std::vector<Buffer> m_sceneInfoBuffer = {};
     BufferHandle m_cameraData = {};
     BufferHandle m_spheres = {};
     BufferHandle m_sceneInfoBuffer = {};
-    std::vector<CommandList> m_commandBuffers = {};
-    std::vector<std::unique_ptr<RenderPass>> m_renderPasses;
 
     Mesh m_cube = {};
 
@@ -120,14 +109,5 @@ class Renderer
     //std::vector<Buffer> m_lightIndexList = {};
 
     RenderInfo m_renderInfo = {};
-
-    uint32_t m_currentFrame = 0;
-    uint32_t m_imageIndex = UINT64_MAX;
-
-    Descriptor m_globalDescriptor = {};
-
-    std::vector<VkSemaphore> m_imageAvailableSemaphores = {};
-    std::vector<VkSemaphore> m_renderFinishedSemaphores = {};
-    std::vector<VkFence> m_inFlightFences = {};
 };
 } // namespace niji

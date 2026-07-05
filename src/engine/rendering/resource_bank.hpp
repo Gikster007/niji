@@ -35,6 +35,7 @@ class ResourceBank
     ResourceBank() = default;
 
     void init();
+    void deinit();
 
     inline void set_max_textures(const uint32_t count)
     {

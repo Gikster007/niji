@@ -329,7 +329,7 @@ void App::save_lights(std::string path)
         file << root.dump(4);
 }
 
-void App::cleanup()
+void App::deinit()
 {
     // Save Lights to File
     save_lights("assets/lights.json");
@@ -339,5 +339,5 @@ void App::cleanup()
         // Hacky af but if it works, it works
         model->~Model();
     }
-    //m_envmap.cleanup();
+    //m_envmap.deinit();
 }

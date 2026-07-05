@@ -25,7 +25,7 @@ class Model : public std::enable_shared_from_this<Model>
     
     void update(float dt);
 
-    void cleanup();
+    void deinit();
 
   private:
     friend class Renderer;

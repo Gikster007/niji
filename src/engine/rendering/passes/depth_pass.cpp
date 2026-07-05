@@ -157,7 +157,7 @@
 //    cmd.end_rendering(info);
 //}
 //
-//void DepthPass::cleanup()
+//void DepthPass::deinit()
 //{
 //    base_cleanup();
 //}

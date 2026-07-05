@@ -247,7 +247,7 @@
 //    cmd.end_rendering(info);
 //}
 //
-//void ImGuiPass::cleanup()
+//void ImGuiPass::deinit()
 //{
 //    base_cleanup();
 //

@@ -26,7 +26,7 @@ class App : public niji::System
 
     void update(float deltaTime) override;
     void render() override;
-    void cleanup() override;
+    void deinit() override;
 
     void draw_light_editor();
     void rotate_point_lights();

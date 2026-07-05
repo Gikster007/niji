@@ -1,24 +1,24 @@
-#pragma once 
-
-#include "render_pass.hpp"
-
-namespace niji
-{
-
-class LineRenderPass final : public RenderPass
-{
-  public:
-    LineRenderPass()
-    {
-    }
-
-    void init(Descriptor& globalDescriptor);
-    void update_impl(Renderer& renderer, CommandList& cmd);
-    void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
-    void cleanup();
-
-  private:
-    Buffer m_vertexBuffer = {};
-};
-
-} // namespace niji
+//#pragma once 
+//
+//#include "render_pass.hpp"
+//
+//namespace niji
+//{
+//
+//class LineRenderPass final : public RenderPass
+//{
+//  public:
+//    LineRenderPass()
+//    {
+//    }
+//
+//    void init(Descriptor& globalDescriptor);
+//    void update_impl(Renderer& renderer, CommandList& cmd);
+//    void record(Renderer& renderer, CommandList& cmd, RenderInfo& info);
+//    void deinit();
+//
+//  private:
+//    Buffer m_vertexBuffer = {};
+//};
+//
+//} // namespace niji

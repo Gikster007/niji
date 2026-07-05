@@ -41,7 +41,7 @@ class Context
 
     void init_window();
 
-    void cleanup();
+    void deinit();
 
     static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 

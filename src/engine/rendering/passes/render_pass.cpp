@@ -26,7 +26,7 @@
 //                continue;
 //
 //            GraphicsPipelineDesc desc = pipeline.GraphicsDesc;
-//            pipeline.cleanup();
+//            pipeline.deinit();
 //
 //            pipeline = Pipeline(desc);
 //
@@ -49,7 +49,7 @@
 //                continue;
 //
 //            ComputePipelineDesc desc = pipeline.ComputeDesc;
-//            pipeline.cleanup();
+//            pipeline.deinit();
 //
 //            pipeline = Pipeline(desc);
 //
@@ -64,11 +64,11 @@
 //{
 //    for (auto& [name, pipeline] : m_pipelines)
 //    {
-//        pipeline.cleanup();
+//        pipeline.deinit();
 //    }
 //
 //    nijiEngine.m_renderer.m_resourceBank.destroy(m_passBuffer);
 //
 //
-//    m_passDescriptor.cleanup();
+//    m_passDescriptor.deinit();
 //}

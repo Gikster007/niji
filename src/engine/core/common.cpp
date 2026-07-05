@@ -333,7 +333,7 @@
 //    vkDestroyShaderModule(nijiEngine.m_context.m_device, computeShaderModule, nullptr);
 //}
 //
-//void Pipeline::cleanup()
+//void Pipeline::deinit()
 //{
 //    if (PipelineObject)
 //        vkDestroyPipeline(nijiEngine.m_context.m_device, PipelineObject, nullptr);

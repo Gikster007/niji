@@ -34,7 +34,7 @@ void ECS::systems_render()
 void ECS::systems_cleanup()
 {
     for (auto& s : m_systems)
-        s->cleanup();
+        s->deinit();
 }
 
 void ECS::remove_deleted()

@@ -26,7 +26,7 @@ class System
         // ...
     }
 
-    virtual void cleanup()
+    virtual void deinit()
     {
 
     }

@@ -397,7 +397,7 @@
 //    cmd.end_rendering(info);
 //}
 //
-//void ForwardPass::cleanup()
+//void ForwardPass::deinit()
 //{
 //    base_cleanup();
 //

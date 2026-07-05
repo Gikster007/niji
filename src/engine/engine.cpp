@@ -62,11 +62,11 @@ void Engine::update()
     vkDeviceWaitIdle(m_context.m_device);
 }
 
-void Engine::cleanup()
+void Engine::deinit()
 {
     ecs.systems_cleanup();
-    m_context.cleanup();
-    m_renderer.cleanup();
+    m_renderer.deinit();
+    m_context.deinit();
 }
 
 void Engine::add_line(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& color)

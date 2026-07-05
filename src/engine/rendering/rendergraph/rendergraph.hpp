@@ -25,6 +25,7 @@ class RenderGraph
 {
   public:
     void init();
+    void deinit();
 
     // Resets the Render Graph
     void new_frame();

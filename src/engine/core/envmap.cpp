@@ -116,10 +116,10 @@
 //    printf("\n[Envmap] LUT has loaded Successfully! \n");
 //}
 //
-//void Envmap::cleanup()
+//void Envmap::deinit()
 //{
-//    m_specularCubemap.cleanup();
-//    m_diffuseCubemap.cleanup();
-//    m_brdfTexture.cleanup();
-//    m_sampler.cleanup();
+//    m_specularCubemap.deinit();
+//    m_diffuseCubemap.deinit();
+//    m_brdfTexture.deinit();
+//    m_sampler.deinit();
 //}

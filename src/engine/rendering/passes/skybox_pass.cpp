@@ -176,8 +176,8 @@
 //    cmd.end_rendering(info);
 //}
 //
-//void SkyboxPass::cleanup()
+//void SkyboxPass::deinit()
 //{
 //    base_cleanup();
-//    m_sampler.cleanup();
+//    m_sampler.deinit();
 //}

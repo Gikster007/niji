@@ -90,9 +90,9 @@ void Context::init_window()
     glfwSetFramebufferSizeCallback(m_window, framebuffer_resize_callback);
 }
 
-void Context::cleanup()
+void Context::deinit()
 {
-    // m_globalSampler.cleanup();
+    // m_globalSampler.deinit();
 
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
 

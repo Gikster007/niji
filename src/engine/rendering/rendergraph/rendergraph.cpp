@@ -71,6 +71,24 @@ void RenderGraph::init()
     }
 }
 
+void RenderGraph::deinit()
+{
+    for (uint32_t i = 0; i < m_maxFrames; i++)
+    {
+        new_frame();
+        next_frame();
+    }
+
+    m_pipelineCache.clear();
+
+    for (uint32_t i = 0u; i < m_maxFrames; ++i)
+    {
+        vkDestroyFence(nijiEngine.m_context.m_device, m_resources[i].Fence, nullptr);
+        vkDestroySemaphore(nijiEngine.m_context.m_device, m_resources[i].Semaphore, nullptr);
+    }
+    delete[] m_resources;
+}
+
 void RenderGraph::new_frame()
 {
     // In Nanoseconds (one second)
@@ -240,7 +258,7 @@ void RenderGraph::execute()
 
         // Upload Push Constants
         if (compNode.m_rtInjectOffset != UINT32_MAX)
-        {   
+        {
             const uint32_t targetSlot = nijiEngine.m_renderer.m_resourceBank.m_textures.capacity() * MAX_MIPS + rt.CurrentImage;
 
             std::memcpy(node->m_pcData + compNode.m_rtInjectOffset, &targetSlot, sizeof(uint32_t));

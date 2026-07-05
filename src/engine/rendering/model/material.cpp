@@ -169,7 +169,7 @@ Material::Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::
     m_materialInfo.MetallicFactor = material.pbrData.metallicFactor;
 }
 
-void Material::cleanup()
+void Material::deinit()
 {
     nijiEngine.m_renderer.m_resourceBank.destroy(m_sampler);
 

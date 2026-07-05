@@ -643,33 +643,33 @@
 //    }
 //}
 //
-//void LightCullingPass::cleanup()
+//void LightCullingPass::deinit()
 //{
 //    base_cleanup();
 //
-//    m_lightCullingDescriptor.cleanup();
+//    m_lightCullingDescriptor.deinit();
 //
 //    for (int i = 0; i < m_dispatchParams.size(); i++)
 //    {
-//        m_dispatchParams[i].cleanup();
+//        m_dispatchParams[i].deinit();
 //    }
 //
 //    for (int i = 0; i < m_frustums.size(); i++)
 //    {
-//        m_frustums[i].cleanup();
+//        m_frustums[i].deinit();
 //    }
 //
 //    for (int i = 0; i < m_lightIndexCounter.size(); i++)
 //    {
-//        m_lightIndexCounter[i].cleanup();
+//        m_lightIndexCounter[i].deinit();
 //    }
 //
 //    /*for (int i = 0; i < m_lightIndexList.size(); i++)
 //    {
-//        m_lightIndexList[i].cleanup();
+//        m_lightIndexList[i].deinit();
 //    }*/
 //
-//    // m_lightGridTexture.cleanup();
+//    // m_lightGridTexture.deinit();
 //}
 //
 //void LightCullingPass::on_window_resize()

@@ -105,9 +105,9 @@
 //    cmd.end_rendering(info);
 //}
 //
-//void LineRenderPass::cleanup()
+//void LineRenderPass::deinit()
 //{
 //    base_cleanup();
 //
-//    m_vertexBuffer.cleanup();
+//    m_vertexBuffer.deinit();
 //}

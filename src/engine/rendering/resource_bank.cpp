@@ -120,8 +120,7 @@ void ResourceBank::init()
         if (vkCreateDescriptorSetLayout(context.m_device, &layoutInfo, nullptr, &m_bindlessSetLayout) != VK_SUCCESS)
             assert(!"[ResourceBank] Failed to Create Bindless Descriptor Set Layout");
 
-        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, m_bindlessSetLayout,
-                      "Bindless Descriptor Set Layout");
+        SetObjectName(context.m_device, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, m_bindlessSetLayout, "Bindless Descriptor Set Layout");
 
         // Create Descriptor Pool
         VkDescriptorPoolSize poolSizes[3] {};
@@ -188,13 +187,31 @@ void ResourceBank::init()
     }
 }
 
+void ResourceBank::deinit()
+{
+    const Context& context = nijiEngine.m_context;
+
+    vkDestroyDescriptorPool(context.m_device, m_bindlessPool, nullptr);
+    vkDestroyDescriptorSetLayout(context.m_device, m_bindlessSetLayout, nullptr);
+
+    vkDestroyCommandPool(context.m_device, m_uploadCmdPool, nullptr);
+
+    vkDestroyFence(context.m_device, m_uploadFence, nullptr);
+
+    m_renderTargets.destroy();
+    m_textures.destroy();
+    m_samplers.destroy();
+    m_buffers.destroy();
+
+    vmaDestroyAllocator(m_allocator);
+}
+
 RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t height)
 {
-    PoolPair renderTarget = m_renderTargets.pop();
+     PoolPair renderTarget = m_renderTargets.pop();
 
     // Get Swapchain Info
-    const SwapchainSupportDetails swapchainSupport =
-        SwapchainSupportDetails::query_swapchain_support(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
+    const SwapchainSupportDetails swapchainSupport = SwapchainSupportDetails::query_swapchain_support(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
 
     const VkImageUsageFlags desiredUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
@@ -203,8 +220,7 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
 
     // Set Image Count
     renderTarget.Data.ImageCount = swapchainSupport.Capabilities.minImageCount;
-    if (swapchainSupport.Capabilities.maxImageCount > 0 &&
-        renderTarget.Data.ImageCount > swapchainSupport.Capabilities.maxImageCount)
+    if (swapchainSupport.Capabilities.maxImageCount > 0 && renderTarget.Data.ImageCount > swapchainSupport.Capabilities.maxImageCount)
         renderTarget.Data.ImageCount = swapchainSupport.Capabilities.maxImageCount;
     uint32_t& imageCount = renderTarget.Data.ImageCount;
 
@@ -217,10 +233,8 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
     {
         VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
-        actualExtent.width = std::clamp(actualExtent.width, swapchainSupport.Capabilities.minImageExtent.width,
-                                        swapchainSupport.Capabilities.maxImageExtent.width);
-        actualExtent.height = std::clamp(actualExtent.height, swapchainSupport.Capabilities.minImageExtent.height,
-                                         swapchainSupport.Capabilities.maxImageExtent.height);
+        actualExtent.width = std::clamp(actualExtent.width, swapchainSupport.Capabilities.minImageExtent.width, swapchainSupport.Capabilities.maxImageExtent.width);
+        actualExtent.height = std::clamp(actualExtent.height, swapchainSupport.Capabilities.minImageExtent.height, swapchainSupport.Capabilities.maxImageExtent.height);
         renderTarget.Data.Extent = actualExtent;
     }
 
@@ -266,8 +280,7 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
-    const QueueFamilyIndices indices =
-        QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
+    const QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(nijiEngine.m_context.m_physicalDevice, nijiEngine.m_context.m_surface);
     const uint32_t queueFamilyIndices[] = {indices.GraphicsFamily.value(), indices.PresentFamily.value()};
 
     if (indices.GraphicsFamily != indices.PresentFamily)
@@ -293,8 +306,7 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
 
     vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, renderTarget.Data.Handle, &imageCount, nullptr);
     renderTarget.Data.Images.resize(imageCount);
-    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, renderTarget.Data.Handle, &imageCount,
-                            renderTarget.Data.Images.data());
+    vkGetSwapchainImagesKHR(nijiEngine.m_context.m_device, renderTarget.Data.Handle, &imageCount, renderTarget.Data.Images.data());
 
     // Create Image Views
     const VkSemaphoreCreateInfo semaphoreInfo {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -318,8 +330,7 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
             assert(!"[Swapchain] Failed to Create Image View for the Swapchain Render Target");
         }
         const std::string imageViewName = "Swapchain Image View #" + std::to_string(i);
-        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, renderTarget.Data.ImageViews[i],
-                      imageViewName.c_str());
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, renderTarget.Data.ImageViews[i], imageViewName.c_str());
 
         // Register as sampled image (optional, if you want to sample the swapchain)
         {
@@ -360,14 +371,12 @@ RenderTargetHandle ResourceBank::create_render_target(uint32_t width, uint32_t h
         }
 
         // Create Image Presentation Semaphore
-        if (vkCreateSemaphore(nijiEngine.m_context.m_device, &semaphoreInfo, nullptr, &renderTarget.Data.Semaphores[i]) !=
-            VK_SUCCESS)
+        if (vkCreateSemaphore(nijiEngine.m_context.m_device, &semaphoreInfo, nullptr, &renderTarget.Data.Semaphores[i]) != VK_SUCCESS)
         {
             assert(!"[Swapchain] Failed to Create Semaphore for Swapchain Render Target");
         }
         const std::string semaphoreName = "Swapchain Image Semaphore #" + std::to_string(i);
-        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_SEMAPHORE, renderTarget.Data.Semaphores[i],
-                      semaphoreName.c_str());
+        SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_SEMAPHORE, renderTarget.Data.Semaphores[i], semaphoreName.c_str());
     }
 
     return renderTarget.Handle;
@@ -410,9 +419,10 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
     // Create The VkImage & Allocate it Using VMA
-    if (vmaCreateImage(m_allocator, &textureInfo, &allocInfo, &texture.Data.Image, &texture.Data.Allocation, nullptr) !=
-        VK_SUCCESS)
+    if (vmaCreateImage(m_allocator, &textureInfo, &allocInfo, &texture.Data.Image, &texture.Data.Allocation, nullptr) != VK_SUCCESS)
         assert(!"[ResourceBank] Failed to Create Image Using VMA");
+    // After vmaCreateBuffer in create_buffer:
+    vmaSetAllocationName(m_allocator, texture.Data.Allocation, desc.Name.c_str());
 
     const Context& context = nijiEngine.m_context;
 
@@ -463,8 +473,7 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
 
             create_image_view(imageView, texture.Data.Image, viewDesc);
 
-            SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, imageView.View,
-                          (desc.Name + " [Storage Mip " + std::to_string(mip) + "]").c_str());
+            SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, imageView.View, (desc.Name + " [Storage Mip " + std::to_string(mip) + "]").c_str());
 
             VkDescriptorImageInfo imageInfo {};
             imageInfo.imageView = imageView.View;
@@ -498,20 +507,20 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     texture.Data.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
 
     //// Image Dependency Info
-    //VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    //depInfo.imageMemoryBarrierCount = 1u;
-    //depInfo.pImageMemoryBarriers = &imageBarrier;
+    // VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    // depInfo.imageMemoryBarrierCount = 1u;
+    // depInfo.pImageMemoryBarriers = &imageBarrier;
 
-    //if (begin_upload_cmd() == false)
-    //    assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
+    // if (begin_upload_cmd() == false)
+    //     assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
 
-    //VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+    // VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
 
-    //if (end_upload_cmd() == false)
-    //    assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
+    // if (end_upload_cmd() == false)
+    //     assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
 
     // TODO: RE ENABLE
-    //if (desc.ShowInImGui)
+    // if (desc.ShowInImGui)
     //{
     //    Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
     //
@@ -580,7 +589,7 @@ BufferHandle ResourceBank::create_buffer(BufferDesc desc)
     // Buffer Creation Info
     VkBufferCreateInfo bufferInfo {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bufferInfo.size = desc.Size;
-    bufferInfo.usage = translate::buffer_usage(desc.Usage);
+    bufferInfo.usage = translate::buffer_usage(desc.Usage) | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     // Memory Allocation Info
@@ -589,9 +598,9 @@ BufferHandle ResourceBank::create_buffer(BufferDesc desc)
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
     /* Create the buffer & allocate it using VMA */
-    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer.Data.Object, &buffer.Data.Allocation, nullptr) !=
-        VK_SUCCESS)
+    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer.Data.Object, &buffer.Data.Allocation, nullptr) != VK_SUCCESS)
         assert(!"[ResourceBank] Failed to Create Buffer Using VMA");
+    vmaSetAllocationName(m_allocator, buffer.Data.Allocation, desc.Name.c_str());
 
     const Context& context = nijiEngine.m_context;
 
@@ -648,8 +657,7 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     copy.imageSubresource.mipLevel = 0u;
     copy.imageSubresource.baseArrayLayer = 0u;
     copy.imageSubresource.layerCount = layerCount;
-    copy.imageExtent =
-        VkExtent3D {std::max(texture.Desc.Size.X, 1u), std::max(texture.Desc.Size.Y, 1u), std::max(texture.Desc.Size.Z, 1u)};
+    copy.imageExtent = VkExtent3D {std::max(texture.Desc.Size.X, 1u), std::max(texture.Desc.Size.Y, 1u), std::max(texture.Desc.Size.Z, 1u)};
 
     // Create an Image Layout Transition Barrier
     VkImageMemoryBarrier2 imageBarrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
@@ -683,8 +691,8 @@ void ResourceBank::upload_texture(TextureHandle handle, const void* data, uint64
     vmaDestroyBuffer(m_allocator, stagingBuffer, alloc);
 
     //// Generate Mips if Needed
-    //if (texture.Desc.GenerateMips)
-    //    generate_mips(handle);
+    // if (texture.Desc.GenerateMips)
+    //     generate_mips(handle);
 }
 
 void ResourceBank::upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size)
@@ -750,6 +758,9 @@ void ResourceBank::destroy(ResourceHandle& handle)
     {
     case ResourceType::Invalid:
         assert(!"[Resource Bank] Failed to Destroy Resource. Resource Type is Invalid");
+        break;
+    case ResourceType::RenderTarget:
+        destroy_render_target((RenderTargetHandle&)handle);
         break;
     case ResourceType::Texture:
         destroy_texture((TextureHandle&)handle);

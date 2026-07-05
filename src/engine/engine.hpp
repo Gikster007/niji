@@ -18,7 +18,7 @@ class Engine
     ~Engine();
     void init();
     void run();
-    void cleanup();
+    void deinit();
 
     void add_line(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& color);
 

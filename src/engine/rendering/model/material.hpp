@@ -22,7 +22,7 @@ class Material
   public:
     Material(fastgltf::Asset& model, fastgltf::Primitive& primitive, std::filesystem::path gltfPath);
 
-    void cleanup();
+    void deinit();
 
   private:
     friend class Renderer;

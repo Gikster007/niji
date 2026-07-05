@@ -68,7 +68,7 @@
 //
 //    vkDeviceWaitIdle(nijiEngine.m_context.m_device);
 //
-//    cleanup();
+//    deinit();
 //
 //    create();
 //    create_image_views();
@@ -112,7 +112,7 @@
 //    }
 //}
 //
-//void Swapchain::cleanup()
+//void Swapchain::deinit()
 //{
 //    m_images.clear();
 //    m_layouts.clear();

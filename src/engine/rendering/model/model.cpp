@@ -31,7 +31,7 @@ Model::Model(std::filesystem::path gltfPath, Entity parent)
 
 Model::~Model()
 {
-    cleanup();
+    deinit();
 }
 
 void Model::Instantiate()
@@ -130,16 +130,16 @@ void Model::update(float dt)
 
 }
 
-void Model::cleanup()
+void Model::deinit()
 {
     for (int i = 0; i < m_meshes.size(); i++)
     {
-        m_meshes[i].cleanup();
+        m_meshes[i].deinit();
     }
     //m_meshes.clear();
     for (int i = 0; i < m_materials.size(); i++)
     {
-        m_materials[i].cleanup();
+        m_materials[i].deinit();
     }
     //m_materials.clear();
 }

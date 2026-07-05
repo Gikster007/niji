@@ -14,7 +14,7 @@
 
 using namespace niji;
 
-void Mesh::cleanup()
+void Mesh::deinit()
 {
     nijiEngine.m_renderer.m_resourceBank.destroy(m_vertexBuffer);
     nijiEngine.m_renderer.m_resourceBank.destroy(m_indexBuffer);
