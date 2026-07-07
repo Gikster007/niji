@@ -1,5 +1,7 @@
 #include "rendergraph.hpp"
 
+#include <imgui.h>
+
 #include "nodes/compute_node.hpp"
 
 #include "engine.hpp"
@@ -9,6 +11,8 @@
 #include "rendering/resource_bank.hpp"
 #include "rendering/resources/render_target.hpp"
 #include "rendering/utils/translate.hpp"
+
+#include "core/vulkan-functions.hpp"
 
 namespace niji
 {
@@ -69,15 +73,23 @@ void RenderGraph::init()
         inFlightFenceName += std::to_string(i);
         SetObjectName(nijiEngine.m_context.m_device, VK_OBJECT_TYPE_FENCE, m_resources[i].Fence, inFlightFenceName.c_str());
     }
+
+    // Init ImGUI
+    m_imgui.init(m_renderTarget);
 }
 
 void RenderGraph::deinit()
 {
     for (uint32_t i = 0; i < m_maxFrames; i++)
     {
-        new_frame();
-        next_frame();
+        constexpr uint64_t TIMEOUT = 1'000'000'000u;
+        vkWaitForFences(nijiEngine.m_context.m_device, 1u, &m_resources[i].Fence, true, TIMEOUT);
     }
+
+    // Clean up Leftover Nodes
+    for (Node* node : m_nodes)
+        delete node;
+    m_nodes.clear();
 
     m_pipelineCache.clear();
 
@@ -87,6 +99,9 @@ void RenderGraph::deinit()
         vkDestroySemaphore(nijiEngine.m_context.m_device, m_resources[i].Semaphore, nullptr);
     }
     delete[] m_resources;
+
+    // De-init ImGUI
+    m_imgui.deinit();
 }
 
 void RenderGraph::new_frame()
@@ -97,7 +112,7 @@ void RenderGraph::new_frame()
     // Wait For this Frame to be Out of Flight Before re-using its Resources
     if (vkWaitForFences(nijiEngine.m_context.m_device, 1u, &current_frame().Fence, true, TIMEOUT) != VK_SUCCESS)
     {
-        printf("failed while waiting for graph in-flight fence.");
+        printf("failed while waiting for graph in-flight fence. \n");
         return;
     }
 
@@ -106,11 +121,11 @@ void RenderGraph::new_frame()
         delete old_node;
     }
 
-    m_renderTarget = RenderTargetHandle();
-
     // Reset the Nodes
     m_nodes.clear();
     m_nodes.reserve(128u);
+
+    m_imgui.new_frame();
 }
 
 FrameResources& RenderGraph::current_frame()
@@ -139,6 +154,8 @@ void RenderGraph::set_render_target(RenderTargetHandle& rt)
 
 void RenderGraph::execute()
 {
+    ImGui::Render();
+
     const FrameResources& frame = current_frame();
 
     RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(m_renderTarget);
@@ -148,12 +165,13 @@ void RenderGraph::execute()
     {
         // m_swapchain.recreate();
         //  TODO: re-implement swapchain recreation
-        printf("[Renderer] acquire returned OUT_OF_DATE\n");
+        printf("[Renderer] acquire returned OUT_OF_DATE \n");
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
-        throw std::runtime_error("Failed to Acquire Swap Chain Image!");
+        printf("[Renderer] Failed to Acquire Swap Chain Image! \n");
+        return;
     }
 
     vkResetCommandBuffer(frame.Cmd, 0);
@@ -253,7 +271,7 @@ void RenderGraph::execute()
         const Pipeline& pipeline = m_pipelineCache.get_pipeline("shaders/spirv/", compNode);
         vkCmdBindPipeline(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Object);
 
-        // Bind Bindless Descriptor Set
+        // Bind Bindless Descriptor Set 
         vkCmdBindDescriptorSets(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Layout, 0u, 1u, &nijiEngine.m_renderer.m_resourceBank.m_bindlessSet, 0u, nullptr);
 
         // Upload Push Constants
@@ -273,6 +291,34 @@ void RenderGraph::execute()
 
         // Dispatch
         vkCmdDispatch(frame.Cmd, dispatchX, dispatchY, dispatchZ);
+    }
+
+    // ImGui
+    {
+        // Define The ImGui RT Attachment
+        VkRenderingAttachmentInfoKHR attachment_info {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR};
+        attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        // attachment_info.loadOp = imgui->clear_screen ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachment_info.imageView = rt.ImageViews[rt.CurrentImage];
+
+        // Rendering Info
+        VkRenderingInfoKHR rendering_info {VK_STRUCTURE_TYPE_RENDERING_INFO_KHR};
+        rendering_info.renderArea.extent = rt.Extent;
+        rendering_info.renderArea.offset = VkOffset2D {0, 0};
+        rendering_info.colorAttachmentCount = 1;
+        rendering_info.pColorAttachments = &attachment_info;
+        rendering_info.layerCount = 1;
+
+        // Begin Dynamic Rendering
+        VKCmdBeginRenderingKHR(frame.Cmd, &rendering_info);
+
+        // ImGui Render
+        m_imgui.render(frame.Cmd);
+
+        // End Dynamic Rendering
+        VKCmdEndRenderingKHR(frame.Cmd);
     }
 
     // render target pipeline barrier
@@ -336,6 +382,9 @@ void RenderGraph::execute()
         // m_swapchain.recreate();
         //  TODO: re-implement swapchain recreation
         nijiEngine.m_context.m_framebufferResized = false;
+
+        printf("[Renderer] acquire returned OUT_OF_DATE \n");
+        return;
     }
     else if (result != VK_SUCCESS)
         throw std::runtime_error("Failed to Present Swap Chain Image!");

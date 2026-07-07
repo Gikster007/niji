@@ -94,8 +94,6 @@ class Context
 
     VkSurfaceKHR m_surface = {};
 
-    //VmaAllocator m_allocator = {};
-
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = {};
     QueueFamilyIndices m_queueIndices = {};

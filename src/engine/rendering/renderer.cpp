@@ -1,16 +1,7 @@
 ﻿#include "renderer.hpp"
 
-#include <algorithm>
-#include <stdexcept>
-#include <fstream>
-#include <chrono>
-#include <iostream>
-
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <vk_mem_alloc.h>
-
-#include <slang/slang.h>
 
 #include <imgui.h>
 #include <stb_image.h>
@@ -23,30 +14,19 @@ using namespace niji;
 
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
-#include "core/vulkan-functions.hpp"
 #include "core/logger.hpp"
 
 #include "resource_bank.hpp"
 #include "rendergraph/rendergraph.hpp"
 #include "rendergraph/nodes/compute_node.hpp"
 
-#include "passes/line_render_pass.hpp"
-#include "passes/light_culling.hpp"
-#include "passes/forward_pass.hpp"
-#include "passes/skybox_pass.hpp"
-#include "passes/render_pass.hpp"
-#include "passes/depth_pass.hpp"
-#include "passes/imgui_pass.hpp"
-
 #include "model/model.hpp"
 
-#include "swapchain.hpp"
 #include "engine.hpp"
 
 Renderer::Renderer() : m_resourceBank(*new ResourceBank()), m_renderGraph(*new RenderGraph())
 {
     m_context = &nijiEngine.m_context;
-    m_renderGraph.init();
 }
 
 Renderer::~Renderer()
@@ -137,6 +117,9 @@ void Renderer::init()
         nijiEngine.m_context.get_window_size(w, h);
         m_renderInfo.RenderArea = {{0, 0}, {(uint32_t)w, (uint32_t)h}};
         m_renderInfo.RenderTarget = m_resourceBank.create_render_target((uint32_t)w, (uint32_t)h);
+
+        m_renderGraph.set_render_target(m_renderInfo.RenderTarget);
+        m_renderGraph.init();
     }
 
     // Init Render Info
@@ -266,8 +249,6 @@ void Renderer::render()
     // Begin New Frame
     m_renderGraph.new_frame();
 
-    m_renderGraph.set_render_target(m_renderInfo.RenderTarget);
-
     // clang-format off
     // Record Passes
 
@@ -281,6 +262,9 @@ void Renderer::render()
     pc.tex = m_fallbackTexture.Index;
     pc.viewport = m_renderInfo.ViewportTexture.Index;
     pc.rt = 0u;
+
+    static bool open = true;
+    ImGui::ShowDemoWindow(&open);
 
     m_renderGraph.add_compute_node("fox shader", "fox_cs")
                  .read(m_fallbackTexture)

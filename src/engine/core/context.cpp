@@ -54,25 +54,10 @@ Context::Context()
     create_command_pool();
 
     load_vulkan_function_pointers(m_device);
-
-    // init_allocator();
 }
 
 void Context::init()
 {
-    //// Init Global Sampler
-    //{
-    //    SamplerDesc desc = {};
-    //    desc.MagFilter = SamplerDesc::Filter::LINEAR;
-    //    desc.MinFilter = SamplerDesc::Filter::LINEAR;
-    //    desc.AddressModeU = SamplerDesc::AddressMode::REPEAT;
-    //    desc.AddressModeV = SamplerDesc::AddressMode::REPEAT;
-    //    desc.AddressModeW = SamplerDesc::AddressMode::REPEAT;
-    //    desc.EnableAnisotropy = true;
-    //    desc.MipmapMode = SamplerDesc::MipMapMode::LINEAR;
-
-    //    m_globalSampler = engine;
-    //}
 }
 
 void Context::init_window()

@@ -77,19 +77,12 @@ class Renderer
     void update_uniform_buffer();
 
   private:
-    friend class CommandList;
     friend class Material;
     friend class Mesh;
-    friend class RenderPass;
-    friend class ForwardPass;
-    friend class ImGuiPass;
-    friend class SkyboxPass;
-    friend class LineRenderPass;
-    friend class LightCullingPass;
-    friend class DepthPass;
     friend class Editor;
     friend class PipelineCache;
     friend class RenderGraph;
+    friend class ImGUI;
     
     ResourceBank& m_resourceBank;
     RenderGraph& m_renderGraph;

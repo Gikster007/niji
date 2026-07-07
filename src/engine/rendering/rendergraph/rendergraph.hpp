@@ -6,6 +6,8 @@
 
 #include "rendering/resources/resource_handle.hpp"
 
+#include "rendering/utils/imgui.hpp"
+
 namespace niji
 {
 
@@ -61,6 +63,8 @@ class RenderGraph
     FrameResources* m_resources {};
     // Frame Resources Ring Buffer Index
     uint32_t m_currentFrame = 0u;
+
+    ImGUI m_imgui {};
 };
 
 } // namespace niji
