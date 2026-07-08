@@ -140,6 +140,37 @@ void RenderGraph::next_frame()
         m_currentFrame = 0u;
 }
 
+void RenderGraph::execute_compute_node(ComputeNode& node)
+{
+    const FrameResources& frame = current_frame();
+    RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(m_renderTarget);
+
+    // get pipeline (create or fetch cached one)
+    const Pipeline& pipeline = m_pipelineCache.get_pipeline("shaders/spirv/", node);
+    vkCmdBindPipeline(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Object);
+
+    // Bind Bindless Descriptor Set
+    vkCmdBindDescriptorSets(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Layout, 0u, 1u, &nijiEngine.m_renderer.m_resourceBank.m_bindlessSet, 0u, nullptr);
+
+    // Upload Push Constants
+    if (node.m_rtInjectOffset != UINT32_MAX)
+    {
+        const uint32_t targetSlot = nijiEngine.m_renderer.m_resourceBank.m_textures.capacity() * MAX_MIPS + rt.CurrentImage;
+
+        std::memcpy(node.m_pcData + node.m_rtInjectOffset, &targetSlot, sizeof(uint32_t));
+    }
+    if (node.m_rangeSize != 0u)
+        vkCmdPushConstants(frame.Cmd, pipeline.Layout, VK_SHADER_STAGE_COMPUTE_BIT, node.m_rangeOffset, node.m_rangeSize, node.m_pcData);
+
+    // Calculate the Dispatch Size
+    const uint32_t dispatchX = div_up(node.m_workX, node.m_groupX);
+    const uint32_t dispatchY = div_up(node.m_workY, node.m_groupY);
+    const uint32_t dispatchZ = div_up(node.m_workZ, node.m_groupZ);
+
+    // Dispatch
+    vkCmdDispatch(frame.Cmd, dispatchX, dispatchY, dispatchZ);
+}
+
 ComputeNode& RenderGraph::add_compute_node(std::string_view label, std::string_view shader_path)
 {
     ComputeNode* node = new ComputeNode(label, shader_path);
@@ -266,31 +297,19 @@ void RenderGraph::execute()
             vkCmdPipelineBarrier2(frame.Cmd, &depInfo);
         }
 
-        // get pipeline (create or fetch cached one)
-        const ComputeNode& compNode = *(const ComputeNode*)node;
-        const Pipeline& pipeline = m_pipelineCache.get_pipeline("shaders/spirv/", compNode);
-        vkCmdBindPipeline(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Object);
-
-        // Bind Bindless Descriptor Set 
-        vkCmdBindDescriptorSets(frame.Cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.Layout, 0u, 1u, &nijiEngine.m_renderer.m_resourceBank.m_bindlessSet, 0u, nullptr);
-
-        // Upload Push Constants
-        if (compNode.m_rtInjectOffset != UINT32_MAX)
+        switch (node->m_type)
         {
-            const uint32_t targetSlot = nijiEngine.m_renderer.m_resourceBank.m_textures.capacity() * MAX_MIPS + rt.CurrentImage;
-
-            std::memcpy(node->m_pcData + compNode.m_rtInjectOffset, &targetSlot, sizeof(uint32_t));
+        case NodeType::Compute: {
+            ComputeNode& compNode = *(ComputeNode*)node;
+            execute_compute_node(compNode);
+            break;
         }
-        if (node->m_rangeSize != 0u)
-            vkCmdPushConstants(frame.Cmd, pipeline.Layout, VK_SHADER_STAGE_COMPUTE_BIT, node->m_rangeOffset, node->m_rangeSize, node->m_pcData);
-
-        // Calculate the Dispatch Size
-        const uint32_t dispatchX = div_up(compNode.m_workX, compNode.m_groupX);
-        const uint32_t dispatchY = div_up(compNode.m_workY, compNode.m_groupY);
-        const uint32_t dispatchZ = div_up(compNode.m_workZ, compNode.m_groupZ);
-
-        // Dispatch
-        vkCmdDispatch(frame.Cmd, dispatchX, dispatchY, dispatchZ);
+        case NodeType::Raster: {
+            //RasterNode& rasterNode = *(RasterNode*)node;
+            //execute_raster_node(rasterNode);
+            break;
+        }
+        }
     }
 
     // ImGui

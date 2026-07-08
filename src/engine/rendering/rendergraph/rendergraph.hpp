@@ -32,12 +32,6 @@ class RenderGraph
     // Resets the Render Graph
     void new_frame();
 
-    // Returns Current Frame's Render Graph Resources
-    FrameResources& current_frame();
-
-    // Updates the Frame Resources Ring Buffer Index (call at the end of the execute() function)
-    void next_frame();
-
     ComputeNode& add_compute_node(std::string_view label, std::string_view shader_path);
 
     RasterNode& add_raster_node();
@@ -45,6 +39,16 @@ class RenderGraph
     void set_render_target(RenderTargetHandle& rt);
 
     void execute();
+
+  private:
+    // Returns Current Frame's Render Graph Resources
+    FrameResources& current_frame();
+
+    // Updates the Frame Resources Ring Buffer Index (call at the end of the execute() function)
+    void next_frame();
+
+    void execute_compute_node(ComputeNode& node);
+    void execute_raster_node(RasterNode& node);
 
   public:
     // Max Nr of Frames in Flight
