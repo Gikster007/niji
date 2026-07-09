@@ -374,6 +374,9 @@ void Context::create_logical_device()
         features2.features.samplerAnisotropy = VK_TRUE;
         features2.features.fillModeNonSolid = VK_TRUE;
 
+        VkPhysicalDeviceVulkan11Features features11 {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+        features11.shaderDrawParameters = VK_TRUE;
+
         // Vulkan 1.2 Features (BDA + Descriptor Indexing)
         VkPhysicalDeviceVulkan12Features features12 {};
         features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
@@ -412,7 +415,8 @@ void Context::create_logical_device()
         vkGetPhysicalDeviceFeatures2(m_physicalDevice, &query);
 
         // Chain
-        features2.pNext = &features12;
+        features2.pNext = &features11;
+        features11.pNext = &features12;
         features12.pNext = &features13;
         features13.pNext = &graphicsPipelineLib;
         graphicsPipelineLib.pNext = &unifiedLayoutsFeatures;

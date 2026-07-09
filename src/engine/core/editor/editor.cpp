@@ -2,8 +2,12 @@
 
 #include <imgui.h>
 
-#include "rendering/passes/render_pass.hpp"
 #include "rendering/renderer.hpp"
+#include "rendering/resource_bank.hpp"
+#include "rendering/resources/texture.hpp"
+
+#include "../app/camera_system.hpp"
+
 #include "core/common.hpp"
 #include "engine.hpp"
 #include "core/logger.hpp"
@@ -30,7 +34,7 @@ void Editor::add_debug_menu_panel(const char* name, PanelFunction function)
 
 static std::vector<char> buffer = {};
 static std::string currentShader = {};
-void Editor::render(Renderer& renderer)
+void Editor::render()
 {
     // Docking
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
@@ -54,6 +58,18 @@ void Editor::render(Renderer& renderer)
     // Engine Console
     {
         nijiEngine.m_logger.render();
+    }
+
+    // Viewport
+    {
+        ImGui::Begin("Viewport");
+        auto& size = ImGui::GetContentRegionAvail();
+        const Texture& viewport = nijiEngine.m_renderer.m_resourceBank.m_textures.get(nijiEngine.m_renderer.m_renderInfo.ViewportTexture);
+        ImGui::Image(viewport.ImGuiHandle, size);
+        auto& cameraSystem = nijiEngine.ecs.find_system<CameraSystem>();
+        if (cameraSystem.m_checkViewportBounds)
+            cameraSystem.m_isInsideViewport = ImGui::IsItemHovered();
+        ImGui::End();
     }
 
     // Shader Editor
@@ -107,6 +123,6 @@ void Editor::render(Renderer& renderer)
         //    ImGui::End();
         //}
 
-        ImGui::End();
+        //ImGui::End();
     }
 }

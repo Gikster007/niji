@@ -8,6 +8,7 @@ namespace niji
 {
 
 class ComputeNode;
+class RasterNode;
 
 struct Pipeline
 {
@@ -28,8 +29,8 @@ class PipelineCache
 
     // Fetch the Compute Pipeline from Cache if Existent. Otherwise, Create one and Return it
     Pipeline get_pipeline(const std::string_view path, const ComputeNode& node);
-    
-    //Pipeline get_pipeline(const std::string_view path, const RasterNode& node);
+    // Fetch the Raster Pipeline from Cache if Existent. Otherwise, Create one and Return it
+    Pipeline get_pipeline(const std::string_view path, const RasterNode& node);
 
   private:
     // Key: Pass Name | Value: Pipeline

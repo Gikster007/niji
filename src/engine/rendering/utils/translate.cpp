@@ -134,17 +134,152 @@ VkPipelineStageFlags2 to_vk_stages(DependencyStages stages)
     return result;
 }
 
+VkShaderStageFlags to_vk_shader_stages(DependencyStages stages)
+{
+    VkShaderStageFlags result = 0;
+    if (has_flag(stages, DependencyStages::Compute))
+        result |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if (has_flag(stages, DependencyStages::Vertex))
+        result |= VK_SHADER_STAGE_VERTEX_BIT;
+    if (has_flag(stages, DependencyStages::Pixel))
+        result |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    return result;
+}
+
 VkAccessFlags2 to_vk_access(DependencyUsage usage)
 {
     switch (usage)
     {
+    case DependencyUsage::IndexBuffer:
+        return VK_ACCESS_2_INDEX_READ_BIT;
+    case DependencyUsage::IndirectBuffer:
+        return VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
     case DependencyUsage::Readonly:
         return VK_ACCESS_2_SHADER_READ_BIT;
     case DependencyUsage::ReadWrite:
         return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+    case DependencyUsage::ColorAttachment:
+        return VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+    case DependencyUsage::DepthStencil:
+        return VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     default:
         return VK_ACCESS_2_NONE;
     }
+}
+
+VkPrimitiveTopology primitive_topology(const Topology topology)
+{
+    switch (topology)
+    {
+    case Topology::TriangleList:
+        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    case Topology::LineList:
+        return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    default:
+        return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+    }
+}
+
+bool is_stencil_format(TextureFormat format)
+{
+    switch (format)
+    {
+    case TextureFormat::D24UnormS8Uint:
+    case TextureFormat::D32SFloatS8Uint:
+        return true;
+    default:
+        return false;
+    }
+}
+
+VkStencilOp stencil_op(StencilOp op)
+{
+    switch (op)
+    {
+    case StencilOp::Keep:
+        return VK_STENCIL_OP_KEEP;
+    case StencilOp::Zero:
+        return VK_STENCIL_OP_ZERO;
+    case StencilOp::Replace:
+        return VK_STENCIL_OP_REPLACE;
+    case StencilOp::IncrementClamp:
+        return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+    case StencilOp::DecrementClamp:
+        return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+    case StencilOp::Invert:
+        return VK_STENCIL_OP_INVERT;
+    case StencilOp::IncrementWrap:
+        return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+    case StencilOp::DecrementWrap:
+        return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+    default:
+        return VK_STENCIL_OP_MAX_ENUM;
+    }
+}
+
+VkCompareOp compare_op(CompareOp op)
+{
+    switch (op)
+    {
+    case CompareOp::Never:
+        return VK_COMPARE_OP_NEVER;
+    case CompareOp::Less:
+        return VK_COMPARE_OP_LESS;
+    case CompareOp::Equal:
+        return VK_COMPARE_OP_EQUAL;
+    case CompareOp::LessEqual:
+        return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case CompareOp::Greater:
+        return VK_COMPARE_OP_GREATER;
+    case CompareOp::NotEqual:
+        return VK_COMPARE_OP_NOT_EQUAL;
+    case CompareOp::GreaterEqual:
+        return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case CompareOp::Always:
+        return VK_COMPARE_OP_ALWAYS;
+    default:
+        return VK_COMPARE_OP_MAX_ENUM;
+    }
+}
+
+VkStencilOpState stencil_op_state(StencilState state)
+{
+    // Configure what happens on stencil / depth pass / fail
+    VkStencilOpState stencil_op_state {};
+    stencil_op_state.failOp = stencil_op(state.FailOp);           // operation on stencil test fail
+    stencil_op_state.passOp = stencil_op(state.PassOp);           // operation on stencil test pass
+    stencil_op_state.depthFailOp = stencil_op(state.DepthFailOp); // operation on depth test fail
+    stencil_op_state.compareOp = compare_op(state.Compare);       // comparison operation
+    stencil_op_state.compareMask = state.CompareMask;             // comparison mask
+    stencil_op_state.writeMask = state.WriteMask;                 // write mask
+    stencil_op_state.reference = state.ReferenceValue;            // value to write/compare against
+
+    return stencil_op_state;
+}
+
+VkAttachmentLoadOp load_operation(const LoadOp op)
+{
+    switch (op)
+    {
+    case LoadOp::Load:
+        return VK_ATTACHMENT_LOAD_OP_LOAD;
+    case LoadOp::Clear:
+        return VK_ATTACHMENT_LOAD_OP_CLEAR;
+    default:
+        return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    }
+}
+
+VkShaderStageFlags stage_flags(DependencyStages stages)
+{
+    VkShaderStageFlags flags = 0x00;
+    if (has_flag(stages, DependencyStages::Compute))
+        flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if (has_flag(stages, DependencyStages::Vertex))
+        flags |= VK_SHADER_STAGE_VERTEX_BIT;
+    if (has_flag(stages, DependencyStages::Pixel))
+        flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    return flags;
 }
 
 } // namespace translate

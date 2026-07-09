@@ -32,9 +32,9 @@ class RenderGraph
     // Resets the Render Graph
     void new_frame();
 
-    ComputeNode& add_compute_node(std::string_view label, std::string_view shader_path);
+    ComputeNode& add_compute_node(std::string_view label, std::string_view shaderPath);
 
-    RasterNode& add_raster_node();
+    RasterNode& add_raster_node(std::string_view label, std::string_view shaderPath);
 
     void set_render_target(RenderTargetHandle& rt);
 

@@ -21,12 +21,12 @@ enum class DependencyUsage : uint32_t
 {
     None = 0u,
     // VertexBuffer,
-    // IndirectBuffer,
+    IndexBuffer,
+    IndirectBuffer,
     Readonly,
     ReadWrite,
-    // ColorAttachment,
-    // Depth,
-    // Stencil,
+    ColorAttachment,
+    DepthStencil,
 };
 
 struct Dependency

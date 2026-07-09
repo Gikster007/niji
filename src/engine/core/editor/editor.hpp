@@ -23,8 +23,7 @@ class Editor
 
     void add_debug_menu_panel(const char* name, PanelFunction function);
 
-  private:
-    void render(Renderer& renderer);
+    void render();
 
   private:
     friend class ImGuiPass;

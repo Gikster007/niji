@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include "nodes/compute_node.hpp"
+#include "nodes/raster_node.hpp"
 
 #include "engine.hpp"
 #include "core/context.hpp"
@@ -171,9 +172,164 @@ void RenderGraph::execute_compute_node(ComputeNode& node)
     vkCmdDispatch(frame.Cmd, dispatchX, dispatchY, dispatchZ);
 }
 
-ComputeNode& RenderGraph::add_compute_node(std::string_view label, std::string_view shader_path)
+void RenderGraph::execute_raster_node(RasterNode& node)
 {
-    ComputeNode* node = new ComputeNode(label, shader_path);
+    const FrameResources& frame = current_frame();
+
+    // get pipeline (create or fetch cached one)
+    const Pipeline& pipeline = m_pipelineCache.get_pipeline("shaders/spirv/", node);
+    vkCmdBindPipeline(frame.Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.Object);
+
+    // Bind Bindless Descriptor Set
+    vkCmdBindDescriptorSets(frame.Cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.Layout, 0u, 1u, &nijiEngine.m_renderer.m_resourceBank.m_bindlessSet, 0u, nullptr);
+
+    // Find Attachment Resources
+    std::vector<VkRenderingAttachmentInfoKHR> colorAttachments {};
+    int minRasterW = INT32_MAX, minRasterH = INT32_MAX;
+    for (const Dependency& dep : node.m_dependencies)
+    {
+        if (dep.Usage != DependencyUsage::ColorAttachment)
+            continue;
+
+        // Handle Render Target Attachments
+        VkImageView attachmentView = VK_NULL_HANDLE;
+        if (dep.Resource.Type == ResourceType::RenderTarget)
+        {
+            RenderTargetHandle rtHandle = reinterpret_cast<const RenderTargetHandle&>(dep.Resource);
+            const RenderTarget& rt = nijiEngine.m_renderer.m_resourceBank.m_renderTargets.get(rtHandle);
+            attachmentView = rt.ImageViews[rt.CurrentImage];
+            minRasterW = std::min(minRasterW, (int)rt.Extent.width);
+            minRasterH = std::min(minRasterH, (int)rt.Extent.height);
+        }
+        else // Otherwise Handle Texture
+        {
+            TextureHandle texHandle = reinterpret_cast<const TextureHandle&>(dep.Resource);
+            const Texture& tex = nijiEngine.m_renderer.m_resourceBank.m_textures.get(texHandle);
+            if (has_flag(tex.Desc.Usage, TextureUsage::ColorAttachment) == false)
+                continue;
+            attachmentView = tex.FullView.View;
+            minRasterW = std::min(minRasterW, (int)tex.Desc.Size.X);
+            minRasterH = std::min(minRasterH, (int)tex.Desc.Size.Y);
+        }
+
+        // Attachment Info 
+        VkRenderingAttachmentInfoKHR attachment {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+        attachment.imageView = attachmentView;
+        attachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        attachment.loadOp = translate::load_operation(node.m_pixelLoadOp);
+        attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachments.emplace_back(attachment);
+    }
+
+    // DepthStencil Attachment
+    VkRenderingAttachmentInfoKHR depthAttachment {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    VkRenderingAttachmentInfoKHR stencilAttachment {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+    if (node.m_depthStencilImage.is_valid())
+    {
+        TextureHandle depthTexHandle = reinterpret_cast<const TextureHandle&>(node.m_depthStencilImage);
+        const Texture& depthTex = nijiEngine.m_renderer.m_resourceBank.m_textures.get(depthTexHandle);
+        depthAttachment.imageView = depthTex.FullView.View;
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        depthAttachment.loadOp = translate::load_operation(node.m_depthLoadOp);
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachment.clearValue.depthStencil = {1.0f, 0};
+
+        // Stencil Attachment
+        if (translate::is_stencil_format(depthTex.Desc.Format))
+        {
+            stencilAttachment.imageView = depthTex.FullView.View;
+            stencilAttachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            stencilAttachment.loadOp = translate::load_operation(node.m_stencilState.Load);
+            stencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            stencilAttachment.clearValue.depthStencil = {1.0f, 0};
+        }
+    }
+
+    // Get the Render Area
+    VkRect2D renderArea {};
+    renderArea.offset = {(int)node.m_rasterX, (int)node.m_rasterY};
+    renderArea.extent = {node.m_rasterW, node.m_rasterH};
+    if (minRasterW < renderArea.extent.width || minRasterH < renderArea.extent.height)
+    {
+        printf("Can't Render Into Attachment Smaller Than Extent Size!");
+    }
+
+    // Rendering Info 
+    VkRenderingInfoKHR rendering {VK_STRUCTURE_TYPE_RENDERING_INFO};
+    rendering.renderArea = renderArea;
+    rendering.layerCount = 1u;
+    rendering.colorAttachmentCount = (uint32_t)colorAttachments.size();
+    rendering.pColorAttachments = colorAttachments.data();
+    if (node.m_depthStencilImage.is_valid())
+        rendering.pDepthAttachment = &depthAttachment;
+    rendering.pStencilAttachment = &stencilAttachment;
+    
+    // Begin Rendering
+    VKCmdBeginRenderingKHR(frame.Cmd, &rendering);
+
+    VkViewport viewport {};
+    viewport.x = (float)renderArea.offset.x;
+    viewport.y = (float)renderArea.offset.y;
+    viewport.width = (float)renderArea.extent.width;
+    viewport.height = (float)renderArea.extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    const VkRect2D scissor = renderArea;
+
+    // Set the Viewport and Scissor
+    vkCmdSetViewport(frame.Cmd, 0u, 1u, &viewport);
+    vkCmdSetScissor(frame.Cmd, 0u, 1u, &scissor);
+
+    // Loop Over All Draw Calls
+    for (const DrawCall& drawCall : node.m_draws)
+    {
+        // Resolve this draw call's vertex buffer to its BDA and inject into push constants
+        if (drawCall.VertexBuffer.is_valid())
+        {
+            const VkDeviceAddress vertexAddress = nijiEngine.m_renderer.m_resourceBank.get_buffer_address(drawCall.VertexBuffer);
+
+            // Patch the Vertex Address into the Node's Push Data at the Recorded Offset
+            std::memcpy(node.m_pcData + node.m_vbInjectOffset, &vertexAddress, sizeof(VkDeviceAddress));
+
+            // Upload Push Constants
+            vkCmdPushConstants(frame.Cmd, pipeline.Layout, translate::to_vk_shader_stages(node.m_pcStages), node.m_rangeOffset, node.m_rangeSize, node.m_pcData);
+        }
+
+        // Bind the Index Buffer
+        if (drawCall.IndexBuffer.is_valid())
+        {
+            const Buffer& indexBuffer = nijiEngine.m_renderer.m_resourceBank.m_buffers.get(drawCall.IndexBuffer);
+            vkCmdBindIndexBuffer(frame.Cmd, indexBuffer.Object, 0u, VK_INDEX_TYPE_UINT32);
+        }
+
+        // Indirect Draw
+        if (drawCall.IndirectBuffer.is_valid())
+        {
+            const Buffer& indirectBuffer = nijiEngine.m_renderer.m_resourceBank.m_buffers.get(drawCall.IndirectBuffer);
+            vkCmdDrawIndexedIndirect(frame.Cmd, indirectBuffer.Object, 0u, 1u, sizeof(VkDrawIndexedIndirectCommand));
+        }
+        else
+        {
+            // Direct indexed draw
+            vkCmdDrawIndexed(frame.Cmd, drawCall.IndexCount, drawCall.InstanceCount, 0u, drawCall.VertexOffset, drawCall.InstanceOffset);
+        }
+    }
+
+    // End Rendering
+    VKCmdEndRenderingKHR(frame.Cmd);
+}
+
+ComputeNode& RenderGraph::add_compute_node(std::string_view label, std::string_view shaderPath)
+{
+    ComputeNode* node = new ComputeNode(label, shaderPath);
+    m_nodes.emplace_back((Node*)node);
+    return *node;
+}
+
+RasterNode& RenderGraph::add_raster_node(std::string_view label, std::string_view shaderPath)
+{
+    RasterNode* node = new RasterNode(label, shaderPath);
     m_nodes.emplace_back((Node*)node);
     return *node;
 }
@@ -305,8 +461,8 @@ void RenderGraph::execute()
             break;
         }
         case NodeType::Raster: {
-            //RasterNode& rasterNode = *(RasterNode*)node;
-            //execute_raster_node(rasterNode);
+            RasterNode& rasterNode = *(RasterNode*)node;
+            execute_raster_node(rasterNode);
             break;
         }
         }

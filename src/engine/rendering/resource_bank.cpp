@@ -506,27 +506,26 @@ TextureHandle ResourceBank::create_texture(TextureDesc desc)
     imageBarrier.subresourceRange = texture.Data.FullView.SubRange;
     texture.Data.Layout = imageBarrier.newLayout; // Update Internal Layout to the New Layout
 
-    //// Image Dependency Info
-    // VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    // depInfo.imageMemoryBarrierCount = 1u;
-    // depInfo.pImageMemoryBarriers = &imageBarrier;
+    // Image Dependency Info
+     VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+     depInfo.imageMemoryBarrierCount = 1u;
+     depInfo.pImageMemoryBarriers = &imageBarrier;
 
-    // if (begin_upload_cmd() == false)
-    //     assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
+     if (begin_upload_cmd() == false)
+         assert(!"[Resource Bank] Failed to Begin Upload Command Buffer (create_texture)"); // Begin Recording Commands
 
-    // VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+     VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
 
-    // if (end_upload_cmd() == false)
-    //     assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
+     if (end_upload_cmd() == false)
+         assert(!"[Resource Bank] Failed to End Upload Command Buffer (create_texture)"); // End Recording Commands
 
-    // TODO: RE ENABLE
-    // if (desc.ShowInImGui)
-    //{
-    //    Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
-    //
-    //    texture.Data.ImGuiHandle =
-    //        ImGui_ImplVulkan_AddTexture(sampler.Object, texture.Data.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
-    //}
+     if (desc.ShowInImGui)
+    {
+        Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
+    
+        texture.Data.ImGuiHandle =
+            ImGui_ImplVulkan_AddTexture(sampler.Object, texture.Data.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
+    }
 
     return texture.Handle;
 }

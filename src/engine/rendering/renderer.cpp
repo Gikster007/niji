@@ -15,10 +15,12 @@ using namespace niji;
 #include "core/components/render-components.hpp"
 #include "core/components/transform.hpp"
 #include "core/logger.hpp"
+#include "core/editor/editor.hpp"
 
 #include "resource_bank.hpp"
 #include "rendergraph/rendergraph.hpp"
 #include "rendergraph/nodes/compute_node.hpp"
+#include "rendergraph/nodes/raster_node.hpp"
 
 #include "model/model.hpp"
 
@@ -252,34 +254,53 @@ void Renderer::render()
     // clang-format off
     // Record Passes
 
-    struct Constants 
-    {
-        uint32_t tex {};
-        uint32_t viewport {};
-        uint32_t rt {};
-    } pc {};
-
-    pc.tex = m_fallbackTexture.Index;
-    pc.viewport = m_renderInfo.ViewportTexture.Index;
-    pc.rt = 0u;
+    //struct Constants 
+    //{
+    //    uint32_t tex {};
+    //    uint32_t viewport {};
+    //    uint32_t rt {};
+    //} pc {};
+    //
+    //pc.tex = m_fallbackTexture.Index;
+    //pc.viewport = m_renderInfo.ViewportTexture.Index;
+    //pc.rt = 0u;
 
     static bool open = true;
-    ImGui::ShowDemoWindow(&open);
+    ImGui::ShowMetricsWindow(&open);
 
-    m_renderGraph.add_compute_node("fox shader", "fox_cs")
-                 .read(m_fallbackTexture)
-                 .write(m_renderInfo.ViewportTexture)
-                 .push_constants(&pc, 0u, sizeof(Constants))
-                 .group_size(8u, 8u, 1u)
-                 .work_size(1920u, 1080u, 1u);
-    
-    m_renderGraph.add_compute_node("cow shader", "cow_cs")
-                 .read(m_renderInfo.ViewportTexture)
-                 .write(m_renderInfo.RenderTarget, offsetof(Constants, rt))
-                 .push_constants(&pc, 0u, sizeof(Constants))
-                 .group_size(8u, 8u, 1u)
-                 .work_size(1920u, 1080u, 1u);
+    //m_renderGraph.add_compute_node("fox shader", "fox_cs")
+    //             .read(m_fallbackTexture)
+    //             .write(m_renderInfo.ViewportTexture)
+    //             .push_constants(&pc, 0u, sizeof(Constants))
+    //             .group_size(8u, 8u, 1u)
+    //             .work_size(1920u, 1080u, 1u);
+    //
+
+    struct RasterPush
+    {
+        uint64_t   vertices;   // 8 bytes — graph injects the BDA here
+    } pc {};
+
+    m_renderGraph.add_raster_node("raster pass", "test")
+                 .input_rate(VertexInputRate::Vertex)
+                 .load_op_color(LoadOp::Clear)
+                 .load_op_depth(LoadOp::Clear)
+                 .topology(Topology::TriangleList)
+                 .depth_stencil(m_renderInfo.DepthTexture)
+                 .attach(m_renderInfo.ViewportTexture)
+                 .raster_extent(1920u, 1080u)
+                 .push_constants(&pc, 0u, sizeof(RasterPush), DependencyStages::Vertex)
+                 .draw(m_cube.m_vertexBuffer, 0u, m_cube.m_indexBuffer, m_cube.m_indexCount);
+
+    //m_renderGraph.add_compute_node("cow shader", "cow_cs")
+    //             .read(m_renderInfo.ViewportTexture)
+    //             .write(m_renderInfo.RenderTarget, offsetof(Constants, rt))
+    //             .push_constants(&pc, 0u, sizeof(Constants))
+    //             .group_size(8u, 8u, 1u)
+    //             .work_size(1920u, 1080u, 1u);
     // clang-format on
+
+    nijiEngine.m_editor.render();
 
     // Topological Sort
     // ...

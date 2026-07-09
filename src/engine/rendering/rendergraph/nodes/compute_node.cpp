@@ -11,8 +11,8 @@ inline uint32_t align_pc_size(uint32_t size)
     return (size + 3u) & ~3u;
 }
 
-ComputeNode::ComputeNode(std::string_view label, std::string_view shader_path)
-    : Node(label, NodeType::Compute), m_computePath(shader_path)
+ComputeNode::ComputeNode(std::string_view label, std::string_view shaderPath)
+    : Node(label, NodeType::Compute), m_computePath(shaderPath)
 {
 }
 

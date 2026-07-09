@@ -46,7 +46,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         add_custom_command(
             OUTPUT ${COMPUTE_OUT}
             COMMAND ${CMAKE_COMMAND} -E echo "Compiling compute shader: ${FILE_NAME}"
-            COMMAND slangc ${SLANG_FILE} -entry compute_main -profile cs_6_0 -target spirv -o ${COMPUTE_OUT} -g
+            COMMAND slangc ${SLANG_FILE} -entry compute_main -profile spirv_1_6 -emit-spirv-directly -fvk-use-scalar-layout -target spirv -o ${COMPUTE_OUT} -g
             DEPENDS ${SLANG_FILE}
             VERBATIM
         )
@@ -58,7 +58,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         add_custom_command(
             OUTPUT ${FRAGMENT_OUT}
             COMMAND ${CMAKE_COMMAND} -E echo "Compiling Fragment shader: ${FILE_NAME}"
-            COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile ps_6_0 -target spirv -o ${FRAGMENT_OUT} -g
+            COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile spirv_1_6 -emit-spirv-directly -fvk-use-scalar-layout -target spirv -o ${FRAGMENT_OUT} -g
             DEPENDS ${SLANG_FILE}
             VERBATIM
         )
@@ -70,7 +70,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         add_custom_command(
             OUTPUT ${VERT_OUT}
             COMMAND ${CMAKE_COMMAND} -E echo "Compiling vertex shader: ${FILE_NAME}"
-            COMMAND slangc ${SLANG_FILE} -entry vertex_main -profile vs_6_0 -target spirv -o ${VERT_OUT} -g 
+            COMMAND slangc ${SLANG_FILE} -entry vertex_main -profile spirv_1_6 -emit-spirv-directly -fvk-use-scalar-layout -target spirv -o ${VERT_OUT} -g 
             DEPENDS ${SLANG_FILE}
             VERBATIM
         )
@@ -81,7 +81,7 @@ foreach(SLANG_FILE ${SLANG_FILES})
         add_custom_command(
             OUTPUT ${FRAG_OUT}
             COMMAND ${CMAKE_COMMAND} -E echo "Compiling fragment shader: ${FILE_NAME}"
-            COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile ps_6_0 -target spirv -o ${FRAG_OUT} -g
+            COMMAND slangc ${SLANG_FILE} -entry fragment_main -profile spirv_1_6 -emit-spirv-directly -fvk-use-scalar-layout -target spirv -o ${FRAG_OUT} -g
             DEPENDS ${SLANG_FILE}
             VERBATIM
         )

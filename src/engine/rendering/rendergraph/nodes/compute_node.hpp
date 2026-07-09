@@ -9,7 +9,7 @@ class ComputeNode : public Node
 {
   public:
     ComputeNode() = default;
-    ComputeNode(std::string_view label, std::string_view shader_path);
+    ComputeNode(std::string_view label, std::string_view shaderPath);
     ~ComputeNode();
 
     // Add a Bindable Resource as an Output (pcOffset is defaulted to UINT32_MAX    -
