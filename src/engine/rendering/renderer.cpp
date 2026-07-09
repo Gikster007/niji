@@ -188,10 +188,28 @@ void Renderer::init()
 void Renderer::update(const float dt)
 {
     update_uniform_buffer();
+    
+    // Resize Screen Textures
+    if (m_context->m_framebufferResized)
+    {
+        int w, h;
+        m_context->get_window_size(w, h);
+
+        if (w == 0 || h == 0)
+            return;
+
+        const Size3D newSize = {(uint32_t)w, (uint32_t)h, 0u};
+
+        m_resourceBank.resize_texture(m_renderInfo.DepthTexture, newSize);
+        m_resourceBank.resize_texture(m_renderInfo.ViewportTexture, newSize);
+    }
 }
 
 void Renderer::render()
 {
+    int winWidth, winHeight;
+    m_context->get_window_size(winWidth, winHeight);
+
     // Begin New Frame
     m_renderGraph.new_frame();
 
@@ -236,7 +254,7 @@ void Renderer::render()
                  .read(m_cameraData, DependencyStages::Vertex)
                  .depth_stencil(m_renderInfo.DepthTexture)
                  .attach(m_renderInfo.ViewportTexture)
-                 .raster_extent(1920u, 1080u)
+                 .raster_extent((uint32_t)winWidth, (uint32_t)winHeight)
                  .push_constants(&pc, 0u, sizeof(RasterPush), DependencyStages::Vertex)
                  .draw(m_cube.m_vertexBuffer, 0u, m_cube.m_indexBuffer, m_cube.m_indexCount);
 
