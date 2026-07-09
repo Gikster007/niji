@@ -212,7 +212,7 @@ void RenderGraph::execute_raster_node(RasterNode& node)
             minRasterH = std::min(minRasterH, (int)tex.Desc.Size.Y);
         }
 
-        // Attachment Info 
+        // Attachment Info
         VkRenderingAttachmentInfoKHR attachment {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
         attachment.imageView = attachmentView;
         attachment.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -254,7 +254,7 @@ void RenderGraph::execute_raster_node(RasterNode& node)
         printf("Can't Render Into Attachment Smaller Than Extent Size!");
     }
 
-    // Rendering Info 
+    // Rendering Info
     VkRenderingInfoKHR rendering {VK_STRUCTURE_TYPE_RENDERING_INFO};
     rendering.renderArea = renderArea;
     rendering.layerCount = 1u;
@@ -263,7 +263,7 @@ void RenderGraph::execute_raster_node(RasterNode& node)
     if (node.m_depthStencilImage.is_valid())
         rendering.pDepthAttachment = &depthAttachment;
     rendering.pStencilAttachment = &stencilAttachment;
-    
+
     // Begin Rendering
     VKCmdBeginRenderingKHR(frame.Cmd, &rendering);
 
@@ -350,9 +350,15 @@ void RenderGraph::execute()
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
-        // m_swapchain.recreate();
-        //  TODO: re-implement swapchain recreation
-        printf("[Renderer] acquire returned OUT_OF_DATE \n");
+        int w, h;
+        nijiEngine.m_context.get_window_size(w, h);
+
+        if (w == 0 || h == 0)
+            return;
+
+        nijiEngine.m_renderer.m_resourceBank.resize_render_target(m_renderTarget, rt.Extent.width, rt.Extent.height);
+        nijiEngine.m_context.m_framebufferResized = false;
+        printf("[Renderer] acquire returned OUT_OF_DATE. \n");
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -518,7 +524,6 @@ void RenderGraph::execute()
 
     vkEndCommandBuffer(frame.Cmd);
 
-    // TODO: Remember to add vkWaitForFence call
     if (vkResetFences(nijiEngine.m_context.m_device, 1u, &frame.Fence) != VK_SUCCESS)
     {
         printf("Failed to Reset Graph In-Flight Fence!");
@@ -557,8 +562,15 @@ void RenderGraph::execute()
         // m_swapchain.recreate();
         //  TODO: re-implement swapchain recreation
         nijiEngine.m_context.m_framebufferResized = false;
+        int w, h;
+        nijiEngine.m_context.get_window_size(w, h);
 
-        printf("[Renderer] acquire returned OUT_OF_DATE \n");
+        if (w == 0 || h == 0)
+            return;
+
+        nijiEngine.m_renderer.m_resourceBank.resize_render_target(m_renderTarget, (uint32_t)w, (uint32_t)h);
+
+        printf("[Renderer] QueuePresent Returned OUT_OF_DATE. Render Target Has Been Resized! \n");
         return;
     }
     else if (result != VK_SUCCESS)

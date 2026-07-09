@@ -65,6 +65,13 @@ class ResourceBank
     void upload_texture(TextureHandle handle, const void* data, uint64_t size);
     // Upload to a Buffer Resource
     void upload_buffer(BufferHandle handle, const void* data, uint64_t dstOffset, uint64_t size);
+    
+    // Resize a Render Target
+    void resize_render_target(RenderTargetHandle handle, uint32_t width, uint32_t height);
+    // Resize a Texture
+    void resize_texture(TextureHandle handle, Size3D size);
+    // Resize a Buffer
+    void resize_buffer(BufferHandle handle, uint64_t count, uint64_t stride = 0u);
 
     // Returns the Memory Address of the Given Buffer
     // Can be Directly Accessed on the GPU (hint: pass via Push Constants)

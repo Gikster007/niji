@@ -85,6 +85,12 @@ RasterNode& RasterNode::topology(Topology type)
     return *this;
 }
 
+RasterNode& RasterNode::cull_mode(CullMode mode)
+{
+    m_cullMode = mode;
+    return *this;
+}
+
 RasterNode& RasterNode::load_op_color(LoadOp op)
 {
     m_pixelLoadOp = op;

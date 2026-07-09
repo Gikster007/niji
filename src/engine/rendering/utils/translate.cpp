@@ -282,5 +282,22 @@ VkShaderStageFlags stage_flags(DependencyStages stages)
     return flags;
 }
 
+VkCullModeFlags cull_mode(CullMode mode)
+{
+    switch (mode)
+    {
+    case niji::CullMode::None:
+        return VK_CULL_MODE_NONE;
+    case niji::CullMode::Front:
+        return VK_CULL_MODE_FRONT_BIT;
+    case niji::CullMode::Back:
+        return VK_CULL_MODE_BACK_BIT;
+    case niji::CullMode::FrontAndBack:
+        return VK_CULL_MODE_FRONT_AND_BACK;
+    default:
+        return VK_CULL_MODE_NONE;
+    }
+}
+
 } // namespace translate
 } // namespace niji

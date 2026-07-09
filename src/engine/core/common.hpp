@@ -72,9 +72,9 @@ struct MaterialInfo
 
 struct CameraData
 {
-    alignas(16) glm::mat4 View = {};
-    alignas(16) glm::mat4 Proj = {};
-    alignas(16) glm::vec3 Pos = {};
+    glm::mat4 View = {};
+    glm::mat4 Proj = {};
+    glm::vec3 Pos = {};
 };
 struct ModelData
 {

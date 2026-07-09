@@ -219,7 +219,7 @@ Pipeline PipelineCache::get_pipeline(const std::string_view path, const RasterNo
     // Pipeline Rasterizer State
     VkPipelineRasterizationStateCreateInfo rasterState {VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
     rasterState.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterState.cullMode = VK_CULL_MODE_NONE;
+    rasterState.cullMode = translate::cull_mode(node.m_cullMode);
     rasterState.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterState.lineWidth = 1.0f;
 

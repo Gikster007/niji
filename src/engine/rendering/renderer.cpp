@@ -2,7 +2,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-
 #include <imgui.h>
 #include <stb_image.h>
 #include <backends/imgui_impl_glfw.h>
@@ -178,47 +177,6 @@ void Renderer::init()
         m_cube = Mesh(vertices, indices);
     }
 
-    // int width = 0, height = 0;
-    // nijiEngine.m_context.get_window_size(width, height);
-
-    // uint32_t totalThreadsX = ceil((float)width / GROUP_SIZE);
-    // uint32_t totalThreadsY = ceil((float)height / GROUP_SIZE);
-    // glm::u32vec2 totalThreads = {totalThreadsX, totalThreadsY};
-    //// Create Light Grid RWTexture
-    //{
-
-    //    TextureDesc desc = {};
-    //    desc.Width = totalThreads.x;
-    //    desc.Height = totalThreads.y;
-    //    desc.Channels = 2;
-    //    desc.IsMipMapped = false;
-    //    desc.Data = nullptr;
-    //    desc.Format = VK_FORMAT_R32G32_UINT;
-    //    desc.MemoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-    //    desc.Usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    //    desc.IsReadWrite = true;
-    //    desc.ShowInImGui = true;
-    //    m_lightGridTexture = Texture(desc);
-    //}
-
-    //// Create Light Index List Buffer
-    //{
-    //    VkDeviceSize bufferSize = sizeof(LightIndexList);
-    //    m_lightIndexList.resize(MAX_FRAMES_IN_FLIGHT);
-    //    const uint32_t totalTiles = totalThreads.x * totalThreads.y;
-    //    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    //    {
-    //        LightIndexList buffer = {};
-    //        buffer.counter = 0;
-    //        BufferDesc bufferDesc = {};
-    //        bufferDesc.IsPersistent = true;
-    //        bufferDesc.Name = "Light Index List Buffer";
-    //        bufferDesc.Size = sizeof(LightIndexList) * totalTiles * MAX_LIGHTS_PER_TILE;
-    //        bufferDesc.Usage = BufferDesc::BufferUsage::Storage;
-    //        m_lightIndexList[i] = Buffer(bufferDesc, &buffer);
-    //    }
-    //}
-
     nijiEngine.m_logger.log_info("Info Test");
     nijiEngine.m_logger.log_warning("Warning Test");
     nijiEngine.m_logger.log_error("Error Test");
@@ -229,21 +187,7 @@ void Renderer::init()
 
 void Renderer::update(const float dt)
 {
-    // ImGui_ImplVulkan_NewFrame();
-    // ImGui_ImplGlfw_NewFrame();
-    // ImGui::NewFrame();
-
-    // VkFence frameFence = m_inFlightFences[m_currentFrame];
-    // vkWaitForFences(m_context->m_device, 1, &frameFence, VK_TRUE, UINT64_MAX);
-    // vkResetFences(m_context->m_device, 1, &frameFence);
-
-    // auto& cmd = m_commandBuffers[m_currentFrame];
-    // cmd.begin_list("Frame Commmand Buffer");
-
-    // for (auto& pass : m_renderPasses)
-    //{
-    //     pass->update(*this, cmd);
-    // }
+    update_uniform_buffer();
 }
 
 void Renderer::render()
@@ -278,14 +222,18 @@ void Renderer::render()
 
     struct RasterPush
     {
-        uint64_t   vertices;   // 8 bytes — graph injects the BDA here
+        uint64_t   vertices;
+        uint64_t   cameraData;
     } pc {};
 
+    pc.cameraData = m_resourceBank.get_buffer_address(m_cameraData);
+
     m_renderGraph.add_raster_node("raster pass", "test")
-                 .input_rate(VertexInputRate::Vertex)
+                 .topology(Topology::TriangleList)
+                 .cull_mode(CullMode::Back)
                  .load_op_color(LoadOp::Clear)
                  .load_op_depth(LoadOp::Clear)
-                 .topology(Topology::TriangleList)
+                 .read(m_cameraData, DependencyStages::Vertex)
                  .depth_stencil(m_renderInfo.DepthTexture)
                  .attach(m_renderInfo.ViewportTexture)
                  .raster_extent(1920u, 1080u)
@@ -347,34 +295,34 @@ void Renderer::update_uniform_buffer()
         m_resourceBank.upload_buffer(m_cameraData, &ubo, 0u, sizeof(CameraData));
     }
 
-    {
-        std::vector<Sphere> pointLightsArray = {};
-        {
-            auto pointLightView = nijiEngine.ecs.m_registry.view<PointLight>();
-            for (const auto& [ent, pointLight] : pointLightView.each())
-            {
-                if (pointLightsArray.size() < MAX_POINT_LIGHTS)
-                {
-                    Sphere s = {};
-                    glm::vec4 centerWS = glm::vec4(pointLight.Position, 1.0f);
-                    s.Center = glm::vec3(camera.GetViewMatrix() * centerWS);
-                    // printf("World Space Pos: %f, %f, %f \n", centerWS.x, centerWS.y, centerWS.z);
-                    // printf("View Space Pos: %f, %f, %f \n", s.Center.x, s.Center.y, s.Center.z);
-                    s.Radius = pointLight.Range;
-                    pointLightsArray.push_back(s);
-                }
-            }
-            m_resourceBank.upload_buffer(m_spheres, pointLightsArray.data(), 0u, sizeof(Sphere) * pointLightsArray.size());
-        }
+    //{
+    //    std::vector<Sphere> pointLightsArray = {};
+    //    {
+    //        auto pointLightView = nijiEngine.ecs.m_registry.view<PointLight>();
+    //        for (const auto& [ent, pointLight] : pointLightView.each())
+    //        {
+    //            if (pointLightsArray.size() < MAX_POINT_LIGHTS)
+    //            {
+    //                Sphere s = {};
+    //                glm::vec4 centerWS = glm::vec4(pointLight.Position, 1.0f);
+    //                s.Center = glm::vec3(camera.GetViewMatrix() * centerWS);
+    //                // printf("World Space Pos: %f, %f, %f \n", centerWS.x, centerWS.y, centerWS.z);
+    //                // printf("View Space Pos: %f, %f, %f \n", s.Center.x, s.Center.y, s.Center.z);
+    //                s.Radius = pointLight.Range;
+    //                pointLightsArray.push_back(s);
+    //            }
+    //        }
+    //        m_resourceBank.upload_buffer(m_spheres, pointLightsArray.data(), 0u, sizeof(Sphere) * pointLightsArray.size());
+    //    }
 
-        auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
-        for (const auto& [ent, dirLight] : dirLightView.each())
-        {
-            SceneInfo sceneInfo = {};
-            sceneInfo.DirLight = dirLight;
-            sceneInfo.PointLightCount = pointLightsArray.size();
+    //    auto dirLightView = nijiEngine.ecs.m_registry.view<DirectionalLight>();
+    //    for (const auto& [ent, dirLight] : dirLightView.each())
+    //    {
+    //        SceneInfo sceneInfo = {};
+    //        sceneInfo.DirLight = dirLight;
+    //        sceneInfo.PointLightCount = pointLightsArray.size();
 
-            m_resourceBank.upload_buffer(m_sceneInfoBuffer, &sceneInfo, 0u, sizeof(SceneInfo));
-        }
-    }
+    //        m_resourceBank.upload_buffer(m_sceneInfoBuffer, &sceneInfo, 0u, sizeof(SceneInfo));
+    //    }
+    //}
 }

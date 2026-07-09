@@ -10,22 +10,20 @@ namespace niji
 
 struct DrawCall;
 
-// Vertex Attribute Format
-enum class AttributeFormat : uint32_t
-{
-    Invalid = 0u, // Invalid vertex attribute format
-    X32SFloat,    // X 32 bits per channel, signed float
-    XY32SFloat,   // XY 32 bits per channel, signed float
-    XYZ32SFloat,  // XYZ 32 bits per channel, signed float
-    XYZW32SFloat, // XYZW 32 bits per channel, signed float
-};
-
 // Vertex Primitive Topology
 enum class Topology : uint32_t
 {
     Invalid = 0u, // Invalid primitive topology
     TriangleList, // List of triangles
     LineList,     // List of lines
+};
+
+enum class CullMode : uint32_t
+{
+    None,
+    Front,       // Cull Front Face Triangles
+    Back,        // Cull Back Face Triangles
+    FrontAndBack // Cull Front and Back Face Triangles
 };
 
 // Pixel Load Operation
@@ -100,6 +98,9 @@ class RasterNode : public Node
     // Set the Vertex Primitive Topology of the Pass
     RasterNode& topology(Topology type);
 
+    // Set the Vertex Cull Mode of the Pass
+    RasterNode& cull_mode(CullMode mode);
+
     // Set the Pixel Load Operation of the Pass
     RasterNode& load_op_color(LoadOp op);
 
@@ -133,7 +134,8 @@ class RasterNode : public Node
     RasterNode& raster_extent(uint32_t width, uint32_t height, uint32_t x = 0u, uint32_t y = 0u);
 
     // Create a Draw Call for this Raster Pass
-    DrawCall& draw(BufferHandle vertexBuffer, uint32_t vertexBufferPushOffset, BufferHandle indexBuffer, uint32_t indexCount, uint32_t vertexOffset = 0u, uint32_t instanceCount = 1u, uint32_t instanceOffset = 0u);
+    DrawCall& draw(BufferHandle vertexBuffer, uint32_t vertexBufferPushOffset, BufferHandle indexBuffer, uint32_t indexCount, uint32_t vertexOffset = 0u, uint32_t instanceCount = 1u,
+                   uint32_t instanceOffset = 0u);
 
     // Create an Indirect Draw Call for this Raster Pass
     DrawCall& draw_indirect(BufferHandle vertexBuffer, BufferHandle indexBuffer, BufferHandle indirectBuffer);
@@ -143,6 +145,7 @@ class RasterNode : public Node
     std::string_view m_shaderPath {};
 
     Topology m_topology = Topology::Invalid;
+    CullMode m_cullMode = CullMode::None;
     LoadOp m_pixelLoadOp = LoadOp::Load;
     VertexInputRate m_vertexInputRate = VertexInputRate::Vertex;
     bool m_alphaBlend = false;

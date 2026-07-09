@@ -63,5 +63,8 @@ VkAttachmentLoadOp load_operation(const LoadOp op);
 // Convert From Agnostic Dependency Stages to Vulkan Shader Stages
 VkShaderStageFlags stage_flags(DependencyStages stages);
 
+// Convert From Agnostic Cull Mode to Vulkan Cull Mode
+VkCullModeFlags cull_mode(CullMode mode);
+
 }
 } // namespace niji

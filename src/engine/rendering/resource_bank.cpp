@@ -741,6 +741,269 @@ void ResourceBank::upload_buffer(BufferHandle handle, const void* data, uint64_t
     vmaDestroyBuffer(m_allocator, stagingBuffer, alloc);
 }
 
+void ResourceBank::resize_render_target(RenderTargetHandle handle, uint32_t width, uint32_t height)
+{
+    const Context& context = nijiEngine.m_context;
+    vkDeviceWaitIdle(context.m_device);
+
+    RenderTarget& rt = m_renderTargets.get(handle);
+
+    const SwapchainSupportDetails support = SwapchainSupportDetails::query_swapchain_support(context.m_physicalDevice, context.m_surface);
+
+    // Set Extent
+    if (support.Capabilities.currentExtent.width != (std::numeric_limits<uint32_t>::max)())
+    {
+        rt.Extent = support.Capabilities.currentExtent;
+    }
+    else
+    {
+        rt.Extent.width = std::clamp(width, support.Capabilities.minImageExtent.width, support.Capabilities.maxImageExtent.width);
+        rt.Extent.height = std::clamp(height, support.Capabilities.minImageExtent.height, support.Capabilities.maxImageExtent.height);
+    }
+
+    // Recreate Swapchain
+    VkSwapchainKHR oldSwapchain = rt.Handle;
+
+    VkSwapchainCreateInfoKHR createInfo {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    createInfo.surface = context.m_surface;
+    createInfo.minImageCount = rt.ImageCount;
+    createInfo.imageFormat = rt.SurfaceFormat;
+    createInfo.imageColorSpace = rt.ColorSpace;
+    createInfo.imageExtent = rt.Extent;
+    createInfo.imageArrayLayers = 1u;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    createInfo.presentMode = rt.PresentMode;
+    createInfo.clipped = VK_TRUE;
+    createInfo.oldSwapchain = oldSwapchain;
+
+    if (vkCreateSwapchainKHR(context.m_device, &createInfo, nullptr, &rt.Handle) != VK_SUCCESS)
+        assert(!"[Swapchain] Failed to Recreate Swapchain on Resize");
+
+    vkGetSwapchainImagesKHR(context.m_device, rt.Handle, &rt.ImageCount, nullptr);
+    rt.Images.resize(rt.ImageCount);
+    vkGetSwapchainImagesKHR(context.m_device, rt.Handle, &rt.ImageCount, rt.Images.data());
+
+    for (uint32_t i = 0u; i < rt.ImageCount; ++i)
+    {
+        vkDestroyImageView(context.m_device, rt.ImageViews[i], nullptr);
+
+        VkImageViewCreateInfo viewInfo {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        viewInfo.image = rt.Images[i];
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = rt.SurfaceFormat;
+        viewInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0u, 1u, 0u, 1u};
+
+        if (vkCreateImageView(context.m_device, &viewInfo, nullptr, &rt.ImageViews[i]) != VK_SUCCESS)
+            assert(!"[Swapchain] Failed to Recreate Image View on Resize");
+        const std::string viewName = "Swapchain Image View #" + std::to_string(i);
+        SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, rt.ImageViews[i], viewName.c_str());
+
+        rt.Layouts[i] = VK_IMAGE_LAYOUT_UNDEFINED; // new images start undefined
+
+        // Re-register Sampled Slot        
+        {
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView = rt.ImageViews[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet = m_bindlessSet;
+            write.dstBinding = BINDLESS_SAMPLED_IMAGES_BINDING;
+            write.dstArrayElement = m_textures.capacity() + i;
+            write.descriptorCount = 1u;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            write.pImageInfo = &imageInfo;
+            vkUpdateDescriptorSets(context.m_device, 1u, &write, 0u, nullptr);
+        }
+
+        // Re-register Storage Slot
+        {
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView = rt.ImageViews[i];
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet = m_bindlessSet;
+            write.dstBinding = BINDLESS_STORAGE_IMAGES_BINDING;
+            write.dstArrayElement = m_textures.capacity() * MAX_MIPS + i;
+            write.descriptorCount = 1u;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            write.pImageInfo = &imageInfo;
+            vkUpdateDescriptorSets(context.m_device, 1u, &write, 0u, nullptr);
+        }
+    }
+
+    vkDestroySwapchainKHR(context.m_device, oldSwapchain, nullptr);
+}
+
+void ResourceBank::resize_texture(TextureHandle handle, Size3D size)
+{
+    const Context& context = nijiEngine.m_context;
+    vkDeviceWaitIdle(context.m_device);
+
+    Texture& texture = m_textures.get(handle);
+    texture.Desc.Size = size;
+
+    if (texture.Desc.GenerateMips)
+    {
+        const uint32_t largest = std::max({size.X, size.Y, size.Z, 1u});
+        const uint32_t computed = static_cast<uint32_t>(std::floor(std::log2(largest))) + 1u;
+        texture.Desc.Mips = std::min(computed, MAX_MIPS);
+    }
+
+    const TextureDesc& desc = texture.Desc;
+    const VkFormat format = translate::texture_format(desc.Format);
+
+    // Destroy Old Views + Image
+    vkDestroyImageView(context.m_device, texture.FullView.View, nullptr);
+    for (ImageView& view : texture.MippedViews)
+        vkDestroyImageView(context.m_device, view.View, nullptr);
+    texture.MippedViews.clear();
+    vmaDestroyImage(m_allocator, texture.Image, texture.Allocation);
+
+    // Recreate Image
+    VkImageCreateInfo textureInfo {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    textureInfo.imageType = desc.Size.is_2d() ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_3D;
+    textureInfo.format = format;
+    textureInfo.extent = {std::max(desc.Size.X, 1u), std::max(desc.Size.Y, 1u), std::max(desc.Size.Z, 1u)};
+    textureInfo.mipLevels = std::max(1u, desc.Mips);
+    textureInfo.arrayLayers = std::max(1u, desc.Layers);
+    textureInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    textureInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    textureInfo.usage = translate::texture_usage(desc.Usage);
+    textureInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocInfo {};
+    allocInfo.flags = 0x00u;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    if (vmaCreateImage(m_allocator, &textureInfo, &allocInfo, &texture.Image, &texture.Allocation, nullptr) != VK_SUCCESS)
+        assert(!"[ResourceBank] Failed to Recreate Image on Resize");
+    vmaSetAllocationName(m_allocator, texture.Allocation, desc.Name.c_str());
+    SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE, texture.Image, desc.Name.c_str());
+
+    texture.Layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    // Recreate Full View
+    ImageViewDesc viewDesc {};
+    viewDesc.Format = desc.Format;
+    create_image_view(texture.FullView, texture.Image, viewDesc);
+    SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, texture.FullView.View, (desc.Name + " [Full View]").c_str());
+
+    // Re-register Sampled
+    if (has_flag(desc.Usage, TextureUsage::Sampled))
+    {
+        VkDescriptorImageInfo imageInfo {};
+        imageInfo.imageView = texture.FullView.View;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        write.dstSet = m_bindlessSet;
+        write.dstBinding = BINDLESS_SAMPLED_IMAGES_BINDING;
+        write.dstArrayElement = handle.Index - 1u;
+        write.descriptorCount = 1u;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        write.pImageInfo = &imageInfo;
+        vkUpdateDescriptorSets(context.m_device, 1u, &write, 0u, nullptr);
+    }
+
+    // Recreate Storage Mipped Views
+    if (has_flag(desc.Usage, TextureUsage::Storage))
+    {
+        texture.MippedViews.resize(std::max(1u, desc.Mips));
+        for (uint32_t mip = 0u; mip < texture.MippedViews.size(); ++mip)
+        {
+            ImageView& view = texture.MippedViews[mip];
+            ImageViewDesc mipDesc {};
+            mipDesc.Format = desc.Format;
+            mipDesc.BaseMip = mip;
+            mipDesc.Mips = 1u;
+            create_image_view(view, texture.Image, mipDesc);
+            SetObjectName(context.m_device, VK_OBJECT_TYPE_IMAGE_VIEW, view.View, (desc.Name + " [Storage Mip " + std::to_string(mip) + "]").c_str());
+
+            VkDescriptorImageInfo imageInfo {};
+            imageInfo.imageView = view.View;
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            VkWriteDescriptorSet write {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            write.dstSet = m_bindlessSet;
+            write.dstBinding = BINDLESS_STORAGE_IMAGES_BINDING;
+            write.dstArrayElement = (handle.Index - 1u) * MAX_MIPS + mip;
+            write.descriptorCount = 1u;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            write.pImageInfo = &imageInfo;
+            vkUpdateDescriptorSets(context.m_device, 1u, &write, 0u, nullptr);
+        }
+    }
+
+    // Transition UNDEFINED -> GENERAL
+    VkImageMemoryBarrier2 barrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+    barrier.srcAccessMask = VK_ACCESS_2_NONE;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.image = texture.Image;
+    barrier.subresourceRange = texture.FullView.SubRange;
+    texture.Layout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkDependencyInfo depInfo {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    depInfo.imageMemoryBarrierCount = 1u;
+    depInfo.pImageMemoryBarriers = &barrier;
+
+    if (begin_upload_cmd() == false)
+        assert(!"[ResourceBank] Failed to Begin Upload Command Buffer (resize_texture)");
+    VKCmdPipelineBarrier2KHR(m_uploadCmd, &depInfo);
+    if (end_upload_cmd() == false)
+        assert(!"[ResourceBank] Failed to End Upload Command Buffer (resize_texture)");
+
+    // Re-register ImGui Handle if Needed
+    if (desc.ShowInImGui)
+    {
+        // First Remove Texture to Prevent Descriptor Leak
+        ImGui_ImplVulkan_RemoveTexture(texture.ImGuiHandle);
+        Sampler& sampler = m_samplers.get(nijiEngine.m_renderer.m_globalSampler);
+        texture.ImGuiHandle = ImGui_ImplVulkan_AddTexture(sampler.Object, texture.FullView.View, VK_IMAGE_LAYOUT_GENERAL);
+    }
+}
+
+void ResourceBank::resize_buffer(BufferHandle handle, uint64_t count, uint64_t stride)
+{
+    const Context& context = nijiEngine.m_context;
+    vkDeviceWaitIdle(context.m_device);
+
+    Buffer& buffer = m_buffers.get(handle);
+
+    const uint64_t size = (stride == 0u) ? count : count * stride;
+    buffer.Desc.Size = size;
+
+    vmaDestroyBuffer(m_allocator, buffer.Object, buffer.Allocation);
+
+    VkBufferCreateInfo bufferInfo {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size = size;
+    bufferInfo.usage = translate::buffer_usage(buffer.Desc.Usage) | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocInfo {};
+    allocInfo.flags = 0x00u;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+    if (vmaCreateBuffer(m_allocator, &bufferInfo, &allocInfo, &buffer.Object, &buffer.Allocation, nullptr) != VK_SUCCESS)
+        assert(!"[ResourceBank] Failed to Recreate Buffer on Resize");
+    vmaSetAllocationName(m_allocator, buffer.Allocation, buffer.Desc.Name.c_str());
+    SetObjectName(context.m_device, VK_OBJECT_TYPE_BUFFER, buffer.Object, buffer.Desc.Name.c_str());
+
+    // Re-query Address
+    VkBufferDeviceAddressInfo addressInfo {};
+    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addressInfo.buffer = buffer.Object;
+    buffer.Address = vkGetBufferDeviceAddress(context.m_device, &addressInfo);
+}
+
 uint64_t ResourceBank::get_buffer_address(BufferHandle buffer) const
 {
     return (uint64_t)m_buffers.get(buffer).Address;
